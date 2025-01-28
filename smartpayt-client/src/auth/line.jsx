@@ -24,7 +24,7 @@ const Line = () =>{
 
     return(
         <div>
-            Line
+            Line 
         </div>
 
     )

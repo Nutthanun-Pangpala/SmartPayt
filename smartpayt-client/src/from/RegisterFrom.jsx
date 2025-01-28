@@ -1,9 +1,12 @@
+import liff from '@line/liff'; // Import the LIFF SDK
 import axios from 'axios';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../index.css';
 
 const RegisterForm = () => {
   const [formData, setFormData] = useState({
+    lineUserId: '',
+    name: '',
     ID_card_No: '',
     Phone_No: '',
     Email: '',
@@ -14,6 +17,34 @@ const RegisterForm = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  // Initialize LIFF and get the Line User ID
+  const initLiff = async () => {
+    try {
+      // Initialize LIFF with your LIFF ID (replace with your own LIFF ID)
+      await liff.init({ liffId: '2006592847-7XwNn0YG' });
+      
+      // Check if the user is logged in to LINE
+      if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile();
+        console.log(profile)
+        setFormData((prevData) => ({
+          ...prevData,
+          lineUserId: profile.userId, // Get LINE user ID
+          name: profile.displayName,  // Optionally get user's display name
+        }));
+      } else {
+        // If not logged in, prompt to login
+        liff.login();
+      }
+    } catch (error) {
+      console.error('LIFF Initialization failed', error);
+    }
+  };
+
+  useEffect(() => {
+    initLiff();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -23,33 +54,34 @@ const RegisterForm = () => {
     e.preventDefault();
     setError('');
     setMessage('');
-  
-    // ตรวจสอบว่าไม่มีข้อมูลใดๆ ขาด
+
+    // Validate the form data
     if (!formData.ID_card_No || !formData.Phone_No || !formData.Email || !formData.Home_ID || !formData.Address) {
       setError('กรุณากรอกข้อมูลให้ครบถ้วน');
       return;
     }
-  
+
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.Email)) {
+      setError('กรุณากรอกอีเมลให้ถูกต้อง');
+      return;
+    }
+
+    // Validate phone number length (10 digits)
+    if (formData.Phone_No.length !== 10) {
+      setError('กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก');
+      return;
+    }
+
     try {
-      // ส่งข้อมูลไปยัง API โดยไม่ใช้ data ซ้อน
-      const response = await axios.post('http://localhost:3000/api/register', {
-        ID_card_No: Number(formData.ID_card_No), // แปลงเป็นตัวเลข
-        Phone_No: Number(formData.Phone_No), // แปลงเป็นตัวเลข
-        Email: formData.Email,
-        Home_ID: formData.Home_ID,
-        Address: formData.Address, // ส่งเป็นข้อความธรรมดา
-      });
-  
-      // ตั้งข้อความสำเร็จ
+      const response = await axios.post('http://localhost:3000/api/register', formData);
       setMessage('ลงทะเบียนสำเร็จ!');
       console.log('Response data:', response.data);
     } catch (error) {
-      // แสดงข้อผิดพลาด
       if (error.response) {
-        // ถ้าเซิร์ฟเวอร์ตอบกลับข้อผิดพลาด
         setError(error.response.data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่');
       } else {
-        // ถ้าหากไม่มีการตอบกลับจากเซิร์ฟเวอร์
         setError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       }
       console.error('Registration error:', error);
@@ -57,8 +89,7 @@ const RegisterForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 drop-shadow-sm border rounded-xl ">
-
+    <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 drop-shadow-sm border rounded-xl">
       <div className="m-6">
         <label className="block text-gray-700 mb-2">บัตรประจำตัวประชาชน / ID Card Number</label>
         <input
@@ -69,12 +100,12 @@ const RegisterForm = () => {
           className="w-full px-3 py-2 border rounded-2xl"
           placeholder="เลขบัตรประจำตัวประชาชน..."
           maxLength="13"
-          pattern="\d*"
-          title="Please enter a valid ID card number."
+          inputMode="numeric"
+          onInput={(e) => e.target.value = e.target.value.replace(/\D/g, '')}
           required
         />
       </div>
-      
+
       <div className="m-6">
         <label className="block text-gray-700 mb-2">เบอร์โทรศัพท์ / Phone Number</label>
         <input
@@ -85,12 +116,12 @@ const RegisterForm = () => {
           className="w-full px-3 py-2 border rounded-2xl"
           placeholder="กรอกเบอร์โทรศัพท์..."
           maxLength="10"
-          pattern="\d*"
-          title="Please enter a valid phone number."
+          inputMode="numeric"
+          onInput={(e) => e.target.value = e.target.value.replace(/\D/g, '')}
           required
         />
       </div>
-      
+
       <div className="m-6">
         <label className="block text-gray-700 mb-2">Email</label>
         <input
@@ -103,7 +134,7 @@ const RegisterForm = () => {
           required
         />
       </div>
-      
+
       <div className="m-6">
         <label className="block text-gray-700 mb-2">บ้านเลขที่</label>
         <input
@@ -116,7 +147,7 @@ const RegisterForm = () => {
           required
         />
       </div>
-      
+
       <div className="m-5">
         <label className="block text-gray-700 mb-2">ที่อยู่</label>
         <textarea
@@ -128,7 +159,7 @@ const RegisterForm = () => {
           required
         ></textarea>
       </div>
-      
+
       <button type="submit" className="w-full my-5 bg-green-700 text-white py-2 rounded-full">
         ลงทะเบียน
       </button>

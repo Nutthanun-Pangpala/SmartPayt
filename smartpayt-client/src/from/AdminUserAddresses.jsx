@@ -9,7 +9,7 @@ const AdminUserAddresses = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/user-addresses');
+        const response = await axios.get('http://localhost:3000/api/');
         setUsers(response.data.data); // assuming response is in data.data format
       } catch (err) {
         setError('Error loading user data');
@@ -27,7 +27,7 @@ const AdminUserAddresses = () => {
 
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/user-address/${id}`, {
+      const response = await fetch(`http://localhost:3000/api/${id}`, {
         method: 'DELETE',
       });
   
