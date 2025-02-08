@@ -1,0 +1,10 @@
+CREATE DATABASE admindb;
+USE admindb;
+
+CREATE TABLE admins (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  admin_username VARCHAR(255) NOT NULL UNIQUE,
+  admin_password VARCHAR(255) NOT NULL
+);
+
+โค้ดที่ใช้เขียนเพิ่มเข้าไปใน my sql
