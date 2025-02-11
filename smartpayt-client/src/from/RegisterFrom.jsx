@@ -1,6 +1,7 @@
 import liff from '@line/liff'; // Import the LIFF SDK
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../index.css';
 
 const RegisterForm = () => {
@@ -12,34 +13,40 @@ const RegisterForm = () => {
     Email: '',
     Home_ID: '',
     Address: '',
+    access_token:'',
   });
 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   // Initialize LIFF and get the Line User ID
   const initLiff = async () => {
     try {
-      // Initialize LIFF with your LIFF ID (replace with your own LIFF ID)
-      await liff.init({ liffId: '2006592847-7XwNn0YG' });
-      
-      // Check if the user is logged in to LINE
-      if (liff.isLoggedIn()) {
-        const profile = await liff.getProfile();
-        console.log(profile)
-        setFormData((prevData) => ({
-          ...prevData,
-          lineUserId: profile.userId, // Get LINE user ID
-          name: profile.displayName,  // Optionally get user's display name
-        }));
-      } else {
-        // If not logged in, prompt to login
-        liff.login();
-      }
+        console.log("Initializing LIFF...");
+        await liff.init({ liffId: '2006592847-7XwNn0YG' });
+        console.log("LIFF initialized successfully");
+
+        if (liff.isLoggedIn()) {
+            const profile = await liff.getProfile();
+            const token = liff.getAccessToken();
+              console.log('LINE Profile:', profile,token);
+            setFormData((prevData) => ({
+                ...prevData,
+                lineUserId: profile.userId,
+                name: profile.displayName,
+                access_token: token,
+
+            }));
+        } else {
+            console.log("User not logged in. Prompting login...");
+            liff.login();
+        }
     } catch (error) {
-      console.error('LIFF Initialization failed', error);
+        console.error('LIFF Initialization failed ควยๆ', error);
+        setError('เกิดข้อผิดพลาดในการเริ่มต้น LIFF');
     }
-  };
+};
 
   useEffect(() => {
     initLiff();
@@ -54,30 +61,33 @@ const RegisterForm = () => {
     e.preventDefault();
     setError('');
     setMessage('');
-
-    // Validate the form data
+  
     if (!formData.ID_card_No || !formData.Phone_No || !formData.Email || !formData.Home_ID || !formData.Address) {
       setError('กรุณากรอกข้อมูลให้ครบถ้วน');
       return;
     }
-
-    // Validate email format
+  
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(formData.Email)) {
       setError('กรุณากรอกอีเมลให้ถูกต้อง');
       return;
     }
-
-    // Validate phone number length (10 digits)
+  
     if (formData.Phone_No.length !== 10) {
       setError('กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก');
       return;
     }
-
+  
     try {
       const response = await axios.post('http://localhost:3000/api/register', formData);
+      const { token } = response.data; // รับ JWT Token
+      localStorage.setItem('token', token); // บันทึก Token ลง Local Storage
+
+  
       setMessage('ลงทะเบียนสำเร็จ!');
-      console.log('Response data:', response.data);
+      setTimeout(() => {
+        navigate('/address');
+      }, 2000);
     } catch (error) {
       if (error.response) {
         setError(error.response.data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่');
