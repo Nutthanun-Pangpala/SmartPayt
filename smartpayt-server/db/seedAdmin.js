@@ -9,9 +9,9 @@ const addAdminUser = async () => {
         database: "admindb"
     });
 
-    const admin_username = "test1";
-    const plainPassword = "1234"; // รหัสผ่านที่เราต้องการตั้งค่า
-    const hashedPassword = await bcrypt.hash(plainPassword, 10); // เข้ารหัสรหัสผ่าน
+    const admin_username = "admin3";
+    const plainPassword = "5555"; // รหัสผ่านที่เราต้องการตั้งค่า
+    const hashedPassword = await bcrypt.hash(plainPassword, 4); // เข้ารหัสรหัสผ่าน
 
     try {
         await connection.execute(
