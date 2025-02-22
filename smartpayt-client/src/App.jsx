@@ -5,15 +5,14 @@ import './index.css';
 import AdminDashboard from "./pages/admin/AdminPage";
 import Login from './pages/login';
 import Register from './pages/RegisterPage';
-import AdminLogin from './pages/admin/Adminlogin'; // ✅ เพิ่มการนำเข้า AdminLogin
-
+import AdminLoginForm from './from/AdminLoginForm';
 
 const router = createBrowserRouter([
   { path: "/", element: <Register /> },
   { path: "/admin", element: <AdminDashboard /> },
   { path: "/login", element: <Login /> },
   { path: "/line", element: <Line /> },
-  { path: "/adminlogin", element: <AdminLogin /> }, // ✅ เพิ่มเส้นทางสำหรับ Admin Login
+  { path: "/adminlogin", element: <AdminLoginForm /> }, // ✅ เพิ่มเส้นทางสำหรับ Admin Login
 ], {
   future: {
     v7_startTransition: true, // เปิดฟีเจอร์ Transition ล่วงหน้า
