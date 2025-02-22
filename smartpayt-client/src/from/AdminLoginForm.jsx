@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminLogin from "../pages/admin/Adminlogin";
-import nanglaeIcon from "../assets/img/nanglaeicon.png"; // ✅ นำเข้ารูปภาพ
+import nanglaeIcon from "../assets/img/nanglaeicon.png";
 
 const AdminLoginForm = () => {
   const [admin_username, setUsername] = useState("");
@@ -16,7 +16,7 @@ const AdminLoginForm = () => {
     const response = await AdminLogin(admin_username, admin_password);
 
     if (response.success) {
-      navigate("/dashboard");
+      navigate("/admin"); // ✅ ไปที่หน้าหลักของแอดมิน
     } else {
       setError(response.message);
     }
@@ -24,7 +24,7 @@ const AdminLoginForm = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <img src={nanglaeIcon} alt="Nang Lae Icon" className="w-40 h-40 mx-auto mb-4" /> {/* ✅ แสดงไอคอน */}
+      <img src={nanglaeIcon} alt="Nang Lae Icon" className="w-40 h-40 mx-auto mb-4" />
       <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-4">Admin Login</h2>
         {error && <p className="text-red-500">{error}</p>}

@@ -4,6 +4,9 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const queryString = require('querystring');
+const mysql = require('mysql2/promise');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // Import routes ของ User
 const registerRoutes = require('./routes/registerRoutes');
@@ -13,6 +16,7 @@ const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
+const SECRET_KEY = "your_secret_key";
 
 // Middleware
 app.use(cors());
@@ -37,7 +41,6 @@ app.get('/callback', async (req, res) => {
     if (!code) {
         return res.status(400).send('Authorization code not found');
     }
-
     try {
         const response = await axios.post(
             'https://api.line.me/oauth2/v2.1/token',
@@ -50,19 +53,54 @@ app.get('/callback', async (req, res) => {
             }),
             { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
         );
-
-        // Get access token from the response
         const { access_token } = response.data;
-
-        // ใช้ access token เพื่อดึงข้อมูลโปรไฟล์ของผู้ใช้
         const userProfile = await axios.get('https://api.line.me/v2/profile', {
             headers: { Authorization: `Bearer ${access_token}` },
         });
-
-        res.json(userProfile.data);  // ส่งข้อมูลโปรไฟล์กลับไปที่ frontend
+        res.json(userProfile.data);
     } catch (error) {
         console.error('Error during LINE login callback:', error);
         res.status(500).send('An error occurred');
+    }
+});
+
+// ✅ Admin Login API
+app.post('/adminlogin', async (req, res) => {
+    const { admin_username, admin_password } = req.body;
+    try {
+        const connection = await mysql.createConnection({
+            host: "localhost",
+            user: "pom",
+            password: "*cfBRkZKPY8Nrm4O",
+            database: "admindb"
+        });
+        
+        const [rows] = await connection.execute(
+            "SELECT * FROM admins WHERE admin_username = ?",
+            [admin_username]
+        );
+        
+        if (rows.length === 0) {
+            return res.status(401).json({ message: "ไม่พบชื่อผู้ใช้" });
+        }
+
+        const admin = rows[0];
+        const passwordMatch = await bcrypt.compare(admin_password, admin.admin_password);
+
+        if (!passwordMatch) {
+            return res.status(401).json({ message: "รหัสผ่านไม่ถูกต้อง" });
+        }
+
+        const token = jwt.sign(
+            { id: admin.id, username: admin.admin_username },
+            SECRET_KEY,
+            { expiresIn: "1h" }
+        );
+
+        res.json({ token });
+        connection.end();
+    } catch (error) {
+        res.status(500).json({ message: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์" });
     }
 });
 
