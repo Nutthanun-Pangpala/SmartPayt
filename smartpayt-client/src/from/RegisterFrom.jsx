@@ -13,7 +13,7 @@ const RegisterForm = () => {
     Email: '',
     Home_ID: '',
     Address: '',
-    access_token:'',
+
   });
 
   const [message, setMessage] = useState('');
@@ -23,30 +23,63 @@ const RegisterForm = () => {
   // Initialize LIFF and get the Line User ID
   const initLiff = async () => {
     try {
-        console.log("Initializing LIFF...");
-        await liff.init({ liffId: '2006592847-7XwNn0YG' });
-        console.log("LIFF initialized successfully");
-
-        if (liff.isLoggedIn()) {
-            const profile = await liff.getProfile();
-            const token = liff.getAccessToken();
-              console.log('LINE Profile:', profile,token);
-            setFormData((prevData) => ({
-                ...prevData,
-                lineUserId: profile.userId,
-                name: profile.displayName,
-                access_token: token,
-
-            }));
-        } else {
-            console.log("User not logged in. Prompting login...");
-            liff.login();
+      console.log("Initializing LIFF...");
+      await liff.init({ liffId: '2006838261-Mql86na5' });
+      console.log("LIFF initialized successfully");
+  
+      // 🔹 ดึง ID Token จาก localStorage ก่อน
+      let idToken = localStorage.getItem("line_idToken");
+  
+      if (!idToken) {
+        console.log("No ID Token found in localStorage. Checking login status...");
+        
+        if (!liff.isLoggedIn()) {
+          console.log("User not logged in. Redirecting to login...");
+          liff.login();
+          return;
         }
+  
+        console.log("User is logged in. Fetching new ID Token...");
+        idToken = liff.getIDToken();
+        
+        if (!idToken) {
+          console.log("Failed to get ID Token. Logging in again...");
+          liff.login();
+          return;
+        }
+  
+        // 🔹 บันทึก ID Token ไว้ใช้ครั้งถัดไป
+        localStorage.setItem("line_idToken", idToken);
+      } else {
+        console.log("Using ID Token from localStorage:", idToken);
+      }
+  
+      // 🔹 ขอข้อมูลโปรไฟล์จาก LIFF
+      const profile = await liff.getProfile();
+      console.log("Profile fetched:", profile);
+  
+      setFormData((prevData) => ({
+        ...prevData,
+        lineUserId: profile.userId,
+        name: profile.displayName,
+      }));
+  
+      // 🔹 ส่ง ID Token ไปที่ Backend
+      const res = await axios.post("http://localhost:3000/auth/line-login", { idToken });
+  
+      console.log("Server Response:", res.data);
+  
+      // 🔹 บันทึก JWT และข้อมูลผู้ใช้
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("lineUserId", res.data.user.id);
+      localStorage.setItem("lineUserName", res.data.user.name);
+  
+      console.log("User authenticated successfully!");
     } catch (error) {
-        console.error('LIFF Initialization failed ควยๆ', error);
-        setError('เกิดข้อผิดพลาดในการเริ่มต้น LIFF');
+      console.error("LIFF Initialization failed:", error);
     }
-};
+  };
+  
 
   useEffect(() => {
     initLiff();
@@ -86,7 +119,7 @@ const RegisterForm = () => {
   
       setMessage('ลงทะเบียนสำเร็จ!');
       setTimeout(() => {
-        navigate('/address');
+        navigate('/dashboard');
       }, 2000);
     } catch (error) {
       if (error.response) {

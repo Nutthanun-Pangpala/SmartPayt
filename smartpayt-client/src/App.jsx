@@ -1,30 +1,31 @@
-import React from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import Line from './auth/line';
+import React from "react";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css';
 import AdminDashboard from "./pages/admin/AdminPage";
-import UserAddress from './pages/user/userAddress';
-
-import Login from './pages/login';
-import Register from './pages/RegisterPage';
+import Login from "./pages/login";
+import Register from "./pages/RegisterPage";
+import DashboardMain from "./pages/user/userDashboard";
 
 const router = createBrowserRouter([
-  { path: "/", element: <Register /> },
-
-  ///User
-
-  { path: "/Address", element:<UserAddress/>},
 
 
 
+  //admin
+  {
+    path: "/admin",
+    element: <AdminDashboard />,
+  },
 
-  ///admin
-  { path: "/admin", element: <AdminDashboard /> },
+
+
+
+  //user
   { path: "/login", element: <Login /> },
-  { path: "/line", element: <Line /> },
+  { path: "/", element: <Register />,},
+  { path: "/dashboard" ,element: <DashboardMain/>},
 ], {
   future: {
-    v7_startTransition: true, // เปิดฟีเจอร์ Transition ล่วงหน้า
+    v7_startTransition: true,
   },
 });
 
