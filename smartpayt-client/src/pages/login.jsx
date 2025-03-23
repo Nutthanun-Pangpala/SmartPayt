@@ -10,7 +10,7 @@ const Login = () => {
   useEffect(() => {
     const initLiff = async () => {
       try {
-        await liff.init({ liffId: "2006838261-Mql86na5" });
+        await liff.init({ liffId: "2006592847-7XwNn0YG" });
 
         if (!liff.isLoggedIn()) {
           liff.login();

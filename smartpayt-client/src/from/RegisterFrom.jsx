@@ -24,7 +24,7 @@ const RegisterForm = () => {
   const initLiff = async () => {
     try {
       console.log("Initializing LIFF...");
-      await liff.init({ liffId: '2006838261-Mql86na5' });
+      await liff.init({ liffId: '2006592847-7XwNn0YG' });
       console.log("LIFF initialized successfully");
   
       // 🔹 ดึง ID Token จาก localStorage ก่อน

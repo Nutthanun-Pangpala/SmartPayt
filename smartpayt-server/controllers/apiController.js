@@ -105,3 +105,20 @@ exports.userAddressList = async (req, res) => {
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 };
+
+exports.reportiIssue = (req, res) => {
+  const { Issues, lineUserId, name } = req.body;
+
+  if (!Issues || !lineUserId || !name) {
+    return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+  }
+
+  const sql = 'INSERT INTO issues (Issues, lineUserId, name) VALUES (?, ?, ?)';
+  db.query(sql, [Issues, lineUserId, name], (err, result) => {
+    if (err) {
+      console.error('❌ Insert Error:', err);
+      return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
+    }
+    res.json({ message: 'ส่งคำร้องสำเร็จ!' });
+  });
+};
