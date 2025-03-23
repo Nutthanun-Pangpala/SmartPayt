@@ -1,6 +1,7 @@
 import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css';
+import AddUser from "./pages/admin/Adduser";
 import AdminDashboard from "./pages/admin/AdminPage";
 import Issues from "./pages/issues";
 import Login from "./pages/login";
@@ -12,10 +13,8 @@ const router = createBrowserRouter([
 
 
   //admin
-  {
-    path: "/admin",
-    element: <AdminDashboard />,
-  },
+  { path: "/admin",element: <AdminDashboard />,},
+  { path: "/AddUser",element: <AddUser />,},
 
 
 

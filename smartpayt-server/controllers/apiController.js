@@ -109,16 +109,43 @@ exports.userAddressList = async (req, res) => {
 exports.reportiIssue = (req, res) => {
   const { Issues, lineUserId, name } = req.body;
 
+  // Check for missing fields
   if (!Issues || !lineUserId || !name) {
     return res.status(400).json({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
   }
 
   const sql = 'INSERT INTO issues (Issues, lineUserId, name) VALUES (?, ?, ?)';
-  db.query(sql, [Issues, lineUserId, name], (err, result) => {
+  db.query(sql, [Issues, lineUserId, name], async (err, result) => {
     if (err) {
       console.error('❌ Insert Error:', err);
       return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
     }
-    res.json({ message: 'ส่งคำร้องสำเร็จ!' });
+
+    try {
+      await axios.post(
+        "https://api.line.me/v2/bot/message/push",
+        {
+          to: lineUserId,
+          messages: [
+            {
+              type: "text",
+              text: `✅ ส่งคำร้อง!\n📌 ชื่อ: ${name}\n📌 รายละเอียดปัญหา: ${Issues}`,
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${access_token}`, // Use your LINE bot access token
+          },
+        }
+      );
+
+      // Respond after sending the message
+      res.json({ message: 'ส่งคำร้องสำเร็จ!' });
+    } catch (lineError) {
+      console.error("❌ ไม่สามารถส่งข้อความไปยัง LINE:", lineError);
+      res.status(500).json({ message: 'เกิดข้อผิดพลาดในการส่งข้อความไปยัง LINE' });
+    }
   });
 };
