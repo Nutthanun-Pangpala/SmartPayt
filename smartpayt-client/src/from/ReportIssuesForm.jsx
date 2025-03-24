@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import '../index.css';
 
 const ReportIssuesForm = () => {
-  const [formData, setFormData] = useState({ 
+  const [formData, setFormData] = useState({
     Issues: '', 
     lineUserId: '', 
     name: '' 
@@ -38,6 +38,11 @@ const ReportIssuesForm = () => {
     setError('');
     setMessage('');
   
+    if (!formData.Issues.trim()) {
+      setError('กรุณากรอกรายละเอียดปัญหาที่พบ');
+      return;
+    }
+
     try {
       const response = await axios.post('http://localhost:3000/api/report-issue', formData);
       setMessage(response.data.message || 'ส่งคำร้องสำเร็จ!');
@@ -51,7 +56,7 @@ const ReportIssuesForm = () => {
       console.error('Report error:', error);
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 drop-shadow-sm border rounded-xl">
       <div className="m-5">

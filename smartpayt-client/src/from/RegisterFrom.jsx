@@ -24,15 +24,15 @@ const RegisterForm = () => {
   const initLiff = async () => {
     try {
       console.log("Initializing LIFF...");
-      await liff.init({ liffId: '2006592847-7XwNn0YG' });
+      await liff.init({ liffId: "2006592847-7XwNn0YG" });
       console.log("LIFF initialized successfully");
   
-      // 🔹 ดึง ID Token จาก localStorage ก่อน
       let idToken = localStorage.getItem("line_idToken");
   
+      // ✅ ตรวจสอบ ID Token ใน localStorage
       if (!idToken) {
         console.log("No ID Token found in localStorage. Checking login status...");
-        
+  
         if (!liff.isLoggedIn()) {
           console.log("User not logged in. Redirecting to login...");
           liff.login();
@@ -41,20 +41,32 @@ const RegisterForm = () => {
   
         console.log("User is logged in. Fetching new ID Token...");
         idToken = liff.getIDToken();
-        
+  
         if (!idToken) {
-          console.log("Failed to get ID Token. Logging in again...");
+          console.log("Failed to get ID Token. Please login again.");
+          liff.logout();
           liff.login();
           return;
         }
   
-        // 🔹 บันทึก ID Token ไว้ใช้ครั้งถัดไป
+        // ✅ บันทึก ID Token
         localStorage.setItem("line_idToken", idToken);
       } else {
         console.log("Using ID Token from localStorage:", idToken);
       }
   
-      // 🔹 ขอข้อมูลโปรไฟล์จาก LIFF
+      // ✅ ตรวจสอบว่า ID Token หมดอายุหรือไม่
+      const tokenPayload = JSON.parse(atob(idToken.split(".")[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (tokenPayload.exp < currentTime) {
+        console.log("ID Token expired. Logging in again...");
+        localStorage.removeItem("line_idToken");
+        liff.logout();
+        liff.login();
+        return;
+      }
+  
+      // ✅ ขอข้อมูลโปรไฟล์จาก LIFF
       const profile = await liff.getProfile();
       console.log("Profile fetched:", profile);
   
@@ -64,12 +76,12 @@ const RegisterForm = () => {
         name: profile.displayName,
       }));
   
-      // 🔹 ส่ง ID Token ไปที่ Backend
+      // ✅ ส่ง ID Token ไปที่ Backend
       const res = await axios.post("http://localhost:3000/auth/line-login", { idToken });
   
       console.log("Server Response:", res.data);
   
-      // 🔹 บันทึก JWT และข้อมูลผู้ใช้
+      // ✅ บันทึก JWT และข้อมูลผู้ใช้
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("lineUserId", res.data.user.id);
       localStorage.setItem("lineUserName", res.data.user.name);
