@@ -1,6 +1,6 @@
 import React from 'react';
 import AdminNavbar from '../../assets/component/admin/AdminNavbar';
-import AdminUserAddresses from '../../from/AdminUserAddresses';
+import AdminUserAddresses from '../../form/AdminUserAddresses';
 
 
 const AdminDashboard = () => { 

@@ -1,17 +1,19 @@
 const express = require("express");
-const { registerUser,userAddressList,reportiIssue ,userBills } = require("../controllers/apiController");
-const { userByID,removeUserByID } = require("../controllers/userController");
+const { registerAddress,userAddressList,reportiIssue ,userBills, registerAccount } = require("../controllers/apiController");
+const { userInfo,removeUserByID } = require("../controllers/userController");
 const { verify } = require("jsonwebtoken");
 const { verifyLiffToken } = require("../services/liffService");
 
 const router = express.Router();
 
 // 🔹 Route สำหรับลงทะเบียน
-router.post("/register", registerUser);
+router.post("/registerAccount",registerAccount);
+
+router.post("/registerAddress", registerAddress);
 
 router.get("/listuseraddress",userAddressList);
 
-router.get("/user/:id", userByID); 
+router.get("/user/:lineUserId", userInfo);
 
 router.delete("/removeuser/:id",removeUserByID);
 

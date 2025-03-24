@@ -2,27 +2,20 @@ import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css';
 import AddUser from "./pages/admin/Adduser";
-import AdminDashboard from "./pages/admin/AdminPage";
-import Issues from "./pages/issues";
-import Login from "./pages/login";
-import Register from "./pages/RegisterPage";
-import DashboardMain from "./pages/user/userDashboard";
+import UserDashboard from "./pages/UserDashboard";
+import Login from "./pages/UserLoginPage";
+import RegisterAccount from "./pages/UserRegisterAccounts";
+import RegisterAddress from "./pages/UserRegisterAddressPages";
+import Issues from "./pages/UserReportIssuesPages";
 
 const router = createBrowserRouter([
-
-
-
-  //admin
-  { path: "/admin",element: <AdminDashboard />,},
+//admin
   { path: "/AddUser",element: <AddUser />,},
-
-
-
-
-  //user
-  { path: "/login", element: <Login /> },
-  { path: "/", element: <Register />,},
-  { path: "/dashboard" ,element: <DashboardMain/>},
+//user
+  { path: "/userLogin", element: <Login /> },
+  { path: "/", element: <RegisterAddress />,},
+  { path: "/registerAccount", element: <RegisterAccount/>,},
+  { path: "/userDashboard" ,element: <UserDashboard/>},
   { path: "/issues", element: <Issues/>},
 ], {
   future: {

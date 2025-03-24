@@ -1,61 +1,63 @@
-import liff from '@line/liff'; // Import the LIFF SDK
+import liff from '@line/liff';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../index.css';
 
-const RegisterForm = () => {
+const RegisterUserForm = () => {
   const [formData, setFormData] = useState({
-    lineUserId: '',
+    lineUserId: localStorage.getItem("lineUserId") || "", 
     name: '',
     ID_card_No: '',
     Phone_No: '',
     Email: '',
-    Home_ID: '',
-    Address: '',
-
   });
 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Initialize LIFF and get the Line User ID
+  // ปรับปรุงฟังก์ชัน LIFF
   const initLiff = async () => {
     try {
+      const storedToken = localStorage.getItem("token");  // ตรวจสอบว่า token มีอยู่หรือไม่
+
+      // ถ้ามี token อยู่แล้ว ไม่ต้องล็อกอินใหม่
+      if (storedToken) {
+        console.log("Token found in localStorage.");
+        const savedLineUserId = localStorage.getItem("lineUserId");
+        if (savedLineUserId) {
+          setFormData((prevData) => ({
+            ...prevData,
+            lineUserId: savedLineUserId,
+          }));
+        }
+        return; // ไม่ต้องทำการเริ่มต้น LIFF ใหม่
+      }
+
+      // ถ้าไม่มี token, ให้เริ่มต้น LIFF และตรวจสอบการเข้าสู่ระบบ
       console.log("Initializing LIFF...");
       await liff.init({ liffId: "2006592847-7XwNn0YG" });
       console.log("LIFF initialized successfully");
-  
-      let idToken = localStorage.getItem("line_idToken");
-  
-      // ✅ ตรวจสอบ ID Token ใน localStorage
-      if (!idToken) {
-        console.log("No ID Token found in localStorage. Checking login status...");
-  
-        if (!liff.isLoggedIn()) {
-          console.log("User not logged in. Redirecting to login...");
-          liff.login();
-          return;
-        }
-  
-        console.log("User is logged in. Fetching new ID Token...");
-        idToken = liff.getIDToken();
-  
-        if (!idToken) {
-          console.log("Failed to get ID Token. Please login again.");
-          liff.logout();
-          liff.login();
-          return;
-        }
-  
-        // ✅ บันทึก ID Token
-        localStorage.setItem("line_idToken", idToken);
-      } else {
-        console.log("Using ID Token from localStorage:", idToken);
+
+      // ตรวจสอบการเข้าสู่ระบบของผู้ใช้
+      if (!liff.isLoggedIn()) {
+        console.log("User not logged in. Redirecting...");
+        liff.login();
+        return;
       }
-  
-      // ✅ ตรวจสอบว่า ID Token หมดอายุหรือไม่
+
+      // ตรวจสอบ ID Token
+      let idToken = localStorage.getItem("line_idToken") || liff.getIDToken();
+      if (!idToken) {
+        console.log("No valid ID Token found. Logging in again...");
+        localStorage.removeItem("line_idToken");
+        liff.logout();
+        liff.login();
+        return;
+      }
+
+      // ตรวจสอบว่า ID Token หมดอายุหรือไม่
       const tokenPayload = JSON.parse(atob(idToken.split(".")[1]));
       const currentTime = Math.floor(Date.now() / 1000);
       if (tokenPayload.exp < currentTime) {
@@ -65,33 +67,34 @@ const RegisterForm = () => {
         liff.login();
         return;
       }
-  
-      // ✅ ขอข้อมูลโปรไฟล์จาก LIFF
-      const profile = await liff.getProfile();
-      console.log("Profile fetched:", profile);
-  
+
+      // ขอข้อมูลโปรไฟล์จาก LIFF
+      let profile;
+      try {
+        profile = await liff.getProfile();
+        console.log("Profile fetched:", profile);
+      } catch (profileError) {
+        console.error("Failed to fetch profile:", profileError);
+        return;
+      }
+
       setFormData((prevData) => ({
         ...prevData,
         lineUserId: profile.userId,
-        name: profile.displayName,
       }));
-  
-      // ✅ ส่ง ID Token ไปที่ Backend
+
       const res = await axios.post("http://localhost:3000/auth/line-login", { idToken });
-  
       console.log("Server Response:", res.data);
-  
-      // ✅ บันทึก JWT และข้อมูลผู้ใช้
+
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("lineUserId", res.data.user.id);
       localStorage.setItem("lineUserName", res.data.user.name);
-  
+
       console.log("User authenticated successfully!");
     } catch (error) {
       console.error("LIFF Initialization failed:", error);
     }
   };
-  
 
   useEffect(() => {
     initLiff();
@@ -107,7 +110,12 @@ const RegisterForm = () => {
     setError('');
     setMessage('');
   
-    if (!formData.ID_card_No || !formData.Phone_No || !formData.Email || !formData.Home_ID || !formData.Address) {
+    if (!formData.lineUserId) {
+      setError("ไม่พบ Line User ID กรุณาเข้าสู่ระบบใหม่");
+      return;
+    }
+  
+    if (!formData.ID_card_No || !formData.Phone_No || !formData.Email || !formData.name) {
       setError('กรุณากรอกข้อมูลให้ครบถ้วน');
       return;
     }
@@ -124,15 +132,12 @@ const RegisterForm = () => {
     }
   
     try {
-      const response = await axios.post('http://localhost:3000/api/register', formData);
-      const { token } = response.data; // รับ JWT Token
-      localStorage.setItem('token', token); // บันทึก Token ลง Local Storage
-
+      const response = await axios.post('http://localhost:3000/api/registerAccount', formData);
+      const { token } = response.data;
+      localStorage.setItem('token', token);
   
       setMessage('ลงทะเบียนสำเร็จ!');
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+      setTimeout(() => navigate('/'), 1000);
     } catch (error) {
       if (error.response) {
         setError(error.response.data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่');
@@ -157,6 +162,18 @@ const RegisterForm = () => {
           maxLength="13"
           inputMode="numeric"
           onInput={(e) => e.target.value = e.target.value.replace(/\D/g, '')}
+          required
+        />
+      </div>
+      <div className="m-6">
+        <label className="block text-gray-700 mb-2">ชื่อ-นามสกุล / Full Name</label>
+        <input
+          type="text"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          className="w-full px-3 py-2 border rounded-2xl"
+          placeholder="ชื่อ-นามสกุล..."
           required
         />
       </div>
@@ -190,31 +207,6 @@ const RegisterForm = () => {
         />
       </div>
 
-      <div className="m-6">
-        <label className="block text-gray-700 mb-2">บ้านเลขที่</label>
-        <input
-          type="text"
-          name="Home_ID"
-          value={formData.Home_ID}
-          onChange={handleChange}
-          className="w-1/3 px-3 py-2 border rounded-full"
-          placeholder="เลขที่บ้าน..."
-          required
-        />
-      </div>
-
-      <div className="m-5">
-        <label className="block text-gray-700 mb-2">ที่อยู่</label>
-        <textarea
-          name="Address"
-          value={formData.Address}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border rounded-2xl"
-          placeholder="กรอกที่อยู่..."
-          required
-        ></textarea>
-      </div>
-
       <button type="submit" className="w-full my-5 bg-green-700 text-white py-2 rounded-full">
         ลงทะเบียน
       </button>
@@ -224,4 +216,4 @@ const RegisterForm = () => {
   );
 };
 
-export default RegisterForm;
+export default RegisterUserForm;
