@@ -203,3 +203,30 @@ exports.userBills = (req, res) => {
     res.json(results);
   });
 };
+exports.userAddress = async (req, res) => {
+  try {
+    const { lineUserId } = req.params; // ดึง lineUserId จาก URL parameters
+
+    if (!lineUserId) {
+      return res.status(400).json({ message: "lineUserId ไม่พบในคำขอ" });
+    }
+
+    // Query ดึงที่อยู่ทั้งหมดของผู้ใช้
+    const query = "SELECT * FROM addresses WHERE lineUserId = ?";
+    const [addresses] = await db.promise().query(query, [lineUserId]);
+
+    if (addresses.length === 0) {
+      return res.status(404).json({ message: "ไม่พบข้อมูลที่อยู่" });
+    }
+
+    // ✅ เปลี่ยนจาก `address: addressData[0]` → `addresses: addresses`
+    res.status(200).json({
+      message: "ดึงข้อมูลที่อยู่สำเร็จ",
+      addresses: addresses, // ✅ คืนค่าทั้งหมดเป็น array
+    });
+
+  } catch (error) {
+    console.error("❌ เกิดข้อผิดพลาด:", error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+  }
+};

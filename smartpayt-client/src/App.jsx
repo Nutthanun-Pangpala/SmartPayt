@@ -1,12 +1,15 @@
 import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css';
-import AddUser from "./pages/admin/Adduser";
-import UserDashboard from "./pages/UserDashboard";
-import Login from "./pages/UserLoginPage";
-import RegisterAccount from "./pages/UserRegisterAccounts";
-import RegisterAddress from "./pages/UserRegisterAddressPages";
-import Issues from "./pages/UserReportIssuesPages";
+//Admin
+import AddUser from "./pagesAdmin/Adduser";
+
+//User
+import UserDashboard from "./pagesUser/UserDashboard";
+import Login from "./pagesUser/UserLoginPage";
+import RegisterAccount from "./pagesUser/UserRegisterAccounts";
+import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
+import Issues from "./pagesUser/UserReportIssuesPages";
 
 const router = createBrowserRouter([
 //admin
