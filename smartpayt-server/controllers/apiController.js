@@ -195,14 +195,6 @@ exports.reportiIssue = (req, res) => {
   });
 };
 
-exports.userBills = (req, res) => {
-  connection.query('SELECT * FROM bills', (err, results) => {
-    if (err) {
-      return res.status(500).send(err);
-    }
-    res.json(results);
-  });
-};
 exports.userAddress = async (req, res) => {
   try {
     const { lineUserId } = req.params; // ดึง lineUserId จาก URL parameters
@@ -219,14 +211,33 @@ exports.userAddress = async (req, res) => {
       return res.status(404).json({ message: "ไม่พบข้อมูลที่อยู่" });
     }
 
-    // ✅ เปลี่ยนจาก `address: addressData[0]` → `addresses: addresses`
+    // ส่งข้อมูลที่อยู่ทั้งหมด
     res.status(200).json({
       message: "ดึงข้อมูลที่อยู่สำเร็จ",
-      addresses: addresses, // ✅ คืนค่าทั้งหมดเป็น array
+      addresses: addresses, // ส่งข้อมูลที่อยู่ทั้งหมดในรูปแบบ array
     });
 
   } catch (error) {
     console.error("❌ เกิดข้อผิดพลาด:", error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+  }
+};
+
+
+exports.userAddressBill = async (req, res) => {
+  try {
+    const { address_id } = req.params;
+
+    const query = "SELECT * FROM bills WHERE address_id = ?";
+    const [bills] = await db.promise().query(query, [address_id]);
+
+    if (bills.length === 0) {
+      return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
+    }
+
+    res.status(200).json({ bills });
+  } catch (error) {
+    console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 };

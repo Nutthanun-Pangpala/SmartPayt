@@ -44,7 +44,7 @@ const UserDatacard = () => {
           <div className=" b bg-green-700 w-3 max-h-full rounded-l-lg"></div>
           <div className="  my-3 mx-2">
             <div className="flex">
-              <i className="fi fi-sr-user m-2 text-xl font-bold"> : {userData.name}</i>
+              <i className="fi fi-sr-user m-2 text-xl  font-bold"> : {userData.name}</i>
             </div>
             <div className="flex">
               <i className="fi fi-sr-credit-card mx-2 my-1"> : {userData.ID_card_No}</i>
@@ -53,9 +53,8 @@ const UserDatacard = () => {
               <i className="fi fi-ss-phone-call mx-2 my-1"> : {userData.Phone_No}</i>
             </div>
             <div className="flex">
-            <i className="fi fi-sr-envelope mx-2 my-1"> : {userData.Email}</i>
+            <i className="fi fi-sr-envelope mx-2 my-1 text-blue-600"> : {userData.Email}</i>
             </div>
-            <p className=" text-red-500 font-bold">ค่าชำระบริการรวม: 1,700 บาท</p>
           </div>
           
         </div>

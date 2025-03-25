@@ -25,6 +25,7 @@ const RegisterUserForm = () => {
       // ถ้ามี token อยู่แล้ว ไม่ต้องล็อกอินใหม่
       if (storedToken) {
         console.log("Token found in localStorage.");
+        navigate('/')
         const savedLineUserId = localStorage.getItem("lineUserId");
         if (savedLineUserId) {
           setFormData((prevData) => ({

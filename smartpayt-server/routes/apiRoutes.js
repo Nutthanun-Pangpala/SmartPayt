@@ -1,5 +1,5 @@
 const express = require("express");
-const { registerAddress,userAddressList,reportiIssue ,userBills, registerAccount, userAddress } = require("../controllers/apiController");
+const { registerAddress,userAddressList,reportiIssue , registerAccount, userAddress ,userAddressBill} = require("../controllers/apiController");
 const { userInfo,removeUserByID } = require("../controllers/userController");
 const { verify } = require("jsonwebtoken");
 const { verifyLiffToken } = require("../services/liffService");
@@ -17,11 +17,12 @@ router.get("/user/:lineUserId", userInfo);
 
 router.get("/address/:lineUserId", userAddress);
 
+router.get("/bills/:address_id", userAddressBill);
+
 router.delete("/removeuser/:id",removeUserByID);
 
 router.post("/report-issue",reportiIssue)
 
-router.get("/bills",userBills);
 
 
 module.exports = router;
