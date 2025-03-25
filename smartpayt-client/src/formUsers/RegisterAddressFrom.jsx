@@ -2,6 +2,7 @@ import liff from '@line/liff'; // Import the LIFF SDK
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ToastNotification from '../assets/component/user/ToastNotification';
 import '../index.css';
 
 const RegisterAddressForm = () => {
@@ -127,6 +128,8 @@ const RegisterAddressForm = () => {
   };
 
   return (
+    <div>
+    <ToastNotification  message={message}  />
     <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-6 border rounded-xl shadow-md bg-white">
       {[
         { label: "บ้านเลขที่", name: "house_no", required: true },
@@ -153,8 +156,8 @@ const RegisterAddressForm = () => {
       </button>
 
       {error && <p className="text-red-500 mt-3 text-center">{error}</p>}
-      {message && <p className="text-green-500 mt-3 text-center">{message}</p>}
     </form>
+    </div>
   );
 };
 export default RegisterAddressForm;

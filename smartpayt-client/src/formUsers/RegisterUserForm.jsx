@@ -2,6 +2,7 @@ import liff from '@line/liff';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ToastNotification from '../assets/component/user/ToastNotification';
 import '../index.css';
 
 const RegisterUserForm = () => {
@@ -110,7 +111,7 @@ const RegisterUserForm = () => {
     e.preventDefault();
     setError('');
     setMessage('');
-  
+    
     if (!formData.lineUserId) {
       setError("ไม่พบ Line User ID กรุณาเข้าสู่ระบบใหม่");
       return;
@@ -138,7 +139,7 @@ const RegisterUserForm = () => {
       localStorage.setItem('token', token);
   
       setMessage('ลงทะเบียนสำเร็จ!');
-      setTimeout(() => navigate('/'), 1000);
+      setTimeout(() => navigate('/'), 1000); // นำทางหลังจากลงทะเบียนสำเร็จ
     } catch (error) {
       if (error.response) {
         setError(error.response.data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่');
@@ -150,6 +151,8 @@ const RegisterUserForm = () => {
   };
 
   return (
+    <div>
+      <ToastNotification  message={message}  />
     <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 drop-shadow-sm border rounded-xl">
       <div className="m-6">
         <label className="block text-gray-700 mb-2">บัตรประจำตัวประชาชน / ID Card Number</label>
@@ -197,6 +200,7 @@ const RegisterUserForm = () => {
 
       <div className="m-6">
         <label className="block text-gray-700 mb-2">Email</label>
+        
         <input
           type="email"
           name="Email"
@@ -212,8 +216,8 @@ const RegisterUserForm = () => {
         ลงทะเบียน
       </button>
       {error && <p className="text-red-500 mb-4">{error}</p>}
-      {message && <p className="text-green-500 mb-4">{message}</p>}
     </form>
+    </div>
   );
 };
 
