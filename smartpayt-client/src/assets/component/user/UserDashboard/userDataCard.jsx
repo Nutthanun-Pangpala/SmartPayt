@@ -44,16 +44,20 @@ const UserDatacard = () => {
           <div className=" b bg-green-700 w-3 max-h-full rounded-l-lg"></div>
           <div className="  my-3 mx-2">
             <div className="flex">
-              <i className="fi fi-sr-user m-2 text-xl  font-bold"> : {userData.name}</i>
+              <p>
+              <i className="fi fi-sr-user m-2 text-xl  font-bold"></i>ชื่อ-นามสกุล : {userData.name}</p>
             </div>
             <div className="flex">
-              <i className="fi fi-sr-credit-card mx-2 my-1"> : {userData.ID_card_No}</i>
+              <p>
+              <i className="fi fi-sr-credit-card mx-2 my-1"></i>เลขบัตรประชาชน : {userData.ID_card_No}</p>
             </div>
             <div className="flex">
-              <i className="fi fi-ss-phone-call mx-2 my-1"> : {userData.Phone_No}</i>
+              <p>
+              <i className="fi fi-ss-phone-call mx-2 my-1"></i>เบอร์โทรศัพท์ : {userData.Phone_No}</p>
             </div>
             <div className="flex">
-            <i className="fi fi-sr-envelope mx-2 my-1 text-blue-600"> : {userData.Email}</i>
+              <p className="text-blue-600">
+            <i className="fi fi-sr-envelope mx-2 my-1 text-blue-600"></i>อีเมล์ : {userData.Email}</p>
             </div>
           </div>
           

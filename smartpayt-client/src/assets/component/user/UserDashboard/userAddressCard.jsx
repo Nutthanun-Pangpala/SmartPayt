@@ -26,7 +26,7 @@ const UserAddressesCard = () => {
           addresses.map(async (address) => {
             try {
               const res = await axios.get(`http://localhost:3000/api/bills/${address.address_id}`);
-              const unpaidBills = res.data.bills.filter((bill) => bill.status !== "paid"); // กรองเฉพาะบิลที่ยังไม่ชำระ
+              const unpaidBills = res.data.bills.filter((bill) => bill.status !== "ชำระแล้ว"); // กรองเฉพาะบิลที่ยังไม่ชำระ
               return { address_id: address.address_id, bills: unpaidBills };
             } catch (error) {
               console.error(`เกิดข้อผิดพลาดในการดึงบิลของบ้าน ${address.address_id}:`, error);
@@ -84,9 +84,18 @@ const UserAddressesCard = () => {
         return (
           <div key={address.address_id} className="border my-2 bg-white rounded-lg p-3">
             <div onClick={() => toggleExpand(address.address_id)} className="cursor-pointer">
-              <p>🏠 บ้านเลขที่: {address.house_no}</p>
-              <p>📍 รายละเอียดที่อยู่: {address.address_detail}</p>
-              <p className="font-bold text-red-600">💰 ยอดรวมค่าบิล: {formattedTotal} บาท</p>
+              <div className="flex">
+                <p className=" mr-2"><i className="fi fi-ss-house-building"></i> บ้านเลขที่: {address.house_no}</p>
+                <p><i className="fi fi-ss-road"></i> ถนน/ซอย: {address.Alley}</p>
+              </div>
+              <p><i className="fi fi-sr-marker"></i> อำเภอ/เขต: {address.district}</p>
+              <p>ตำบล/แขวง: {address.sub_district}</p>
+              <div className="flex">
+              <p className={address.address_verified ? "text-green-500 " : "text-red-500"}>
+              <i className="fi fi-sr-shield-trust"></i> สถานะการยืนยันที่อยู่: {address.address_verified ? "ยืนยันแล้ว " : "กรุณาติดต่อที่เทศบาล "}
+              </p>
+              </div>
+              <p className="font-bold text-red-600"><i className="fi fi-sr-baht-sign"></i> ยอดรวมค่าบิล: {formattedTotal} บาท</p>
             </div>
 
             {expanded[address.address_id] && (
@@ -103,7 +112,15 @@ const UserAddressesCard = () => {
                 ) : (
                   <p className="text-gray-500">ไม่มีบิลที่ต้องชำระ</p>
                 )}
-              </div>
+               <div className="flex justify-center my-3">
+              <button
+                type="button"
+                className="text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 font-medium rounded-full text-sm px-5 py-2.5 text-center dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
+              >
+                ชำระค่าบริการ
+              </button>
+            </div>
+            </div>
             )}
           </div>
         );

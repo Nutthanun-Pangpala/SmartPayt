@@ -90,13 +90,13 @@ const AddUser = () => {
             <h2 className="text-xl font-bold mb-4">Smart Payt</h2>
             <ul>
               <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                onClick={() => navigate('/main')}> หน้าหลัก </li>
+                onClick={() => navigate('/admin')}> หน้าหลัก </li>
 
               <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full"
-                onClick={() => navigate('/user')}>ข้อมูลผู้ใช้บริการ</li>
+                onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
 
               <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                onClick={() => navigate('/ostp')}> ข้อมูลผู้ค้างชำระค่าบริการ </li>
+                onClick={() => navigate('/admin/debt')}> ข้อมูลผู้ค้างชำระค่าบริการ </li>
             </ul>
             <div className="relative flex justify-center items-center h-screen bg-green-700">
               <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]"
@@ -232,7 +232,7 @@ const AddUser = () => {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/user')}
+                onClick={() => navigate('/admin/service')}
                 className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               >
                 ยกเลิก

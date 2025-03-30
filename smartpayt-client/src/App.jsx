@@ -3,6 +3,14 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css';
 //Admin
 import AddUser from "./pagesAdmin/Adduser";
+import AdminDebtPage from "./pagesAdmin/AdminDebtPage";
+import AdminLogin from "./pagesAdmin/AdminLogin";
+import AdminMain from "./pagesAdmin/AdminMain";
+import AdminRegister from "./pagesAdmin/AdminRegister";
+import AdminService from "./pagesAdmin/AdminService";
+import UserDetails from "./pagesAdmin/AdminUserDetails";
+
+
 
 //User
 import UserDashboard from "./pagesUser/UserDashboard";
@@ -11,9 +19,16 @@ import RegisterAccount from "./pagesUser/UserRegisterAccounts";
 import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
 import Issues from "./pagesUser/UserReportIssuesPages";
 
+
 const router = createBrowserRouter([
 //admin
-  { path: "/AddUser",element: <AddUser />,},
+  { path: "//admin/adduser",element: <AddUser />,},
+  { path: "/admin", element: <AdminMain /> },
+  { path: "/adminregister", element: <AdminRegister /> },
+  { path: "/adminlogin", element: <AdminLogin /> },
+  { path: "/admin/service", element:<AdminService/> },
+  { path: "/admin/debt", element:<AdminDebtPage/> },
+  { path:"/admin/user/:lineUserId",element:<UserDetails />},
 //user
   { path: "/userLogin", element: <Login /> },
   { path: "/", element: <RegisterAddress />,},

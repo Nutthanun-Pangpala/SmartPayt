@@ -56,26 +56,43 @@ exports.registerAccount = async (req, res) => {
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ", error: error.message });
   }
 };
+
 exports.registerAddress = async (req, res) => {
   try {
-    const { lineUserId, house_no, address_detail } = req.body;
+    const { 
+      lineUserId, 
+      house_no, 
+      alley, 
+      province, 
+      district, 
+      sub_district, 
+      postal_code 
+    } = req.body;
 
-    // ตรวจสอบว่าข้อมูลครบถ้วนหรือไม่
-    if (!lineUserId || !house_no || !address_detail) {
+    // ✅ ตรวจสอบว่าข้อมูลครบถ้วน
+    if (!lineUserId || !house_no || !province || !district || !sub_district || !postal_code) {
       return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
 
     // ✅ ตรวจสอบว่า lineUserId มีอยู่ในตาราง users หรือไม่
-    const userCheckQuery = "SELECT * FROM users WHERE lineUserId = ?";
-    const [user] = await db.promise().query(userCheckQuery, [lineUserId]);
+    const [user] = await db.promise().query("SELECT * FROM users WHERE lineUserId = ?", [lineUserId]);
 
     if (user.length === 0) {
       return res.status(400).json({ message: "ไม่พบผู้ใช้ในระบบ กรุณาลงทะเบียนก่อน" });
     }
 
-    // ✅ ตรวจสอบว่า address ซ้ำหรือไม่
-    const checkQuery = "SELECT * FROM addresses WHERE lineUserId = ? AND house_no = ?";
-    const [existingAddress] = await db.promise().query(checkQuery, [lineUserId, house_no]);
+    // ✅ ตรวจสอบว่าที่อยู่ซ้ำหรือไม่
+    const [existingAddress] = await db.promise().query(
+      `SELECT * FROM addresses 
+      WHERE lineUserId = ? 
+      AND house_no = ? 
+      AND alley = ? 
+      AND sub_district = ? 
+      AND district = ? 
+      AND province = ? 
+      AND postal_code = ?`,
+      [lineUserId, house_no, alley || "", sub_district, district, province, postal_code]
+    );
 
     if (existingAddress.length > 0) {
       return res.status(400).json({ message: "ที่อยู่นี้ถูกลงทะเบียนแล้ว" });
@@ -83,10 +100,15 @@ exports.registerAddress = async (req, res) => {
 
     // ✅ เพิ่มข้อมูลที่อยู่ใหม่
     const insertQuery = `
-      INSERT INTO addresses (lineUserId, house_no, address_detail)
-      VALUES (?, ?, ?)
+      INSERT INTO addresses (
+        lineUserId, house_no, Alley, province, district, sub_district, postal_code, 
+        address_verified, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
-    const [result] = await db.promise().query(insertQuery, [lineUserId, house_no, address_detail]);
+
+    const [result] = await db.promise().query(insertQuery, [
+      lineUserId, house_no, alley || "", province, district, sub_district, postal_code, false
+    ]);
 
     if (result.affectedRows === 0) {
       return res.status(500).json({ message: "ไม่สามารถเพิ่มข้อมูลที่อยู่ได้" });
@@ -102,7 +124,7 @@ exports.registerAddress = async (req, res) => {
           messages: [
             {
               type: "text",
-              text: `✅ ลงทะเบียนสำเร็จ!\n🏠 บ้านเลขที่: ${house_no}\n📌 รายละเอียด: ${address_detail}`,
+              text: `✅ ลงทะเบียนที่อยู่สำเร็จ!\n🏠 บ้านเลขที่: ${house_no}\n📍 ${sub_district}, ${district}, ${province} ${postal_code}`,
             },
           ],
         },
@@ -120,7 +142,9 @@ exports.registerAddress = async (req, res) => {
     // ✅ ส่งข้อมูลกลับไปยัง Frontend
     res.status(201).json({
       message: "ลงทะเบียนที่อยู่สำเร็จ!",
-      addressData: { lineUserId, house_no, address_detail },
+      addressData: { 
+        lineUserId, house_no, alley, province, district, sub_district, postal_code, address_verified: false 
+      },
     });
 
   } catch (error) {
@@ -130,25 +154,61 @@ exports.registerAddress = async (req, res) => {
 };
 
 
-
 exports.userAddressList = async (req, res) => {
-  try {
-    // คำสั่ง SQL เพื่อดึงข้อมูลผู้ใช้ทั้งหมดจากตาราง users
-    const query = "SELECT * FROM users";
-    const [users] = await db.promise().query(query);
+  const { page = 1, search = '', sortField = 'id', sortDirection = 'ASC' } = req.query;
+  const limit = 10;
+  const offset = (page - 1) * limit;
 
-    // ตรวจสอบว่ามีข้อมูลหรือไม่
-    if (users.length === 0) {
-      return res.status(404).json({ message: "ไม่พบข้อมูลผู้ใช้" });
-    }
+  let searchCondition = 'WHERE 1=1'; // เริ่มต้นเพื่อให้ WHERE ไม่ Error
+  let searchParams = [];
 
-    // ส่งข้อมูลผู้ใช้ทั้งหมดกลับไปยัง frontend
-    res.status(200).json({ users });
-
-  } catch (error) {
-    console.error("❌ เกิดข้อผิดพลาด:", error);
-    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+  if (search) {
+      searchCondition += `
+          AND (c.ID_card_No LIKE ? 
+          OR c.Phone_No LIKE ? 
+          OR ch.Address LIKE ?)
+      `;
+      searchParams = [`%${search}%`, `%${search}%`, `%${search}%`];
   }
+
+  const countSql = `
+      SELECT COUNT(*) AS total 
+      FROM customers c
+      LEFT JOIN customer_homes ch ON c.id = ch.customer_id
+      ${searchCondition}
+  `;
+
+  const sql = `
+  SELECT c.id, c.Name, c.ID_card_No, c.Phone_No, ch.Home_ID, ch.Address 
+  FROM customers c
+  LEFT JOIN customer_homes ch ON c.id = ch.customer_id
+  ${searchCondition}
+  ORDER BY ?? ${sortDirection === 'desc' ? 'DESC' : 'ASC'}
+  LIMIT ? OFFSET ?
+`;
+
+  db.query(countSql, searchParams, (err, countResults) => {
+      if (err) {
+          return res.status(500).json({ message: 'Failed to fetch users', error: err.message });
+      }
+
+      const total = countResults[0].total;
+      const totalPages = Math.ceil(total / limit);
+
+      db.query(sql, [sortField, ...searchParams, parseInt(limit), parseInt(offset)], (err, results) => {
+          if (err) {
+              return res.status(500).json({ message: 'Failed to fetch users', error: err.message });
+          }
+
+          res.json({
+              users: results,
+              totalPages,  // 👈 ส่ง totalPages กลับไป
+              currentPage: parseInt(page),
+              totalUsers: total
+          });
+      });
+  });
+
 };
 
 exports.reportiIssue = (req, res) => {
@@ -214,7 +274,7 @@ exports.userAddress = async (req, res) => {
     // ส่งข้อมูลที่อยู่ทั้งหมด
     res.status(200).json({
       message: "ดึงข้อมูลที่อยู่สำเร็จ",
-      addresses: addresses, // ส่งข้อมูลที่อยู่ทั้งหมดในรูปแบบ array
+      addresses: addresses, // ส่งข้อมูลที่อยู่ทั้งหมดในรูปแบบ arrayN
     });
 
   } catch (error) {
