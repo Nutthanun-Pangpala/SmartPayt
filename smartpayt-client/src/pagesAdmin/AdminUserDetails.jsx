@@ -91,6 +91,7 @@ const UserDetails = () => {
         fetchUserDetails();
         fetchUserAddresses();
     }, [lineUserId, navigate]);
+
     const handleVerifyAddress = async (addressId) => {
         try {
             const token = localStorage.getItem('Admin_token');
@@ -130,6 +131,11 @@ const UserDetails = () => {
             ...prevExpanded,
             [addressId]: !prevExpanded[addressId],
         }));
+    };
+
+    const handleAddAddress = () => {
+        // ไปยังหน้าฟอร์มการเพิ่มที่อยู่
+        navigate(`/admin/users/${lineUserId}/add-address`);
     };
 
     return (
@@ -192,7 +198,7 @@ const UserDetails = () => {
                                         >
                                             ยืนยันที่อยู่
                                         </button>
-                )}
+                                        )}
                                     </div>
                                 </div>
 
@@ -229,6 +235,14 @@ const UserDetails = () => {
                                 )}
                             </div>
                         ))}
+                        <div className="mt-6">
+                            <button
+                                onClick={handleAddAddress}
+                                className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600"
+                            >
+                                เพิ่มที่อยู่
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

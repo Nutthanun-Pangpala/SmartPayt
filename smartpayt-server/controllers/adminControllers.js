@@ -268,5 +268,51 @@ exports.getUserDetails = async (req, res) => {
         return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันแล้ว' });
     });
 };
+
+exports.adduserAsdress = async(req, res) => {
+    const lineUserId = req.params.lineUserId; // รับ lineUserId จาก URL
+    const {
+      house_no,
+      Alley,
+      province,
+      district,
+      sub_district,
+      postal_code,
+      address_verified,
+      created_at,
+      updated_at,
+    } = req.body;
   
+    const query = `
+      INSERT INTO addresses (
+        lineUserId, house_no, Alley, province, district, sub_district, postal_code, address_verified, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+  
+    const values = [
+      lineUserId,  // ใช้ lineUserId จาก URL
+      house_no,
+      Alley,
+      province,
+      district,
+      sub_district,
+      postal_code,
+      address_verified,
+      created_at,
+      updated_at,
+    ];
+  
+    db.query(query, values, (err, result) => {
+      if (err) {
+        console.error('เกิดข้อผิดพลาดในการเพิ่มที่อยู่:', err);
+        return res.status(500).json({ error: 'ไม่สามารถเพิ่มที่อยู่ได้' });
+      }
+  
+      res.status(200).json({
+        success: true,
+        message: 'เพิ่มที่อยู่สำเร็จ',
+        address_id: result.insertId,  // ส่งกลับ address_id ที่เพิ่มเข้าไป
+      });
+    });
+  };
   
