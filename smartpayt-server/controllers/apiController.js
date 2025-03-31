@@ -1,5 +1,7 @@
 const db = require("../db/dbConnection");
 const axios = require("axios");
+const bwipjs = require('bwip-js');
+
 require("dotenv").config();
 
 const access_token = process.env.LINE_ACCESS_TOKEN;
@@ -288,7 +290,8 @@ exports.userAddressBill = async (req, res) => {
   try {
     const { address_id } = req.params;
 
-    const query = "SELECT * FROM bills WHERE address_id = ?";
+    // Modify query to fetch only bills with a status of "1" (paid)
+    const query = "SELECT * FROM bills WHERE address_id = ? AND status = 0";
     const [bills] = await db.promise().query(query, [address_id]);
 
     if (bills.length === 0) {
@@ -300,4 +303,24 @@ exports.userAddressBill = async (req, res) => {
     console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
+};
+exports.generateBarcode = (req, res) => {
+  const { addressId } = req.params;
+
+  bwipjs.toBuffer({
+    bcid: 'code128',        // Barcode type
+    text: addressId,        // Text to encode in the barcode
+    scale: 3,               // Barcode scale
+    height: 10,             // Barcode height
+    includetext: true,      // Include the text under the barcode
+  })
+  .then((buffer) => {
+    // Set headers for image response
+    res.setHeader('Content-Type', 'image/png');
+    res.send(buffer);  // Send the generated barcode buffer as an image
+  })
+  .catch((error) => {
+    console.error("Error generating barcode:", error);
+    res.status(500).json({ message: 'Error generating barcode', error: error.message });
+  });
 };

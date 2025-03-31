@@ -13,6 +13,7 @@
     "@flaticon/flaticon-uicons": "^3.3.1",
     "@line/liff": "^2.25.1",
     "axios": "^1.7.7",
+    "buffer": "^6.0.3",
     "express": "^4.21.1",
     "mysql2": "^3.11.4",
     "prop-types": "^15.8.1",

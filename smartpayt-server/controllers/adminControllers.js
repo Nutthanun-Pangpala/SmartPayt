@@ -64,17 +64,29 @@ exports.login = (req, res) => {
 
 // ฟังก์ชันใหม่สำหรับหน้า AdminMain
 exports.getUserCount = (req, res) => {
-    const sql = 'SELECT COUNT(*) as count FROM customers';
-    db.query(sql, (err, results) => {
-        if (err) {
-            console.error('Error counting users:', err);
-            return res.status(500).json({
-                message: 'Failed to count users',
-                error: err.message
-            });
-        }
-        res.json({ count: results[0].count });
+  const sql = `
+    SELECT 
+      (SELECT COUNT(*) FROM users) AS totalUsers,
+      (SELECT COUNT(*) FROM addresses) AS totalAddress
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error counting users:', err);
+      return res.status(500).json({
+        message: 'Failed to count users',
+        error: err.message
+      });
+    }
+
+    // ดึงข้อมูลที่ถูกต้องจากผลลัพธ์
+    const { totalUsers, totalAddress } = results[0];
+    
+    // ส่งข้อมูลกลับ
+    res.json({
+      totalUsers,
+      totalAddress
     });
+  });
 };
 
 exports.getWasteStats = (req, res) => {

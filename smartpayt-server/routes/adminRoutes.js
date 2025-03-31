@@ -14,6 +14,7 @@ router.post('/users/:lineUserId/add-address', adminController.adduserAsdress);
 router.use(verifyToken);
 
 // Route for fetching users (AdminService)
+router.get('/stats',adminController.getUserCount);
 router.get('/users', adminController.getUsers);
 router.get('/users/:lineUserId',adminController.getUserDetails);
 router.get('/users/address/:lineUserId',adminController.getUserAddress);
