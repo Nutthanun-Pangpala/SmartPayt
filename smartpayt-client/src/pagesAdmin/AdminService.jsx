@@ -30,6 +30,11 @@ const AdminService = () => {
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Authorization': `Bearer ${token}`, // Make sure token is correct
+                }, params: { 
+                    page: currentPage, 
+                    search: searchTerm,  // ✅ เพิ่มตัวแปรค้นหา
+                    sortField,
+                    sortDirection
                 }
             });
     
@@ -67,10 +72,9 @@ const AdminService = () => {
         }
     };
 
-    const handleSearch = (e) => {
+    const fieldSearch = (e) => {
         e.preventDefault();
-        setCurrentPage(1);
-        fetchUsers();
+        setCurrentPage(1); // รีเซ็ตไปหน้าแรกเมื่อค้นหาใหม่
     };
 
     const handlePageChange = (page) => {
@@ -131,7 +135,7 @@ const AdminService = () => {
 
                     {/* Search */}
                     <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <form onSubmit={handleSearch} className="flex">
+                        <form onSubmit={fieldSearch} className="flex">
                             <input
                                 type="text"
                                 value={searchTerm}
@@ -139,9 +143,6 @@ const AdminService = () => {
                                 placeholder="ค้นหาผู้ใช้..."
                                 className="border border-gray-300 rounded-l px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
                             />
-                            <button type="submit" className="bg-green-700 text-white px-4 py-2 rounded-r hover:bg-green-800">
-                                ค้นหา
-                            </button>
                         </form>
                     </div>
 

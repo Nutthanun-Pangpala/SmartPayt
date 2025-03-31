@@ -25,7 +25,7 @@ const AdminDebtPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem("adminToken");
+        const token = localStorage.getItem("Admin_token");
         if (!token) {
           navigate("/adminlogin");
           return;

@@ -18,5 +18,6 @@ router.get('/users', adminController.getUsers);
 router.get('/users/:lineUserId',adminController.getUserDetails);
 router.get('/users/address/:lineUserId',adminController.getUserAddress);
 router.get("/users/address/bills/:address_id",adminController.getuserAddressBill);
+router.get('/users/search',adminController.searchUser);
 
 module.exports = router;

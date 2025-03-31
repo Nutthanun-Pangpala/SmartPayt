@@ -315,4 +315,17 @@ exports.adduserAsdress = async(req, res) => {
       });
     });
   };
+  exports.searchUser = async (req, res) => {
+    const search = req.query.search || ''; // รับค่าค้นหา
+
+    const query = `
+        SELECT * FROM users
+        WHERE name LIKE ? OR ID_card_No LIKE ? OR Phone_No LIKE ?
+        ORDER BY created_at DESC
+    `;
+
+    const users = await db.query(query, [`%${search}%`, `%${search}%`, `%${search}%`]);
+
+    res.json({ users });
+};
   
