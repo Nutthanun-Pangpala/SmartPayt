@@ -5,32 +5,51 @@ import { useNavigate } from "react-router-dom";
 const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const initLiff = async () => {
       try {
-        // Initialize LIFF
+        console.log("🚀 Initializing LIFF...");
+
         await liff.init({ liffId: "2006592847-7XwNn0YG" });
+        console.log("✅ LIFF Initialized");
 
         if (!liff.isLoggedIn()) {
-          liff.login();  // Trigger login if not logged in
+          console.log("⚠️ User not logged in, redirecting to LIFF login...");
+          liff.login();
           return;
         }
 
-        const idToken = liff.getIDToken();
-        if (!idToken) {
-          console.log("No ID Token found, relogging...");
+        const token = liff.getIDToken();
+        console.log("🔑 ID Token:", token);
+
+        if (!token) {
+          console.log("⚠️ No ID Token found, forcing login...");
           liff.login();
-        } else {
-          console.log("Already logged in.");
-          // Redirect or perform post-login actions
-          navigate("/"); // For example, navigate to a dashboard or home page
+          return;
         }
 
+        // ✅ ดึงข้อมูลโปรไฟล์จาก LIFF
+        const profile = await liff.getProfile();
+        console.log("👤 LIFF Profile:", profile);
+
+        const lineUserId = profile.userId;
+        if (!lineUserId) {
+          console.error("❌ ไม่พบ lineUserId ในโปรไฟล์");
+          return;
+        }
+
+        // ✅ บันทึกลง LocalStorage
+        localStorage.setItem("lineUserId", lineUserId);
+        localStorage.setItem("token", token);
+        console.log("💾 Saved to localStorage:", {
+          lineUserId: localStorage.getItem("lineUserId"),
+          token: localStorage.getItem("token"),
+        });
+
+        navigate("/registerAccount"); // นำทางไปหน้าลงทะเบียน
       } catch (error) {
-        console.error("LIFF Initialization failed", error);
-        setErrorMessage("เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่");
+        console.error("❌ LIFF Initialization failed:", error);
       } finally {
         setLoading(false);
       }
@@ -45,7 +64,6 @@ const Login = () => {
         <p>กำลังเข้าสู่ระบบ...</p>
       ) : (
         <>
-          {errorMessage && <p className="text-red-500">{errorMessage}</p>}
           <p>กรุณาลองเข้าสู่ระบบใหม่</p>
         </>
       )}

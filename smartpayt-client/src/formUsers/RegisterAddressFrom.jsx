@@ -1,4 +1,3 @@
-import liff from '@line/liff'; // Import LIFF SDK
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,85 +18,66 @@ const RegisterAddressForm = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const initLiff = async () => {
-      // เช็คว่า user ล็อกอินแล้วจาก localStorage หรือยัง
-      const storedToken = localStorage.getItem("token");
-      const savedLineUserId = localStorage.getItem("lineUserId");
+    const checkUserId = async () => {
+      const lineUserId = localStorage.getItem("lineUserId");
 
-      if (storedToken && savedLineUserId) {
-        // หากมี token และ lineUserId ใน localStorage แล้วก็ไม่ต้องล็อกอินใหม่
-        setFormData((prevData) => ({ ...prevData, lineUserId: savedLineUserId }));
+      if (!lineUserId) {
+        navigate("/userLogin"); // ถ้าไม่มี lineUserId ให้ไปหน้า Login
         return;
       }
 
-      // หากไม่มี token และ lineUserId ให้ทำการล็อกอินใหม่
+      setFormData((prev) => ({ ...prev, lineUserId: lineUserId }));
+
       try {
-        const liffId = "2006592847-7XwNn0YG"; // Your LIFF ID
-        await liff.init({ liffId });
-
-        if (!liff.isLoggedIn()) {
-          return liff.login(); // หากยังไม่ได้ล็อกอิน ก็ให้ทำการล็อกอิน
+        // เช็คว่า lineUserId มีในฐานข้อมูลหรือไม่
+        const checkUser = await axios.get(`http://localhost:3000/api/checkUser/${lineUserId}`);
+        if (checkUser.data.exists) {
+          navigate("/"); // ถ้ามีบัญชีอยู่แล้วให้ไปหน้าแรก
         }
-
-        // หลังจากล็อกอินแล้ว ดึงข้อมูลจากโปรไฟล์
-        const profile = await liff.getProfile();
-        setFormData((prev) => ({ ...prev, lineUserId: profile.userId }));
-
-        // บันทึกข้อมูลลง localStorage
-        localStorage.setItem("lineUserId", profile.userId);
-        
-        // ส่ง idToken ไปเซิร์ฟเวอร์เพื่อยืนยันตัวตน
-        const idToken = liff.getIDToken();
-        authenticateUser(idToken);
-      } catch (error) {
-        console.error("LIFF Initialization failed:", error);
+      } catch (err) {
+        console.error("Error checking user:", err);
       }
     };
 
-    initLiff();
-  }, []);
+    checkUserId();
+  }, [navigate]);
 
-  // ฟังก์ชันตรวจสอบและยืนยันตัวตนผู้ใช้
-  const authenticateUser = async (idToken) => {
-    try {
-      const res = await axios.post("http://localhost:3000/auth/line-login", { idToken });
-      localStorage.setItem("token", res.data.token); // บันทึก token
-      localStorage.setItem("lineUserId", res.data.user.id); // บันทึก lineUserId
-      localStorage.setItem("lineUserName", res.data.user.name); // บันทึกชื่อผู้ใช้
-    } catch (error) {
-      console.error("Server authentication failed:", error);
-    }
-  };
+  // ฟังก์ชันตรวจสอบและยืนยันตัวตนผู้ใช
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
 
-    // ตรวจสอบว่ากรอกข้อมูลครบถ้วน
-    const requiredFields = ["house_no", "province", "district", "sub_district", "postal_code"];
-    for (let field of requiredFields) {
-      if (!formData[field]) {
-        setError('กรุณากรอกข้อมูลให้ครบถ้วน');
-        return;
-      }
-    }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
+  setMessage('');
+  setLoading(true); // เพิ่มสถานะการโหลด
 
-    try {
-      await axios.post('http://localhost:3000/api/registerAddress', formData);
-      setMessage('ลงทะเบียนสำเร็จ!');
-      setTimeout(() => navigate('/UserDashboard'), 2000);
-    } catch (error) {
-      setError(error.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+  const requiredFields = ["house_no", "province", "district", "sub_district", "postal_code"];
+  for (let field of requiredFields) {
+    if (!formData[field]) {
+      setError('กรุณากรอกข้อมูลให้ครบถ้วน');
+      setLoading(false); // หยุดโหลดหากกรอกข้อมูลไม่ครบ
+      return;
     }
-  };
+  }
+
+  try {
+    await axios.post('http://localhost:3000/api/registerAddress', formData);
+    setMessage('ลงทะเบียนสำเร็จ!');
+    setTimeout(() => navigate('/UserDashboard'), 2000);
+  } catch (error) {
+    setError(error.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+  } finally {
+    setLoading(false); // หยุดโหลด
+  }
+};
 
   return (
     <div>
@@ -123,9 +103,9 @@ const RegisterAddressForm = () => {
             />
           </div>
         ))}
-        <button type="submit" className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-full transition-all">
-          ลงทะเบียนที่อยู่
-        </button>
+        <button type="submit" className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-full transition-all" disabled={loading}>
+  {loading ? "กำลังลงทะเบียน..." : "ลงทะเบียนที่อยู่"}
+</button>
       </form>
     </div>
   );

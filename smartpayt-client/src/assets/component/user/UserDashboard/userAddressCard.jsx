@@ -26,11 +26,13 @@ const UserAddressesCard = () => {
 
         const billsData = await Promise.all(
           addresses.map(async (address) => {
+            if (!address.address_verified) {
+              return { address_id: address.address_id, bills: [] }; // ไม่ดึงบิลถ้า address_verified = 0
+            }
             try {
               const res = await axios.get(
                 `http://localhost:3000/api/bills/${address.address_id}`
               );
-              // Filter out the bills with status "1" (ชำระแล้ว)
               const unpaidBills = res.data.bills.filter(
                 (bill) => bill.status !== "1"
               );
@@ -44,7 +46,6 @@ const UserAddressesCard = () => {
             }
           })
         );
-        
 
         const billsMapData = billsData.reduce((acc, { address_id, bills }) => {
           acc[address_id] = bills;
@@ -77,10 +78,10 @@ const UserAddressesCard = () => {
       <h1 className="text-lg font-bold">ที่อยู่ของคุณ</h1>
       {userAddresses.map((address) => {
         const totalAmount = Array.isArray(billsMap[address.address_id])
-          ? billsMap[address.address_id].reduce(
-              (sum, bill) => sum + (Number(bill.amount_due) || 0),
-              0
-            )
+          ? billsMap[address.address_id].reduce((sum, bill) => {
+              const amountDue = Number(bill.amount_due);
+              return !isNaN(amountDue) && amountDue > 0 ? sum + amountDue : sum;
+            }, 0)
           : 0;
         const formattedTotal = totalAmount.toFixed(2);
 
@@ -90,8 +91,16 @@ const UserAddressesCard = () => {
             className="border my-2 bg-white rounded-lg p-3"
           >
             <div
-              onClick={() => toggleExpand(address.address_id)}
-              className="cursor-pointer"
+              onClick={
+                address.address_verified
+                  ? () => toggleExpand(address.address_id)
+                  : null
+              }
+              className={`cursor-pointer ${
+                !address.address_verified
+                  ? "pointer-events-none "
+                  : ""
+              }`}
             >
               <div className="flex">
                 <p className="mr-2">
@@ -122,33 +131,59 @@ const UserAddressesCard = () => {
                     : "กรุณาติดต่อที่เทศบาล "}
                 </p>
               </div>
-              <div className="flex justify-between">
-                <p className="font-bold text-red-600">
-                  <i className="fi fi-sr-baht-sign"></i> ยอดรวมค่าบิล:{" "}
-                  {formattedTotal} บาท
-                </p>
-                <GenerateBarcode addressId={String(address.address_id)}  />
-              </div>
+
+              {/* แสดงยอดรวมค่าบิลเฉพาะที่อยู่ที่ยืนยันแล้ว */}
+              {address.address_verified ? (
+                <div className="flex justify-between">
+                  <p className="font-bold text-red-600">
+                    <i className="fi fi-sr-baht-sign"></i> ยอดรวมค่าบิล:{" "}
+                    {formattedTotal} บาท
+                  </p>
+                  <GenerateBarcode
+                    addressId={String(address.address_id)}
+                    status={address.address_verified}
+                  />
+                </div>
+              ) : null}
             </div>
 
-            {expanded[address.address_id] && (
+            {expanded[address.address_id] && address.address_verified && (
               <div className="mt-3">
                 <h2 className="text-md font-semibold">📄 รายละเอียดบิล:</h2>
                 {billsMap[address.address_id]?.length > 0 ? (
-  billsMap[address.address_id]
-    .sort((a, b) => new Date(b.due_date) - new Date(a.due_date)) // Sort bills by due_date, latest first
-    .map((bill, index) => (
-      <div key={index} className="mt-2 p-2 border bg-gray-100 rounded-md">
-        <p>💰 จำนวนเงิน: {bill.amount_due} บาท</p>
-        <p>⏳ วันที่ครบกำหนด: {bill.due_date ? new Date(bill.due_date).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" }) : "ไม่ระบุ"}</p>
-        <p className={bill.status ? "text-green-500" : "text-red-500"}>
-          สถานะ : {bill.status ? "ชำระแล้ว" : "ยังไม่ชำระ"}
-        </p>
-      </div>
-    ))
-) : (
-  <p className="text-gray-500">ไม่มีบิลที่ต้องชำระ</p>
-)}
+                  billsMap[address.address_id]
+                    .sort((a, b) => new Date(b.due_date) - new Date(a.due_date))
+                    .map((bill, index) => (
+                      <div
+                        key={index}
+                        className="mt-2 p-2 border bg-gray-100 rounded-md"
+                      >
+                        <p>💰 จำนวนเงิน: {bill.amount_due} บาท</p>
+                        <p>
+                          ⏳ วันที่ครบกำหนด:{" "}
+                          {bill.due_date
+                            ? new Date(bill.due_date).toLocaleDateString(
+                                "th-TH",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                }
+                              )
+                            : "ไม่ระบุ"}
+                        </p>
+                        <p
+                          className={
+                            bill.status ? "text-green-500" : "text-red-500"
+                          }
+                        >
+                          สถานะ : {bill.status ? "ชำระแล้ว" : "ยังไม่ชำระ"}
+                        </p>
+                      </div>
+                    ))
+                ) : (
+                  <p className="text-gray-500">ไม่มีบิลที่ต้องชำระ</p>
+                )}
                 <div className="flex justify-center my-3">
                   <button
                     type="button"

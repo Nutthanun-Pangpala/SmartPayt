@@ -1,6 +1,6 @@
 const express = require("express");
 const { registerAddress,userAddressList,reportiIssue , registerAccount, userAddress ,userAddressBill ,generateBarcode} = require("../controllers/apiController");
-const { userInfo,removeUserByID } = require("../controllers/userController");
+const { userInfo,removeUserByID,checkUser } = require("../controllers/userController");
 const { verify } = require("jsonwebtoken");
 const { verifyLiffToken } = require("../services/liffService");
 
@@ -24,6 +24,8 @@ router.delete("/removeuser/:id",removeUserByID);
 router.post("/report-issue",reportiIssue)
 
 router.get('/generate-barcode/:addressId', generateBarcode);
+
+router.get('/checkUser/:lineUserId',checkUser);
 
 
 

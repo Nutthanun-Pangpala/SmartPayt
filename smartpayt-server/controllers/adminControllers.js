@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const db = require('../db/dbConnection');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 
 
 // ฟังก์ชันที่มีอยู่เดิม - ไม่มีการแก้ไข
@@ -257,28 +258,46 @@ exports.getUserDetails = async (req, res) => {
     }
   };
   exports.verifyUserAddress = async (req, res) => {
-    const { addressId } = req.params;
-    
-    // ตรวจสอบว่ามี addressId หรือไม่
-    if (!addressId) {
-        return res.status(400).json({ success: false, message: 'ไม่พบที่อยู่ที่ต้องการยืนยัน' });
+    const { addressId, lineUserId } = req.params;
+
+    if (!addressId || !lineUserId) {
+        return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
     }
 
-    // อัปเดตสถานะการยืนยันที่อยู่ในฐานข้อมูล
-    const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
-    
-    db.query(query, [1, addressId], (err, result) => {
-        if (err) {
-            console.error('Error updating address verification:', err);
-            return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตสถานะที่อยู่' });
-        }
+    try {
+        const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
+        const [result] = await db.promise().query(query, [1, addressId]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, message: 'ไม่พบที่อยู่ที่ต้องการยืนยัน' });
         }
 
-        return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันแล้ว' });
-    });
+        const access_token = process.env.LINE_ACCESS_TOKEN;
+
+        await axios.post("https://api.line.me/v2/bot/message/push",
+            {
+                to: lineUserId,
+                messages: [
+                    {
+                        type: "text",
+                        text: `📌 บ้านเลขที่: ${addressId}\n✅ ได้รับการตรวจสอบเรียบร้อยแล้ว!`,
+                    },
+                ],
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${access_token}`,
+                },
+            }
+        );
+
+        return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันและส่งข้อความไปยัง LINE แล้ว' });
+
+    } catch (err) {
+        console.error('❌ Error:', err);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตหรือส่งข้อความ' });
+    }
 };
 
 exports.adduserAsdress = async(req, res) => {
