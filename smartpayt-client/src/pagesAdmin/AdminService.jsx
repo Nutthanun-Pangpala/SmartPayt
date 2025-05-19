@@ -153,7 +153,6 @@ const AdminService = () => {
                         <table className="w-full border-collapse">
                             <thead>
                                 <tr className="bg-gray-100">
-                                    <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('lineUserId')}>ID</th>
                                     <th className="border px-4 py-2 cursor-pointer" onClick={() => handleSort('name')}>ชื่อ-นามสกุล</th>
                                     <th className="border px-4 py-2">ID Card No</th>
                                     <th className="border px-4 py-2">Phone No</th>
@@ -164,7 +163,6 @@ const AdminService = () => {
                             <tbody>
                                 {users.map((user) => (
                                     <tr key={user.lineUserId || user.ID_card_No} className="hover:bg-gray-50">
-                                        <td className="border px-4 py-2">{user.lineUserId}</td>
                                         <td className="border px-4 py-2">{user.name}</td>
                                         <td className="border px-4 py-2">{user.ID_card_No}</td>
                                         <td className="border px-4 py-2">{user.Phone_No}</td>

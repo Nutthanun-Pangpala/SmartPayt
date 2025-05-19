@@ -10,6 +10,7 @@ router.post('/login', adminController.login);
 router.patch('/users/address/verify/:addressId',adminController.verifyUserAddress);
 router.post('/users/:lineUserId/add-address', adminController.adduserAsdress);
 
+
 // Protected routes
 router.use(verifyToken);
 
@@ -20,5 +21,10 @@ router.get('/users/:lineUserId',adminController.getUserDetails);
 router.get('/users/address/:lineUserId',adminController.getUserAddress);
 router.get("/users/address/bills/:address_id",adminController.getuserAddressBill);
 router.get('/users/search',adminController.searchUser);
+
+//Route for fetching users (AdminDebtPage)
+router.get('/debt', adminController.getDebtUsers);
+router.get('/users/:lineUserId/bills', adminController.getBillsByLineUserId);
+
 
 module.exports = router;
