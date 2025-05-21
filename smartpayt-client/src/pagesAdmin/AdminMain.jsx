@@ -137,6 +137,7 @@ const AdminMain = () => {
               >
                 ข้อมูลผู้ค้างชำระค่าบริการ
               </li>
+               <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/manualbill')}>Manul Bill</li>
             </ul>
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
               <button

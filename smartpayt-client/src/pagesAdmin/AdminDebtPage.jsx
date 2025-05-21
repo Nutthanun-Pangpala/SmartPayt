@@ -155,8 +155,8 @@ const AdminDebtPage = () => {
 
               <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
                 onClick={() => navigate('/admin/service')}> ข้อมูลผู้ใช้บริการ </li>
-
               <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full"> ข้อมูลผู้ค้างชำระค่าบริการ </li>
+               <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/manualbill')}>Manul Bill</li>
             </ul>
             <div className="mt-auto">
               <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]"

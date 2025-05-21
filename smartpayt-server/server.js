@@ -6,7 +6,7 @@ require("dotenv").config();
 const apiRoutes = require("./routes/apiRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
-const adminRoutes = require("./routes/adminRoutes")
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 app.use(cors());
@@ -20,7 +20,8 @@ app.use("/auth", authRoutes);
 
 // ✅ ใช้งาน User Routes
 
-app.use("/admin", adminRoutes);
+app.use('/admin', adminRoutes);
+
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
