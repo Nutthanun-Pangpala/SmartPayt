@@ -117,6 +117,10 @@ const AdminService = () => {
                             onClick={() => navigate('/admin/debt')}>
                             ข้อมูลผู้ค้างชำระค่าบริการ
                         </li>
+                        <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                            onClick={() => navigate('/admin/users-verify')}>
+                            ยืนยันที่อยู่ผู้ใช้บริการ
+                        </li>
                     </ul>
                     <div className="absolute bottom-5 left-0 right-0 flex justify-center">
                         <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md"

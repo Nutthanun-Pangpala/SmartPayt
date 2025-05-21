@@ -342,7 +342,7 @@ exports.searchUser = async (req, res) => {
 };
 
 // AdminDebtpage Controller
-// ✅ ฟังก์ชัน controller สำหรับ AdminDebtPage ที่ดึงข้อมูลผู้ค้างชำระ
+
 exports.getDebtUsers = async (req, res) => {
   try {
     const query = `
@@ -390,4 +390,91 @@ exports.getBillsByLineUserId = async (req, res) => {
     console.error("เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
+};
+
+// Admin Verified controller
+
+exports.getUsersWithAddressVerification = (req, res) => {
+  const { page = 1, search = '', sortField = 'name', sortDirection = 'ASC' } = req.query;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+
+  const allowedSortFields = ['name', 'ID_card_No', 'Phone_No', 'address_verified'];
+  const safeSortField = allowedSortFields.includes(sortField) ? sortField : 'name';
+  const safeSortDirection = sortDirection.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+  let searchCondition = 'WHERE 1=1';
+  let searchParams = [];
+
+  if (search) {
+    searchCondition += ` AND (u.ID_card_No LIKE ? OR u.Phone_No LIKE ? OR u.name LIKE ?)`;
+    searchParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+
+  // Query ดึงข้อมูลผู้ใช้ + address_verified (join addresses แสดงสถานะล่าสุด / หรือ เฉพาะ address ล่าสุด)
+  const countSql = `
+    SELECT COUNT(DISTINCT u.lineUserId) AS total
+    FROM users u
+    LEFT JOIN addresses a ON u.lineUserId = a.lineUserId
+    ${searchCondition}
+  `;
+
+  // ดึงข้อมูล user + address_verified (สถานะที่อยู่ล่าสุด)
+  // สมมติเอา address_verified ของ address ล่าสุด (updated_at สูงสุด)
+  const sql = `
+    SELECT 
+      u.lineUserId, u.name, u.ID_card_No, u.Phone_No,
+      a.address_id, a.address_verified
+    FROM users u
+    LEFT JOIN addresses a ON u.lineUserId = a.lineUserId
+      AND a.updated_at = (
+        SELECT MAX(updated_at) FROM addresses WHERE lineUserId = u.lineUserId
+      )
+    ${searchCondition}
+    GROUP BY u.lineUserId
+    ORDER BY
+  CASE WHEN a.address_verified = 1 THEN 1 ELSE 0 END ASC, -- แสดงคนยังไม่ยืนยัน (0) ขึ้นก่อน
+  ${safeSortField} ${safeSortDirection}
+
+    LIMIT ? OFFSET ?
+  `;
+
+  db.query(countSql, searchParams, (err, countResults) => {
+    if (err) return res.status(500).json({ message: 'Failed to count users', error: err.message });
+
+    const total = countResults[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    db.query(sql, [...searchParams, limit, offset], (err, results) => {
+      if (err) return res.status(500).json({ message: 'Failed to fetch users', error: err.message });
+
+      res.json({
+        users: results,
+        totalPages,
+        currentPage: Number(page),
+        totalUsers: total,
+      });
+    });
+  });
+};
+
+// อัปเดตสถานะ address_verified เป็น 1
+exports.verifyAddress = (req, res) => {
+  const { addressId } = req.params;
+
+  if (!addressId) {
+    return res.status(400).json({ success: false, message: 'Missing addressId' });
+  }
+
+  const sql = 'UPDATE addresses SET address_verified = 1 WHERE address_id = ?';
+
+  db.query(sql, [addressId], (err, result) => {
+    if (err) return res.status(500).json({ success: false, message: 'Failed to update verification status' });
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    res.json({ success: true, message: 'Address verified successfully' });
+  });
 };

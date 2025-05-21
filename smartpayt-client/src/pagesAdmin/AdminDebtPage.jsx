@@ -125,6 +125,10 @@ const AdminDebtPage = () => {
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded" onClick={() => navigate('/admin')}>หน้าหลัก</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
             <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded">ข้อมูลผู้ค้างชำระค่าบริการ</li>
+            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+              onClick={() => navigate('/admin/users-verify')}>
+              ยืนยันที่อยู่ผู้ใช้บริการ
+            </li>
           </ul>
           <div className="absolute bottom-5 left-0 right-0 flex justify-center">
             <button className="bg-yellow-500 text-black px-7 py-3 rounded" onClick={() => {

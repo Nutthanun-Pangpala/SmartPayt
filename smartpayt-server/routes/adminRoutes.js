@@ -26,5 +26,10 @@ router.get('/users/search',adminController.searchUser);
 router.get('/debt', adminController.getDebtUsers);
 router.get('/users/:lineUserId/bills', adminController.getBillsByLineUserId);
 
+//Route for AdminVerified page
+router.get('/users-verify', adminController.getUsersWithAddressVerification);  // ดึง users + address_verified
+router.post('/verify-address/:addressId', adminController.verifyAddress);  // ยืนยันที่อยู่
+
+
 
 module.exports = router;
