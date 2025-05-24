@@ -343,34 +343,25 @@ exports.adduserAsdress = async(req, res) => {
     res.json({ users });
 };
   
-exports.createBill = (req, res) => {
+exports.createBill = async (req, res) => {
+  try {
     const { address_id, amount_due, due_date } = req.body;
-    const status = 0;
+    const status = 1;
 
     const sql = `
       INSERT INTO bills (address_id, amount_due, status, due_date, created_at, updated_at)
       VALUES (?, ?, ?, ?, NOW(), NOW())
     `;
 
-    db.query(sql, [address_id, amount_due, due_date, status], (err, result) => {
-        if (err) {
-            console.error("เกิดข้อผิดพลาดในการสร้างบิล:", err);
-            return res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
-        }
+    const values = [address_id, amount_due, status, due_date];
+    console.log("📦 Sending to SQL:", values);
 
-        res.status(201).json({ message: "สร้างบิลสำเร็จ", billId: result.insertId });
-    });
+    const [result] = await db.promise().query(sql, values);
+
+    res.status(201).json({ message: "สร้างบิลสำเร็จ", billId: result.insertId });
+  } catch (err) {
+    console.error("❌ createBill error:", err);
+    res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
+  }
 };
 
-exports.markBillAsPaid = (req, res) => {
-  const { billId } = req.params;
-
-  const sql = `UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?`;
-  db.query(sql, [billId], (err, result) => {
-    if (err) {
-      console.error("❌ ไม่สามารถอัปเดตสถานะ:", err);
-      return res.status(500).json({ message: "อัปเดตสถานะล้มเหลว" });
-    }
-    res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
-  });
-};

@@ -29,7 +29,7 @@ const AdminManualBill = () => {
     }
 
     axios.get('http://localhost:3000/admin/users', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { admin_token: token }
     })
     .then(res => setUsers(res.data.users || []))
     .catch(err => setError('ไม่สามารถโหลดผู้ใช้ได้'));
@@ -42,7 +42,7 @@ const AdminManualBill = () => {
 
     try {
       const res = await axios.get(`http://localhost:3000/admin/users/address/${lineUserId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { admin_token: token } 
       });
       setAddresses(res.data.addresses || []);
     } catch (err) {
@@ -56,14 +56,14 @@ const AdminManualBill = () => {
       setError('กรุณากรอกข้อมูลให้ครบ');
       return;
     }
-
+//co
     try {
       await axios.post('http://localhost:3000/admin/bills', {
         address_id: selectedAddress,
         amount_due: parseFloat(amountDue),
-        due_date: dueDate,
+        due_date: dueDate, 
 }, {
-  headers: { Authorization: `Bearer ${token}` }
+  headers: { admin_token: token }
 });
 
       setSuccess('สร้างบิลสำเร็จ');

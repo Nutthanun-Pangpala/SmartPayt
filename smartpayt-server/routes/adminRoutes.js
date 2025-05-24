@@ -15,7 +15,6 @@ router.use(verifyToken);
 
 // ✅ Manual Bill route
 router.post('/bills', adminController.createBill);
-router.patch('/bills/:billId/mark-paid', adminController.markBillAsPaid);
 
 // Admin Service
 router.get('/stats', adminController.getUserCount);
