@@ -478,3 +478,108 @@ exports.verifyAddress = (req, res) => {
     res.json({ success: true, message: 'Address verified successfully' });
   });
 };
+
+//Admin Manual bill controller
+exports.adduserAsdress = (req, res) => {
+  const lineUserId = req.params.lineUserId;
+  const {
+    house_no,
+    Alley,
+    province,
+    district,
+    sub_district,
+    postal_code,
+    address_verified,
+    created_at,
+    updated_at,
+  } = req.body;
+
+  const query = `
+    INSERT INTO addresses (
+      lineUserId, house_no, Alley, province, district, sub_district, postal_code, address_verified, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const values = [
+    lineUserId,
+    house_no,
+    Alley,
+    province,
+    district,
+    sub_district,
+    postal_code,
+    address_verified,
+    created_at,
+    updated_at,
+  ];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error("ไม่สามารถเพิ่มที่อยู่ได้:", err);
+      return res.status(500).json({ error: "เกิดข้อผิดพลาดในการเพิ่มที่อยู่" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "เพิ่มที่อยู่สำเร็จ",
+      address_id: result.insertId,
+    });
+  });
+};
+
+exports.searchUser = (req, res) => {
+  const search = req.query.search || '';
+
+  const query = `
+    SELECT * FROM users
+    WHERE name LIKE ? OR ID_card_No LIKE ? OR Phone_No LIKE ?
+    ORDER BY created_at DESC
+  `;
+
+  const searchParams = [`%${search}%`, `%${search}%`, `%${search}%`];
+
+  db.query(query, searchParams, (err, results) => {
+    if (err) {
+      console.error("เกิดข้อผิดพลาดในการค้นหาผู้ใช้:", err);
+      return res.status(500).json({ error: "ไม่สามารถค้นหาผู้ใช้ได้" });
+    }
+
+    res.json({ users: results });
+  });
+};
+
+exports.createBill = (req, res) => {
+  const { address_id, amount_due, due_date } = req.body;
+  const status = 0;
+
+  const sql = `
+    INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status)
+    VALUES (?, ?, ?, NOW(), NOW(), ?)
+  `;
+
+  db.query(sql, [address_id, amount_due, due_date, status], (err, result) => {
+    if (err) {
+      console.error("เกิดข้อผิดพลาดในการสร้างบิล:", err);
+      return res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
+    }
+
+    res.status(201).json({ message: "สร้างบิลสำเร็จ", billId: result.insertId });
+  });
+};
+
+exports.markBillAsPaid = (req, res) => {
+  const { billId } = req.params;
+
+  const sql = `
+    UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?
+  `;
+
+  db.query(sql, [billId], (err, result) => {
+    if (err) {
+      console.error("❌ ไม่สามารถอัปเดตสถานะ:", err);
+      return res.status(500).json({ message: "อัปเดตสถานะล้มเหลว" });
+    }
+
+    res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
+  });
+};

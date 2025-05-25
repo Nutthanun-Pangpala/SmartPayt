@@ -31,8 +31,8 @@ const AdminManualBill = () => {
     axios.get('http://localhost:3000/admin/users', {
       headers: { Authorization: `Bearer ${token}` }
     })
-    .then(res => setUsers(res.data.users || []))
-    .catch(err => setError('ไม่สามารถโหลดผู้ใช้ได้'));
+      .then(res => setUsers(res.data.users || []))
+      .catch(err => setError('ไม่สามารถโหลดผู้ใช้ได้'));
   }, []);
 
   const handleUserSelect = async (lineUserId, userName) => {
@@ -62,9 +62,9 @@ const AdminManualBill = () => {
         address_id: selectedAddress,
         amount_due: parseFloat(amountDue),
         due_date: dueDate,
-}, {
-  headers: { Authorization: `Bearer ${token}` }
-});
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       setSuccess('สร้างบิลสำเร็จ');
       setError('');
@@ -98,7 +98,10 @@ const AdminManualBill = () => {
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin')}>หน้าหลัก</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/debt')}>ข้อมูลผู้ค้างชำระค่าบริการ</li>
-            <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full">Manual Bill</li>
+            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+              onClick={() => navigate('/admin/users-verify')}> ยืนยันสถานะที่อยู่ผู้ใช้บริการ </li>
+
+            <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full">เพิ่มบิลชำระให้ผู้บริการ</li>
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
               <button
                 className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]"
@@ -121,51 +124,50 @@ const AdminManualBill = () => {
           {success && <p className="text-green-500 mb-4">{success}</p>}
 
           <div className="bg-white p-6 rounded shadow-md space-y-4">
-          <div>
-  <label className="block mb-1">ค้นหาผู้ใช้:</label>
-  <input
-  type="text"
-  placeholder="พิมพ์ชื่อ"
-  value={searchTerm}
-  onChange={(e) => {
-    setSearchTerm(e.target.value);     // สำหรับโชว์ในช่อง
-    setSearchKeyword(e.target.value);  // สำหรับค้นหา
-    setShowDropdown(true);             // แสดง dropdown
-  }}
-  className="w-full border px-4 py-2 rounded mb-2"
-/>
+            <div>
+              <label className="block mb-1">ค้นหาผู้ใช้:</label>
+              <input
+                type="text"
+                placeholder="พิมพ์ชื่อ"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);     // สำหรับโชว์ในช่อง
+                  setSearchKeyword(e.target.value);  // สำหรับค้นหา
+                  setShowDropdown(true);             // แสดง dropdown
+                }}
+                className="w-full border px-4 py-2 rounded mb-2"
+              />
 
-  {/* คำนวณ filteredUsers แยกไว้ก่อน */}
- {showDropdown && searchKeyword.trim().length > 0 && (() => {
-  const keyword = searchKeyword.toLowerCase().trim();
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(keyword)
-  );
+              {/* คำนวณ filteredUsers แยกไว้ก่อน */}
+              {showDropdown && searchKeyword.trim().length > 0 && (() => {
+                const keyword = searchKeyword.toLowerCase().trim();
+                const filteredUsers = users.filter(user =>
+                  user.name.toLowerCase().includes(keyword)
+                );
 
-  return filteredUsers.length > 0 ? (
-    <ul className="border rounded max-h-40 overflow-y-auto bg-white shadow">
-      {filteredUsers.map(user => (
-        <li
-          key={user.lineUserId}
-          className={`p-2 cursor-pointer hover:bg-gray-100 ${
-            selectedUser === user.lineUserId ? 'bg-gray-200' : ''
-          }`}
-          onClick={() => {
-            handleUserSelect(user.lineUserId, user.name);
-            setSearchTerm(user.name);     // ✅ โชว์ชื่ออย่างเดียว
-            setSearchKeyword('');         // ✅ หยุด filter
-            setShowDropdown(false);       // ✅ ปิด dropdown
-          }}
-        >
-          {user.name}
-        </li>
-      ))}
-    </ul>
-  ) : (
-    <p className="text-red-500 mt-1">ไม่มีรายชื่อผู้ใช้บริการ</p>
-  );
-})()}
-</div>
+                return filteredUsers.length > 0 ? (
+                  <ul className="border rounded max-h-40 overflow-y-auto bg-white shadow">
+                    {filteredUsers.map(user => (
+                      <li
+                        key={user.lineUserId}
+                        className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser === user.lineUserId ? 'bg-gray-200' : ''
+                          }`}
+                        onClick={() => {
+                          handleUserSelect(user.lineUserId, user.name);
+                          setSearchTerm(user.name);     // ✅ โชว์ชื่ออย่างเดียว
+                          setSearchKeyword('');         // ✅ หยุด filter
+                          setShowDropdown(false);       // ✅ ปิด dropdown
+                        }}
+                      >
+                        {user.name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-red-500 mt-1">ไม่มีรายชื่อผู้ใช้บริการ</p>
+                );
+              })()}
+            </div>
 
             <div>
               <label className="block mb-1">เลือกบ้าน/ที่อยู่:</label>

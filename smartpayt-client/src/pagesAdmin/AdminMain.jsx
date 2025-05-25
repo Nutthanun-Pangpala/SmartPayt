@@ -94,17 +94,6 @@ const AdminMain = () => {
               เทศบาลตำบลนางแล
             </h2>
           </div>
-          {/* User Profile */}
-          <div className="flex items-center space-x-2 ml-auto">
-            <img
-              src="/user-profile.jpg"
-              alt="Profile"
-              className="h-10 w-10 rounded-full border"
-            />
-            <div>
-              <p className="text-sm font-semibold text-gray-800">Admin</p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -135,6 +124,10 @@ const AdminMain = () => {
               >
                 ข้อมูลผู้ค้างชำระค่าบริการ
               </li>
+              <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                onClick={() => navigate('/admin/users-verify')}> ยืนยันสถานะที่อยู่ผู้ใช้บริการ </li>
+                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                onClick={() => navigate('/admin/bills')}> เพิ่มบิลชำระให้ผู้บริการ </li>
             </ul>
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
               <button

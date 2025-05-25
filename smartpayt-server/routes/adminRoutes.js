@@ -14,10 +14,6 @@ router.post('/users/:lineUserId/add-address', adminController.adduserAsdress);
 // Protected routes
 router.use(verifyToken);
 
-// ✅ Manual Bill route
-router.post('/bills', adminController.createBill);
-router.patch('/bills/:billId/mark-paid', adminController.markBillAsPaid);
-
 // Admin Service
 router.get('/stats', adminController.getUserCount);
 router.get('/users', adminController.getUsers);
@@ -34,6 +30,8 @@ router.get('/users/:lineUserId/bills', adminController.getBillsByLineUserId);
 router.get('/users-verify', adminController.getUsersWithAddressVerification);  // ดึง users + address_verified
 router.post('/verify-address/:addressId', adminController.verifyAddress);  // ยืนยันที่อยู่
 
-
+//Route for Admin Manual bill page
+router.get('/users-verify', adminController.getUsersWithAddressVerification);
+router.post('/verify-address/:addressId', adminController.verifyAddress);
 
 module.exports = router;

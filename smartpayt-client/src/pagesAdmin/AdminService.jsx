@@ -25,19 +25,19 @@ const AdminService = () => {
                 navigate('/adminlogin');
                 return;
             }
-    
+
             const response = await axios.get('http://localhost:3000/admin/users', {
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Authorization': `Bearer ${token}`, // Make sure token is correct
-                }, params: { 
-                    page: currentPage, 
+                }, params: {
+                    page: currentPage,
                     search: searchTerm,  // ✅ เพิ่มตัวแปรค้นหา
                     sortField,
                     sortDirection
                 }
             });
-    
+
             // Ensure response and response.data exist
             if (response && response.data) {
                 setUsers(response.data.users || []);
@@ -117,6 +117,10 @@ const AdminService = () => {
                             onClick={() => navigate('/admin/debt')}>
                             ข้อมูลผู้ค้างชำระค่าบริการ
                         </li>
+                        <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                            onClick={() => navigate('/admin/users-verify')}> ยืนยันสถานะที่อยู่ผู้ใช้บริการ </li>
+                        <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                            onClick={() => navigate('/admin/bills')}> เพิ่มบิลชำระให้ผู้บริการ </li>
                     </ul>
                     <div className="absolute bottom-5 left-0 right-0 flex justify-center">
                         <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md"
@@ -168,7 +172,7 @@ const AdminService = () => {
                                         <td className="border px-4 py-2">{user.Phone_No}</td>
                                         <td className="border px-4 py-2">{user.Email}</td>
                                         <td className="border px-4 py-2 text-center">
-                                            <button 
+                                            <button
                                                 onClick={() => handleViewDetails(user.lineUserId)}
                                                 className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                                                 ดูเพิ่มเติม
