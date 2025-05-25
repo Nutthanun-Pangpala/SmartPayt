@@ -21,7 +21,7 @@ const RegisterUserForm = () => {
     const initLiff = async () => {
       try {
         if (localStorage.getItem("token") || localStorage.getItem("lineUserId")) {
-          navigate('/');
+          // navigate('/');
           return;
         }
         await liff.init({ liffId: "2006592847-7XwNn0YG" });
@@ -39,8 +39,19 @@ const RegisterUserForm = () => {
   }, [navigate]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value.replace(/\D/g, '') });
+    const { name, value } = e.target;
+    let newValue = value;
+  
+    if (name === "ID_card_No") {
+      newValue = value.replace(/\D/g, '').slice(0, 13); // รับเฉพาะตัวเลข และจำกัด 13 ตัว
+    } else if (name === "Phone_No") {
+      newValue = value.replace(/\D/g, '').slice(0, 10); // รับเฉพาะตัวเลข และจำกัด 10 ตัว
+    }
+  
+    setFormData({ ...formData, [name]: newValue });
   };
+  
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();

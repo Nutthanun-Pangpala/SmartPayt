@@ -9,7 +9,6 @@ import AdminMain from "./pagesAdmin/AdminMain";
 import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
-import AdminManualBill from "./pagesAdmin/AdminManulBill";
 
 
 
@@ -30,10 +29,6 @@ const router = createBrowserRouter([
   { path: "/admin/service", element:<AdminService/> },
   { path: "/admin/debt", element:<AdminDebtPage/> },
   { path:"/admin/user/:lineUserId",element:<UserDetails />},
-  { path: "/admin/manualbill", element: <AdminManualBill /> },
-  
-
-
 //user
   { path: "/userLogin", element: <Login /> },
   { path: "/", element: <RegisterAddress />,},
