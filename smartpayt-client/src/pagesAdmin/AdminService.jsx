@@ -125,7 +125,7 @@ const AdminService = () => {
                     <div className="absolute bottom-5 left-0 right-0 flex justify-center">
                         <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md"
                             onClick={() => {
-                                localStorage.removeItem('token');
+                                localStorage.removeItem("Admin_token");
                                 navigate('/adminlogin');
                             }}>
                             ออกจากระบบ

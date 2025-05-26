@@ -31,7 +31,6 @@ router.get('/users-verify', adminController.getUsersWithAddressVerification);  /
 router.post('/verify-address/:addressId', adminController.verifyAddress);  // ยืนยันที่อยู่
 
 //Route for Admin Manual bill page
-router.get('/users-verify', adminController.getUsersWithAddressVerification);
-router.post('/verify-address/:addressId', adminController.verifyAddress);
+router.post('/bills', verifyToken, adminController.createBill);
 
 module.exports = router;

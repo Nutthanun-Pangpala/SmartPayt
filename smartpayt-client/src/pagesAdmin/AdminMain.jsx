@@ -133,7 +133,7 @@ const AdminMain = () => {
               <button
                 className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]"
                 onClick={() => {
-                  localStorage.removeItem("token");
+                  localStorage.removeItem("Admin_token");
                   navigate("/adminlogin");
                 }}
               >
