@@ -36,11 +36,11 @@ const AdminMain = () => {
         }
 
         const response = await axios.get(
-          "http://localhost:3000/admin/stats",{
-            headers: {
-                'Cache-Control': 'no-cache',
-                'authorization': `Bearer ${token}`,
-            }
+          "http://localhost:3000/admin/stats", {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'authorization': `Bearer ${token}`,
+          }
         });
 
         setStats(response.data);
@@ -94,31 +94,18 @@ const AdminMain = () => {
               เทศบาลตำบลนางแล
             </h2>
           </div>
-          {/* User Profile */}
-          <div className="flex items-center space-x-2 ml-auto">
-            <img
-              src="/user-profile.jpg"
-              alt="Profile"
-              className="h-10 w-10 rounded-full border"
-            />
-            <div>
-              <p className="text-sm font-semibold text-gray-800">Admin</p>
-            </div>
-          </div>
         </div>
       </div>
 
       <div className="flex h-[calc(100vh-88px)]">
         {/* Sidebar */}
         <div
-          className={`relative ${
-            isSidebarOpen ? "w-1/5" : "w-0 opacity-0"
-          } bg-green-700 p-5 text-white transition-all duration-300 ease-in-out overflow-hidden`}
+          className={`relative ${isSidebarOpen ? "w-1/5" : "w-0 opacity-0"
+            } bg-green-700 p-5 text-white transition-all duration-300 ease-in-out overflow-hidden`}
         >
           <div
-            className={`${
-              isSidebarOpen ? "opacity-100" : "opacity-0"
-            } transition-opacity duration-300`}
+            className={`${isSidebarOpen ? "opacity-100" : "opacity-0"
+              } transition-opacity duration-300`}
           >
             <h2 className="text-xl font-bold mb-4">Smart Payt</h2>
             <ul>
@@ -137,13 +124,16 @@ const AdminMain = () => {
               >
                 ข้อมูลผู้ค้างชำระค่าบริการ
               </li>
-               <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/manualbill')}>Manul Bill</li>
+              <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                onClick={() => navigate('/admin/users-verify')}> ยืนยันสถานะที่อยู่ผู้ใช้บริการ </li>
+                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                onClick={() => navigate('/admin/bills')}> เพิ่มบิลชำระให้ผู้บริการ </li>
             </ul>
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
               <button
                 className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]"
                 onClick={() => {
-                  localStorage.removeItem("token");
+                  localStorage.removeItem("Admin_token");
                   navigate("/adminlogin");
                 }}
               >
@@ -155,9 +145,8 @@ const AdminMain = () => {
 
         {/* Content */}
         <div
-          className={`flex-1 p-5 transition-all duration-300 ease-in-out ${
-            isSidebarOpen ? "ml-1/5" : "lg:w-4/5 w-full ml-0"
-          } overflow-auto`}
+          className={`flex-1 p-5 transition-all duration-300 ease-in-out ${isSidebarOpen ? "ml-1/5" : "lg:w-4/5 w-full ml-0"
+            } overflow-auto`}
         >
           <h1 className="text-3xl font-bold mb-6 text-center lg:text-left">
             ข้อมูลภาพรวม
@@ -171,10 +160,10 @@ const AdminMain = () => {
                   จำนวนผู้ใช้ลงทะเบียน
                 </h2>
                 <div className="flex">
-                <p className="text-4xl font-bold text-blue-600 mr-4">
-                  {stats.totalUsers}
-                </p>
-                <p className="text-gray-500 mt-2">ผู้ใช้</p>
+                  <p className="text-4xl font-bold text-blue-600 mr-4">
+                    {stats.totalUsers}
+                  </p>
+                  <p className="text-gray-500 mt-2">ผู้ใช้</p>
                 </div>
               </div>
               <div className=" m-2">
@@ -182,10 +171,10 @@ const AdminMain = () => {
                   จำนวนครัวเรือนที่ลงทะเบียน
                 </h2>
                 <div className="flex">
-                <p className="text-4xl font-bold text-blue-600 mr-4">
-                  {stats.totalAddress}
-                </p>
-                <p className="text-gray-500 mt-2">หลังคาเรือน</p>
+                  <p className="text-4xl font-bold text-blue-600 mr-4">
+                    {stats.totalAddress}
+                  </p>
+                  <p className="text-gray-500 mt-2">หลังคาเรือน</p>
                 </div>
               </div>
             </div>

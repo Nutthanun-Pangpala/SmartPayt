@@ -57,3 +57,14 @@ exports.removeUserByID = async (req, res) => {
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ", details: error.message });
   }
 };
+
+exports.checkUser=  async (req, res) => {
+  const { lineUserId } = req.params;
+  try {
+    const [rows] = await db.promise().query("SELECT COUNT(*) AS count FROM users WHERE lineUserId = ?", [lineUserId]);
+    res.json({ exists: rows[0].count > 0 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล" });
+  }
+};

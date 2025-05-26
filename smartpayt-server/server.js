@@ -20,8 +20,8 @@ app.use("/auth", authRoutes);
 
 // ✅ ใช้งาน User Routes
 
-app.use('/admin', adminRoutes);
-
+app.use("/admin", adminRoutes);
+app.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
