@@ -182,7 +182,7 @@ const UserAddressesCard = () => {
                     : "กรุณาติดต่อที่เทศบาล "}
                 </p>
               </div>
-
+              
               {/* แสดงยอดรวมค่าบิลเฉพาะที่อยู่ที่ยืนยันแล้ว */}
               {address.address_verified ? (
                 <div className="flex justify-between">
