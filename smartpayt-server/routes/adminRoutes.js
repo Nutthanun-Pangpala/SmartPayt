@@ -7,7 +7,7 @@ const router = express.Router();
 // Public routes
 router.post('/register', adminController.register);
 router.post('/login', adminController.login);
-router.patch('/users/address/verify/:addressId', adminController.verifyUserAddress);
+router.patch('/:lineUserId/address/verify/:addressId',adminController.verifyUserAddress);
 router.post('/users/:lineUserId/add-address', adminController.adduserAsdress);
 
 

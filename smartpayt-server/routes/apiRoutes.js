@@ -1,29 +1,31 @@
 const express = require("express");
-const { registerAddress,userAddressList,reportiIssue , registerAccount, userAddress ,userAddressBill ,generateBarcode} = require("../controllers/apiController");
-const { userInfo,removeUserByID } = require("../controllers/userController");
+const apiController = require("../controllers/apiController");
+const userController = require("../controllers/userController");
 const { verify } = require("jsonwebtoken");
 const { verifyLiffToken } = require("../services/liffService");
 
 const router = express.Router();
 
 // 🔹 Route สำหรับลงทะเบียน
-router.post("/registerAccount",registerAccount);
+router.post("/registerAccount",apiController.registerAccount);
 
-router.post("/registerAddress", registerAddress);
+router.post("/registerAddress", apiController.registerAddress);
 
-router.get("/listuseraddress",userAddressList);
+router.get("/listuseraddress",apiController.userAddressList);
 
-router.get("/user/:lineUserId", userInfo);
+router.get("/user/:lineUserId", userController.userInfo);
 
-router.get("/address/:lineUserId", userAddress);
+router.get("/address/:lineUserId", apiController.userAddress);
 
-router.get("/bills/:address_id", userAddressBill);
+router.get("/bills/:address_id", apiController.userAddressBill);
 
-router.delete("/removeuser/:id",removeUserByID);
+router.delete("/removeuser/:id",userController.removeUserByID);
 
-router.post("/report-issue",reportiIssue)
+router.post("/report-issue",apiController.reportiIssue)
 
-router.get('/generate-barcode/:addressId', generateBarcode);
+router.get('/generate-barcode/:addressId', apiController.generateBarcode);
+
+router.get('/checkUser/:lineUserId',userController.checkUser);
 
 
 
