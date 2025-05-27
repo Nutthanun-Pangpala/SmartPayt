@@ -11,6 +11,7 @@ import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
 import AdminVerified from "./pagesAdmin/AdminVerified";
+import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
 
 
 //User
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
   { path:"/admin/user/:lineUserId",element:<UserDetails />},
   { path:"/admin/users-verify",element:<AdminVerified />},
   { path:"/admin/bills",element:<AdminManualBill />},
+  { path:"/admin/editwaste",element:<AdminWastePricing />},
   
 //user
   { path: "/userLogin", element: <Login /> },

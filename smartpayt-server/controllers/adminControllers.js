@@ -539,3 +539,62 @@ exports.createBill = (req, res) => {
     res.status(201).json({ message: "สร้างบิลสำเร็จ", billId: result.insertId });
   });
 };
+
+//คำณวนราคาขยะ
+exports.getWastePricing = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query('SELECT type, price_per_kg FROM waste_pricing');
+
+    const pricing = {
+      general: 0,
+      hazardous: 0,
+      recyclable: 0,
+    };
+
+    rows.forEach(row => {
+      if (pricing.hasOwnProperty(row.type)) {
+        pricing[row.type] = parseFloat(row.price_per_kg);
+      }
+    });
+
+    res.status(200).json(pricing);
+  } catch (err) {
+    console.error("❌ Error fetching waste pricing:", err);
+    res.status(500).json({ message: "โหลดราคาขยะล้มเหลว" });
+  }
+};
+
+//EditWaste
+exports.updateWastePricing = async (req, res) => {
+  const { general, hazardous, recyclable } = req.body;
+
+  if (
+    typeof general !== 'number' ||
+    typeof hazardous !== 'number' ||
+    typeof recyclable !== 'number'
+  ) {
+    return res.status(400).json({ message: 'ข้อมูลราคาต้องเป็นตัวเลข' });
+  }
+
+  try {
+    const queries = [
+      ['general', general],
+      ['hazardous', hazardous],
+      ['recyclable', recyclable],
+    ];
+
+    for (const [type, price] of queries) {
+      await db.promise().query(
+        `INSERT INTO waste_pricing (type, price_per_kg) 
+         VALUES (?, ?) 
+         ON DUPLICATE KEY UPDATE price_per_kg = VALUES(price_per_kg)`
+        , [type, price]
+      );
+    }
+
+    res.status(200).json({ message: 'บันทึกราคาสำเร็จ' });
+  } catch (error) {
+    console.error('❌ Error updating pricing:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึก', error: error.message });
+  }
+};

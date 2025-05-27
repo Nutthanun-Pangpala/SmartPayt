@@ -32,5 +32,9 @@ router.post('/verify-address/:addressId', adminController.verifyAddress);  // à¸
 
 //Route for Admin Manual bill page
 router.post('/bills', verifyToken, adminController.createBill);
+router.get('/waste-pricing', adminController.getWastePricing);
+
+//roure for Edit Waste
+router.post('/waste-pricing', adminController.updateWastePricing);
 
 module.exports = router;
