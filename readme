@@ -34,7 +34,7 @@ CREATE TABLE bills (
   FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE CASCADE
 );
 
-mockup data bill ในส่วนของ status หลัง 0 จะแทนว่า ยังไม่ได้ชำระ 1 จะแทนว่า ชำระแล้ว
+mockup data bill ในส่วนของ status หลัง 1 จะแทนว่า ยังไม่ได้ชำระ 0 จะแทนว่า ชำระแล้ว
 
 INSERT INTO bills (address_id, amount_due, due_date, status) VALUES
 (1, 1200.50, '2024-04-10', 0),
@@ -46,3 +46,22 @@ CREATE TABLE admins (
   admin_username VARCHAR(255) NOT NULL,
   admin_password VARCHAR(255) NOT NULL
 );
+
+-- สร้างตาราง waste_pricing
+CREATE TABLE IF NOT EXISTS `waste_pricing` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `type` enum('general','hazardous','recyclable') NOT NULL,
+  `price_per_kg` decimal(10,2) NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- เติมข้อมูล
+INSERT INTO `waste_pricing` (`id`, `type`, `price_per_kg`, `updated_at`) VALUES
+(1, 'general', 15.00, '2025-05-27 09:29:20'),
+(2, 'hazardous', 20.00, '2025-05-27 09:29:20'),
+(3, 'recyclable', -4.00, '2025-05-27 09:29:20');
+
+-- รีเซ็ต AUTO_INCREMENT ให้ ID วิ่งต่อจาก 4 (ไม่ใส่ก็ได้)
+ALTER TABLE `waste_pricing` AUTO_INCREMENT = 4;
