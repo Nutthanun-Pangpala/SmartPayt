@@ -6,16 +6,17 @@ import AddUser from "./pagesAdmin/Adduser";
 import AdminDebtPage from "./pagesAdmin/AdminDebtPage";
 import AdminLogin from "./pagesAdmin/AdminLogin";
 import AdminMain from "./pagesAdmin/AdminMain";
+import AdminManualBill from "./pagesAdmin/AdminManulBill";
 import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
-import AdminManualBill from "./pagesAdmin/AdminManulBill";
 import AdminVerified from "./pagesAdmin/AdminVerified";
 
 
 //User
 import UserDashboard from "./pagesUser/UserDashboard";
 import Login from "./pagesUser/UserLoginPage";
+import PaymentPage from "./pagesUser/UserPaymentPage";
 import RegisterAccount from "./pagesUser/UserRegisterAccounts";
 import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
 import Issues from "./pagesUser/UserReportIssuesPages";
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
   { path: "/registerAccount", element: <RegisterAccount/>,},
   { path: "/userDashboard" ,element: <UserDashboard/>},
   { path: "/issues", element: <Issues/>},
+  { path: "/payment", element: <PaymentPage/> },
 ], {
   future: {
     v7_startTransition: true,

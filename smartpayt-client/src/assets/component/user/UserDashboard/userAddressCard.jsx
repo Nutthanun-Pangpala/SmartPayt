@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import GenerateBarcode from "./GenerateBarcode";
 
 const UserAddressesCard = () => {
@@ -7,6 +8,7 @@ const UserAddressesCard = () => {
   const [billsMap, setBillsMap] = useState({});
   const [expanded, setExpanded] = useState({});
   const [error, setError] = useState("");
+  const navigate = useNavigate(); 
 
   const lineUserId = localStorage.getItem("lineUserId");
 
@@ -199,10 +201,11 @@ const UserAddressesCard = () => {
             </div>
 
             {expanded[address.address_id] && address.address_verified && (
-              <div className="mt-3">
-                <h2 className="text-md font-semibold">📄 รายละเอียดบิล:</h2>
-                {billsMap[address.address_id]?.length > 0 ? (
-                  billsMap[address.address_id]
+            <div className="mt-3">
+              <h2 className="text-md font-semibold">📄 รายละเอียดบิล:</h2>
+              {billsMap[address.address_id]?.length > 0 ? (
+                <>
+                  {billsMap[address.address_id]
                     .sort((a, b) => new Date(b.due_date) - new Date(a.due_date))
                     .map((bill, index) => (
                       <div
@@ -213,14 +216,11 @@ const UserAddressesCard = () => {
                         <p>
                           ⏳ วันที่ครบกำหนด:{" "}
                           {bill.due_date
-                            ? new Date(bill.due_date).toLocaleDateString(
-                                "th-TH",
-                                {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                }
-                              )
+                            ? new Date(bill.due_date).toLocaleDateString("th-TH", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              })
                             : "ไม่ระบุ"}
                         </p>
                         <p
@@ -231,20 +231,34 @@ const UserAddressesCard = () => {
                           สถานะ : {bill.status ? "ชำระแล้ว" : "ยังไม่ชำระ"}
                         </p>
                       </div>
-                    ))
-                ) : (
-                  <p className="text-gray-500">ไม่มีบิลที่ต้องชำระ</p>
-                )}
-                <div className="flex justify-center my-3">
-                  <button
-                    type="button"
-                    className="text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 font-medium rounded-full text-sm px-5 py-2.5 text-center dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
-                  >
-                    ชำระค่าบริการ
-                  </button>
-                </div>
-              </div>
-            )}
+                    ))}
+
+                  {/* ✅ แสดงปุ่มเฉพาะเมื่อมีบิลที่ยังไม่ชำระ */}
+                  {billsMap[address.address_id].some(bill => bill.status !== "1") && (
+                    <div className="flex justify-center my-3">
+                      <button
+                        onClick={() =>
+                          navigate("/payment", {
+                            state: {
+                              bills: billsMap[address.address_id],
+                              addressId: address.address_id,
+                              totalAmount,
+                            },
+                          })
+                        }
+                        type="button"
+                        className="text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-4 focus:ring-green-300 font-medium rounded-full text-sm px-5 py-2.5 text-center"
+                      >
+                        ชำระค่าบริการ
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-gray-500">ไม่มีบิลที่ต้องชำระ</p>
+              )}
+            </div>
+          )}
           </div>
         );
       })}
