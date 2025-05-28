@@ -1,73 +1,71 @@
-import liff from '@line/liff';
-import axios from 'axios';
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ToastNotification from '../assets/component/user/ToastNotification';
-import '../index.css';
+import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import ToastNotification from "../assets/component/user/ToastNotification";
+import "../index.css";
 
 const RegisterUserForm = () => {
   const [formData, setFormData] = useState({
-    lineUserId: localStorage.getItem("lineUserId") || "", 
-    name: '',
-    ID_card_No: '',
-    Phone_No: '',
-    Email: '',
+    lineUserId: "",
+    name: "",
+    ID_card_No: "",
+    Phone_No: "",
+    Email: "",
   });
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const initLiff = async () => {
+    const checkUserId = async () => {
+      const lineUserId = localStorage.getItem("lineUserId");
+
+      if (!lineUserId) {
+        navigate("/userLogin"); // ถ้าไม่มี lineUserId ให้ไปหน้า Login
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, lineUserId: lineUserId }));
+
       try {
-        if (localStorage.getItem("token") || localStorage.getItem("lineUserId")) {
-          // navigate('/');
-          return;
+        // เช็คว่า lineUserId มีในฐานข้อมูลหรือไม่
+        const checkUser = await axios.get(`http://localhost:3000/api/checkUser/${lineUserId}`);
+        if (checkUser.data.exists) {
+          navigate("/"); // ถ้ามีบัญชีอยู่แล้วให้ไปหน้าแรก
         }
-        await liff.init({ liffId: "2006592847-7XwNn0YG" });
-        if (!liff.isLoggedIn()) liff.login();
-        const profile = await liff.getProfile();
-        setFormData(prev => ({ ...prev, lineUserId: profile.userId }));
-        const res = await axios.post("http://localhost:3000/auth/line-login", { idToken: liff.getIDToken() });
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("lineUserId", res.data.user.id);
       } catch (err) {
-        console.error("LIFF Initialization failed:", err);
+        console.error("Error checking user:", err);
       }
     };
-    initLiff();
+
+    checkUserId();
   }, [navigate]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    let newValue = value;
-  
-    if (name === "ID_card_No") {
-      newValue = value.replace(/\D/g, '').slice(0, 13); // รับเฉพาะตัวเลข และจำกัด 13 ตัว
-    } else if (name === "Phone_No") {
-      newValue = value.replace(/\D/g, '').slice(0, 10); // รับเฉพาะตัวเลข และจำกัด 10 ตัว
-    }
-  
-    setFormData({ ...formData, [name]: newValue });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
   
   
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setMessage('');
+    setError("");
+    setMessage("");
+
     if (!formData.lineUserId || !formData.ID_card_No || !formData.Phone_No || !formData.Email || !formData.name) {
-      setError('กรุณากรอกข้อมูลให้ครบถ้วน');
+      setError("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
+
     try {
-      const res = await axios.post('http://localhost:3000/api/registerAccount', formData);
-      localStorage.setItem('token', res.data.token);
-      setMessage('ลงทะเบียนสำเร็จ!');
-      setTimeout(() => navigate('/'), 1000);
+      // ลงทะเบียนบัญชีใหม่
+      const res = await axios.post("http://localhost:3000/api/registerAccount", formData);
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("lineUserId", formData.lineUserId);
+      setMessage("ลงทะเบียนสำเร็จ!");
+      setTimeout(() => navigate("/"), 1000);
     } catch (err) {
-      setError(err.response?.data?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      setError(err.response?.data?.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ");
     }
   };
 
@@ -75,11 +73,11 @@ const RegisterUserForm = () => {
     <div>
       <ToastNotification message={message} error={error} />
       <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 border rounded-xl">
-        {['ID_card_No', 'name', 'Phone_No', 'Email'].map(field => (
+        {["ID_card_No", "name", "Phone_No", "Email"].map((field) => (
           <div key={field} className="m-6">
             <label className="block text-gray-700 mb-2">{field}</label>
             <input
-              type={field === 'Email' ? 'email' : 'text'}
+              type={field === "Email" ? "email" : "text"}
               name={field}
               value={formData[field]}
               onChange={handleChange}
@@ -96,4 +94,5 @@ const RegisterUserForm = () => {
     </div>
   );
 };
+
 export default RegisterUserForm;

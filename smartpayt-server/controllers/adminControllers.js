@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const db = require('../db/dbConnection');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 
 
 // ฟังก์ชันที่มีอยู่เดิม - ไม่มีการแก้ไข
@@ -239,46 +240,64 @@ exports.getUserAddress = async (req, res) => {
   }
 };
 
-exports.getuserAddressBill = async (req, res) => {
-  try {
-    const { address_id } = req.params;
+  exports.getuserAddressBill =  async (req, res) => {
+    try {
+      const { address_id } = req.params;
+  
+      const query = "SELECT * FROM bills WHERE address_id = ?";
+      const [bills] = await db.promise().query(query, [address_id]);
+  
+      if (bills.length === 0) {
+        return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
+      }
+  
+      res.status(200).json({ bills });
+    } catch (error) {
+      console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
+      res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+    }
+  };
+  exports.verifyUserAddress = async (req, res) => {
+    const { addressId, lineUserId } = req.params;
 
-    const query = "SELECT * FROM bills WHERE address_id = ?";
-    const [bills] = await db.promise().query(query, [address_id]);
-
-    if (bills.length === 0) {
-      return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
+    if (!addressId || !lineUserId) {
+        return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
     }
 
-    res.status(200).json({ bills });
-  } catch (error) {
-    console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
-    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
-  }
-};
-exports.verifyUserAddress = async (req, res) => {
-  const { addressId } = req.params;
-
-  // ตรวจสอบว่ามี addressId หรือไม่
-  if (!addressId) {
-    return res.status(400).json({ success: false, message: 'ไม่พบที่อยู่ที่ต้องการยืนยัน' });
-  }
-
-  // อัปเดตสถานะการยืนยันที่อยู่ในฐานข้อมูล
-  const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
-
-  db.query(query, [1, addressId], (err, result) => {
-    if (err) {
-      console.error('Error updating address verification:', err);
-      return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตสถานะที่อยู่' });
-    }
+    try {
+        const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
+        const [result] = await db.promise().query(query, [1, addressId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'ไม่พบที่อยู่ที่ต้องการยืนยัน' });
     }
 
-    return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันแล้ว' });
-  });
+        const access_token = process.env.LINE_ACCESS_TOKEN;
+
+        await axios.post("https://api.line.me/v2/bot/message/push",
+            {
+                to: lineUserId,
+                messages: [
+                    {
+                        type: "text",
+                        text: `📌 บ้านเลขที่: ${addressId}\n✅ ได้รับการตรวจสอบเรียบร้อยแล้ว!`,
+                    },
+                ],
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${access_token}`,
+                },
+            }
+        );
+
+        return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันและส่งข้อความไปยัง LINE แล้ว' });
+
+    } catch (err) {
+        console.error('❌ Error:', err);
+        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตหรือส่งข้อความ' });
+    }
 };
 
 exports.adduserAsdress = async (req, res) => {
@@ -359,6 +378,7 @@ exports.getDebtUsers = async (req, res) => {
       GROUP BY u.lineUserId, u.ID_card_No, u.name
       ORDER BY u.name ASC;
     `;
+
 
     const [results] = await db.promise().query(query);
 
@@ -477,4 +497,104 @@ exports.verifyAddress = (req, res) => {
 
     res.json({ success: true, message: 'Address verified successfully' });
   });
+};
+
+//Admin Manual bill controller
+exports.searchUser = (req, res) => {
+  const search = req.query.search || '';
+
+  const query = `
+    SELECT * FROM users
+    WHERE name LIKE ? OR ID_card_No LIKE ? OR Phone_No LIKE ?
+    ORDER BY created_at DESC
+  `;
+
+  const searchParams = [`%${search}%`, `%${search}%`, `%${search}%`];
+
+  db.query(query, searchParams, (err, results) => {
+    if (err) {
+      console.error("เกิดข้อผิดพลาดในการค้นหาผู้ใช้:", err);
+      return res.status(500).json({ error: "ไม่สามารถค้นหาผู้ใช้ได้" });
+    }
+
+    res.json({ users: results });
+  });
+};
+
+exports.createBill = (req, res) => {
+  const { address_id, amount_due, due_date } = req.body;
+  const status = 0;
+
+  const sql = `
+    INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status)
+    VALUES (?, ?, ?, NOW(), NOW(), ?)
+  `;
+
+  db.query(sql, [address_id, amount_due, due_date, status], (err, result) => {
+    if (err) {
+      console.error("เกิดข้อผิดพลาดในการสร้างบิล:", err);
+      return res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
+    }
+
+    res.status(201).json({ message: "สร้างบิลสำเร็จ", billId: result.insertId });
+  });
+};
+
+//คำณวนราคาขยะ
+exports.getWastePricing = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query('SELECT type, price_per_kg FROM waste_pricing');
+
+    const pricing = {
+      general: 0,
+      hazardous: 0,
+      recyclable: 0,
+    };
+
+    rows.forEach(row => {
+      if (pricing.hasOwnProperty(row.type)) {
+        pricing[row.type] = parseFloat(row.price_per_kg);
+      }
+    });
+
+    res.status(200).json(pricing);
+  } catch (err) {
+    console.error("❌ Error fetching waste pricing:", err);
+    res.status(500).json({ message: "โหลดราคาขยะล้มเหลว" });
+  }
+};
+
+//EditWaste
+exports.updateWastePricing = async (req, res) => {
+  const { general, hazardous, recyclable } = req.body;
+
+  if (
+    typeof general !== 'number' ||
+    typeof hazardous !== 'number' ||
+    typeof recyclable !== 'number'
+  ) {
+    return res.status(400).json({ message: 'ข้อมูลราคาต้องเป็นตัวเลข' });
+  }
+
+  try {
+    const queries = [
+      ['general', general],
+      ['hazardous', hazardous],
+      ['recyclable', recyclable],
+    ];
+
+    for (const [type, price] of queries) {
+      await db.promise().query(
+        `INSERT INTO waste_pricing (type, price_per_kg) 
+         VALUES (?, ?) 
+         ON DUPLICATE KEY UPDATE price_per_kg = VALUES(price_per_kg)`
+        , [type, price]
+      );
+    }
+
+    res.status(200).json({ message: 'บันทึกราคาสำเร็จ' });
+  } catch (error) {
+    console.error('❌ Error updating pricing:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึก', error: error.message });
+  }
 };

@@ -6,40 +6,35 @@ const { generateToken, decodeToken } = require("../utils/jwt"); // ✅ นำเ
 const CLIENT_ID = process.env.LINE_CHANNEL_ID;
 
 exports.lineLogin = async (req, res) => {
-  try {
-    const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ message: "ID Token is required" });
-    console.log("CLIENT_ID:", CLIENT_ID);
-    console.log("Received ID Token:", idToken);
+  const { code } = req.body;
 
-    // ✅ ตรวจสอบ idToken กับ LINE API
-    const response = await axios.post("https://api.line.me/oauth2/v2.1/verify", null, {
-      params: { id_token: idToken, client_id: String(CLIENT_ID) },
+  if (!code) return res.status(400).json({ message: "Missing code" });
+
+  try {
+    const tokenResponse = await axios.post("https://api.line.me/oauth2/v2.1/token", null, {
+      params: {
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: LINE_REDIRECT_URI,
+        client_id: LINE_CHANNEL_ID,
+        client_secret: LINE_CHANNEL_SECRET,
+      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
-    // ✅ Decode ID Token
-    const decodedToken = decodeToken(idToken);
-    if (!decodedToken) {
-      return res.status(401).json({ message: "Invalid ID Token" });
-    }
+    const accessToken = tokenResponse.data.access_token;
 
-    console.log("Decoded Token:", decodedToken);
+    // 📌 ดึงข้อมูลโปรไฟล์จาก LINE
+    const profileResponse = await axios.get("https://api.line.me/v2/profile", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-    // ✅ ตรวจสอบว่า aud ตรงกับ CLIENT_ID หรือไม่
-    if (decodedToken.payload.aud !== CLIENT_ID) {
-      return res.status(401).json({ message: "Invalid IdToken Audience" });
-    }
+    const { userId, displayName, pictureUrl } = profileResponse.data;
 
-    const userData = response.data;
-    console.log("LINE User Data:", userData);
-
-    // ✅ สร้าง JWT ให้ Client
-    const token = generateToken({ id: userData.sub, name: userData.name });
-
-    res.json({ token, user: { id: userData.sub, name: userData.name } });
-
+    // 📌 ส่งข้อมูลให้ React และเก็บ Access Token
+    res.json({ userId, displayName, pictureUrl, accessToken });
   } catch (error) {
-    console.error("LINE Token Verification Failed:", error.response?.data || error.message);
-    res.status(401).json({ message: "Unauthorized" });
+    console.error("Error logging in:", error.response?.data || error.message);
+    res.status(500).json({ message: "Login failed" });
   }
 };

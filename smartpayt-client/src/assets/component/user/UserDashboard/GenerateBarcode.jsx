@@ -1,13 +1,25 @@
 import axios from "axios";
 import { Buffer } from "buffer";
 import PropTypes from "prop-types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-const GenerateBarcode = ({ addressId }) => {
+const GenerateBarcode = ({ addressId, status }) => {
   const [barcodeUrl, setBarcodeUrl] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false); // To control the modal visibility
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = "hidden"; // ปิด Scroll
+    } else {
+      document.body.style.overflow = "auto"; // เปิด Scroll เมื่อปิด Modal
+    }
+
+    return () => {
+      document.body.style.overflow = "auto"; // คืนค่าเดิมเมื่อ Component ถูก Unmount
+    };
+  }, [isModalOpen]);
 
   const fetchBarcode = async () => {
     try {
@@ -30,32 +42,38 @@ const GenerateBarcode = ({ addressId }) => {
   const handleGenerateClick = () => {
     if (addressId) {
       fetchBarcode();
-      setIsModalOpen(true); // Open the modal when generating the barcode
+      setIsModalOpen(true);
     }
   };
 
   const handleCloseClick = () => {
-    setIsModalOpen(false); // Close the modal
-    setBarcodeUrl(null); // Reset the barcode URL
+    setIsModalOpen(false);
+    setBarcodeUrl(null);
   };
 
   if (error) {
     return <div className="text-red-500">{error}</div>;
   }
 
+  if (status === 0) {
+    return null; // ซ่อนปุ่มถ้า address ยังไม่ verify
+  }
+
   return (
-    <div className="barcode-container mr-2">
-      <button
-        onClick={handleGenerateClick}
-        className="text-2xl"
-      >
-       <i className="fi fi-ss-barcode-read text-gray-500"></i>
+    <div className="barcode-container">
+      <button onClick={handleGenerateClick} className="block">
+        <i className="fi fi-ss-barcode-read text-gray-500 block text-2xl"></i>
       </button>
 
-      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-sm w-full">
+        <div
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 flex justify-center items-center z-50"
+          onClick={handleCloseClick} // ปิดเมื่อคลิกนอก Modal
+        >
+          <div
+            className="bg-white p-6 rounded-lg max-w-sm w-full relative z-10"
+            onClick={(e) => e.stopPropagation()} // ป้องกันการปิดถ้าคลิกที่ Modal
+          >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">บาร์โค้ด</h2>
               <button
@@ -70,11 +88,7 @@ const GenerateBarcode = ({ addressId }) => {
 
             {barcodeUrl && !loading && (
               <div className="flex justify-center py-4">
-                <img
-                  src={barcodeUrl}
-                  alt="Barcode"
-                  className="max-w-full h-auto"
-                />
+                <img src={barcodeUrl} alt="Barcode" className="max-w-full h-auto" />
               </div>
             )}
 
@@ -87,7 +101,8 @@ const GenerateBarcode = ({ addressId }) => {
 };
 
 GenerateBarcode.propTypes = {
-  addressId: PropTypes.string.isRequired, // Ensure addressId is passed as a string
+  addressId: PropTypes.string.isRequired,
+  status: PropTypes.number.isRequired,
 };
 
 export default GenerateBarcode;

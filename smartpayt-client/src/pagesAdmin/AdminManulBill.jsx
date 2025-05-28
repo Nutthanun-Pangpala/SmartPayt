@@ -10,7 +10,9 @@ const AdminManualBill = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState('');
-  const [amountDue, setAmountDue] = useState('');
+  const [wasteWeights, setWasteWeights] = useState({ general: '', hazardous: '', recyclable: '' });
+  const [wastePrices, setWastePrices] = useState({ general: 0, hazardous: 0, recyclable: 0 });
+  const [totalPrice, setTotalPrice] = useState(0);
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -18,6 +20,11 @@ const AdminManualBill = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
+  const wasteTypes = [
+    { key: 'general', label: 'ขยะทั่วไป' },
+    { key: 'hazardous', label: 'ขยะอันตราย' },
+    { key: 'recyclable', label: 'ขยะรีไซเคิล' },
+  ];
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -31,11 +38,17 @@ const AdminManualBill = () => {
     axios.get('http://localhost:3000/admin/users', {
       headers: {
         'Cache-Control': 'no-cache',
-        'Authorization': `Bearer ${token}`, // Make sure token is correct
+        'Authorization': `Bearer ${token}`,
       },
     })
       .then(res => setUsers(res.data.users || []))
       .catch(err => setError('ไม่สามารถโหลดผู้ใช้ได้'));
+
+    axios.get('http://localhost:3000/admin/waste-pricing', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then(res => setWastePrices(res.data || {}))
+      .catch(err => console.error('Error loading pricing'));
   }, []);
 
   const handleUserSelect = async (lineUserId, userName) => {
@@ -53,9 +66,18 @@ const AdminManualBill = () => {
     }
   };
 
+  useEffect(() => {
+    const g = parseFloat(wasteWeights.general || 0);
+    const h = parseFloat(wasteWeights.hazardous || 0);
+    const r = parseFloat(wasteWeights.recyclable || 0);
+
+    const total = (g * wastePrices.general) + (h * wastePrices.hazardous) + (r * wastePrices.recyclable);
+    setTotalPrice(total.toFixed(2));
+  }, [wasteWeights, wastePrices]);
+
   const handleSubmit = async () => {
     const token = localStorage.getItem('Admin_token');
-    if (!selectedAddress || !amountDue || !dueDate) {
+    if (!selectedAddress || totalPrice <= 0 || !dueDate) {
       setError('กรุณากรอกข้อมูลให้ครบ');
       return;
     }
@@ -63,7 +85,7 @@ const AdminManualBill = () => {
     try {
       await axios.post('http://localhost:3000/admin/bills', {
         address_id: selectedAddress,
-        amount_due: parseFloat(amountDue),
+        amount_due: parseFloat(totalPrice),
         due_date: dueDate,
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -101,18 +123,14 @@ const AdminManualBill = () => {
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin')}>หน้าหลัก</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/debt')}>ข้อมูลผู้ค้างชำระค่าบริการ</li>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-              onClick={() => navigate('/admin/users-verify')}> ยืนยันสถานะที่อยู่ผู้ใช้บริการ </li>
-
-            <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full">สร้างใบแจ้งหนี้</li>
+            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/users-verify')}>ยืนยันสถานะที่อยู่ผู้ใช้บริการ</li>
+            <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full">เพิ่มบิลชำระให้ผู้บริการ</li>
+            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/editwaste')}>ตั้งค่าการเก็บขยะแต่ละประเภท</li>
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
-              <button
-                className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]"
-                onClick={() => {
-                  localStorage.removeItem("Admin_token");
-                  navigate("/adminlogin");
-                }}
-              >
+              <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]" onClick={() => {
+                localStorage.removeItem("Admin_token");
+                navigate("/adminlogin");
+              }}>
                 ออกจากระบบ
               </button>
             </div>
@@ -121,7 +139,7 @@ const AdminManualBill = () => {
 
         {/* Content */}
         <div className="flex-1 p-5">
-          <h1 className="text-3xl font-bold mb-6">สร้างใบแจ้งหนี้</h1>
+          <h1 className="text-3xl font-bold mb-6">สร้างบิลค่าบริการ</h1>
 
           {error && <p className="text-red-500 mb-4">{error}</p>}
           {success && <p className="text-green-500 mb-4">{success}</p>}
@@ -134,32 +152,28 @@ const AdminManualBill = () => {
                 placeholder="พิมพ์ชื่อ"
                 value={searchTerm}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);     // สำหรับโชว์ในช่อง
-                  setSearchKeyword(e.target.value);  // สำหรับค้นหา
-                  setShowDropdown(true);             // แสดง dropdown
+                  setSearchTerm(e.target.value);
+                  setSearchKeyword(e.target.value);
+                  setShowDropdown(true);
                 }}
                 className="w-full border px-4 py-2 rounded mb-2"
               />
-
-              {/* คำนวณ filteredUsers แยกไว้ก่อน */}
               {showDropdown && searchKeyword.trim().length > 0 && (() => {
                 const keyword = searchKeyword.toLowerCase().trim();
                 const filteredUsers = users.filter(user =>
                   user.name.toLowerCase().includes(keyword)
                 );
-
                 return filteredUsers.length > 0 ? (
                   <ul className="border rounded max-h-40 overflow-y-auto bg-white shadow">
                     {filteredUsers.map(user => (
                       <li
                         key={user.lineUserId}
-                        className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser === user.lineUserId ? 'bg-gray-200' : ''
-                          }`}
+                        className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser === user.lineUserId ? 'bg-gray-200' : ''}`}
                         onClick={() => {
                           handleUserSelect(user.lineUserId, user.name);
-                          setSearchTerm(user.name);     // ✅ โชว์ชื่ออย่างเดียว
-                          setSearchKeyword('');         // ✅ หยุด filter
-                          setShowDropdown(false);       // ✅ ปิด dropdown
+                          setSearchTerm(user.name);
+                          setSearchKeyword('');
+                          setShowDropdown(false);
                         }}
                       >
                         {user.name}
@@ -182,9 +196,21 @@ const AdminManualBill = () => {
               </select>
             </div>
 
+            {wasteTypes.map(({ key, label }) => (
+              <div key={key}>
+                <label className="block mb-1">น้ำหนักขยะประเภท {label} (กิโลกรัม):</label>
+                <input
+                  type="number"
+                  value={wasteWeights[key]}
+                  onChange={(e) => setWasteWeights({ ...wasteWeights, [key]: e.target.value })}
+                  className="w-full border px-4 py-2 rounded"
+                />
+              </div>
+            ))}
+
             <div>
-              <label className="block mb-1">จำนวนเงินที่ต้องชำระ:</label>
-              <input type="number" value={amountDue} onChange={(e) => setAmountDue(e.target.value)} className="w-full border px-4 py-2 rounded" />
+              <label className="block mb-1">รวมเงิน (บาท):</label>
+              <input type="text" value={totalPrice} disabled className="w-full border px-4 py-2 rounded bg-gray-100" />
             </div>
 
             <div>

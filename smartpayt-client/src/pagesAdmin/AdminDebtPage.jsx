@@ -119,24 +119,43 @@ const AdminDebtPage = () => {
       </div>
 
       <div className="flex flex-1">
-        <div className={`relative ${isSidebarOpen ? 'w-1/5' : 'w-0 opacity-0'} bg-green-700 p-5 text-white transition-all`}>
-          <h2 className="text-xl font-bold mb-4">Smart Payt</h2>
-          <ul>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded" onClick={() => navigate('/admin')}>หน้าหลัก</li>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
-            <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded">ข้อมูลผู้ค้างชำระค่าบริการ</li>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-              onClick={() => navigate('/admin/users-verify')}>
-              ยืนยันที่อยู่ผู้ใช้บริการ
-            </li>
-          </ul>
-          <div className="absolute bottom-5 left-0 right-0 flex justify-center">
-            <button className="bg-yellow-500 text-black px-7 py-3 rounded" onClick={() => {
-              localStorage.removeItem('Admin_token');
-              navigate('/adminlogin');
-            }}>ออกจากระบบ</button>
+        {/* Sidebar */}
+        <div className={`relative ${isSidebarOpen ? "w-1/5" : "w-0 opacity-0"} bg-green-700 p-5 text-white transition-all duration-300 ease-in-out overflow-hidden`}>
+          <div className="flex flex-col h-full">
+            <div>
+              <h2 className="text-xl font-bold mb-4">Smart Payt</h2>
+              <ul>
+                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                  onClick={() => navigate('/admin')}> หน้าหลัก </li>
+
+                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                  onClick={() => navigate('/admin/service')}> ข้อมูลผู้ใช้บริการ </li>
+
+                <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full"> ข้อมูลผู้ค้างชำระค่าบริการ </li>
+
+                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                  onClick={() => navigate('/admin/users-verify')}> ยืนยันสถานะที่อยู่ผู้ใช้บริการ </li>
+
+                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                  onClick={() => navigate('/admin/bills')}> เพิ่มบิลชำระให้ผู้บริการ </li>
+                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/editwaste')}>ตั้งค่าการเก็บขยะแต่ละประเภท</li>
+              </ul>
+            </div>
+
+            <div className="absolute bottom-5 left-0 right-0 flex justify-center">
+              <button
+                className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]"
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  navigate("/adminlogin");
+                }}
+              >
+                ออกจากระบบ
+              </button>
+            </div>
           </div>
         </div>
+
 
         <div className="flex-1 p-5">
           <h1 className="text-3xl font-bold mb-6 text-center lg:text-left">ข้อมูลผู้ค้างชำระค่าบริการ</h1>

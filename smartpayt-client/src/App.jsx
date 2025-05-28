@@ -6,15 +6,18 @@ import AddUser from "./pagesAdmin/Adduser";
 import AdminDebtPage from "./pagesAdmin/AdminDebtPage";
 import AdminLogin from "./pagesAdmin/AdminLogin";
 import AdminMain from "./pagesAdmin/AdminMain";
+import AdminManualBill from "./pagesAdmin/AdminManulBill";
 import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
 import AdminVerified from "./pagesAdmin/AdminVerified";
+import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
 
 
 //User
 import UserDashboard from "./pagesUser/UserDashboard";
 import Login from "./pagesUser/UserLoginPage";
+import PaymentPage from "./pagesUser/UserPaymentPage";
 import RegisterAccount from "./pagesUser/UserRegisterAccounts";
 import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
 import Issues from "./pagesUser/UserReportIssuesPages";
@@ -29,13 +32,17 @@ const router = createBrowserRouter([
   { path: "/admin/service", element:<AdminService/> },
   { path: "/admin/debt", element:<AdminDebtPage/> },
   { path:"/admin/user/:lineUserId",element:<UserDetails />},
-  { path: "/admin/users-verify",element:<AdminVerified/>},
+  { path:"/admin/users-verify",element:<AdminVerified />},
+  { path:"/admin/bills",element:<AdminManualBill />},
+  { path:"/admin/editwaste",element:<AdminWastePricing />},
+  
 //user
   { path: "/userLogin", element: <Login /> },
   { path: "/", element: <RegisterAddress />,},
   { path: "/registerAccount", element: <RegisterAccount/>,},
   { path: "/userDashboard" ,element: <UserDashboard/>},
   { path: "/issues", element: <Issues/>},
+  { path: "/payment", element: <PaymentPage/> },
 ], {
   future: {
     v7_startTransition: true,
