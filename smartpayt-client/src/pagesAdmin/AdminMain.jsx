@@ -192,7 +192,7 @@ const AdminMain = () => {
 
             {/* Waste Distribution Chart */}
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4">สัดส่วนการทิ้งขยะ</h2>
+              <h2 className="text-xl font-semibold mb-4">สัดส่วนปริมาณขยะ</h2>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
