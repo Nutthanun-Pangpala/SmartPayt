@@ -257,7 +257,9 @@ exports.getUserAddress = async (req, res) => {
       res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
     }
   };
-  exports.verifyUserAddress = async (req, res) => {
+
+
+  exports.verifyAddress = async (req, res) => {
     const { addressId, lineUserId } = req.params;
 
     if (!addressId || !lineUserId) {
@@ -300,7 +302,29 @@ exports.getUserAddress = async (req, res) => {
     }
 };
 
-exports.adduserAsdress = async (req, res) => {
+exports.verifyUser = async (req, res) => {
+  const { lineUserId } = req.params;
+
+  if (!lineUserId) {
+    return res.status(400).json({ message: 'Missing lineUserId' });
+  }
+
+  try {
+    const sql = 'UPDATE users SET verify_status = 1 WHERE lineUserId = ?';
+    const [result] = await db.promise().query(sql, [lineUserId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
+    }
+
+    return res.status(200).json({ message: 'ยืนยันผู้ใช้สำเร็จ' });
+  } catch (error) {
+    console.error('❌ verifyUser error:', error);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาด' });
+  }
+};
+
+exports.adduserAddress = async (req, res) => {
   const lineUserId = req.params.lineUserId; // รับ lineUserId จาก URL
   const {
     house_no,
@@ -309,10 +333,10 @@ exports.adduserAsdress = async (req, res) => {
     district,
     sub_district,
     postal_code,
-    address_verified,
     created_at,
     updated_at,
   } = req.body;
+  const address_verified = 0;
 
   const query = `
       INSERT INTO addresses (
@@ -423,7 +447,7 @@ exports.getUsersWithAddressVerification = (req, res) => {
   const safeSortField = allowedSortFields.includes(sortField) ? sortField : 'name';
   const safeSortDirection = sortDirection.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-  let searchCondition = 'WHERE 1=1';
+  let searchCondition = 'WHERE a.address_verified = 0'; // ✅ ดึงเฉพาะยังไม่ยืนยัน
   let searchParams = [];
 
   if (search) {
@@ -431,42 +455,33 @@ exports.getUsersWithAddressVerification = (req, res) => {
     searchParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  // Query ดึงข้อมูลผู้ใช้ + address_verified (join addresses แสดงสถานะล่าสุด / หรือ เฉพาะ address ล่าสุด)
   const countSql = `
-    SELECT COUNT(DISTINCT u.lineUserId) AS total
-    FROM users u
-    LEFT JOIN addresses a ON u.lineUserId = a.lineUserId
+    SELECT COUNT(*) AS total
+    FROM addresses a
+    LEFT JOIN users u ON a.lineUserId = u.lineUserId
     ${searchCondition}
   `;
 
-  // ดึงข้อมูล user + address_verified (สถานะที่อยู่ล่าสุด)
-  // สมมติเอา address_verified ของ address ล่าสุด (updated_at สูงสุด)
-  const sql = `
+  const dataSql = `
     SELECT 
       u.lineUserId, u.name, u.ID_card_No, u.Phone_No,
-      a.address_id, a.address_verified
-    FROM users u
-    LEFT JOIN addresses a ON u.lineUserId = a.lineUserId
-      AND a.updated_at = (
-        SELECT MAX(updated_at) FROM addresses WHERE lineUserId = u.lineUserId
-      )
+      a.address_id, a.address_verified,
+      a.house_no, a.Alley, a.province, a.district, a.sub_district, a.postal_code
+    FROM addresses a
+    LEFT JOIN users u ON a.lineUserId = u.lineUserId
     ${searchCondition}
-    GROUP BY u.lineUserId
-    ORDER BY
-  CASE WHEN a.address_verified = 1 THEN 1 ELSE 0 END ASC, -- แสดงคนยังไม่ยืนยัน (0) ขึ้นก่อน
-  ${safeSortField} ${safeSortDirection}
-
+    ORDER BY ${safeSortField} ${safeSortDirection}
     LIMIT ? OFFSET ?
   `;
 
   db.query(countSql, searchParams, (err, countResults) => {
-    if (err) return res.status(500).json({ message: 'Failed to count users', error: err.message });
+    if (err) return res.status(500).json({ message: 'Failed to count addresses', error: err.message });
 
     const total = countResults[0].total;
     const totalPages = Math.ceil(total / limit);
 
-    db.query(sql, [...searchParams, limit, offset], (err, results) => {
-      if (err) return res.status(500).json({ message: 'Failed to fetch users', error: err.message });
+    db.query(dataSql, [...searchParams, limit, offset], (err, results) => {
+      if (err) return res.status(500).json({ message: 'Failed to fetch data', error: err.message });
 
       res.json({
         users: results,
@@ -478,8 +493,48 @@ exports.getUsersWithAddressVerification = (req, res) => {
   });
 };
 
+
+exports.getUsersForUserVerification = (req, res) => {
+  const { page = 1, search = '' } = req.query;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+
+  const searchCondition = search
+    ? `WHERE u.name LIKE ? OR u.ID_card_No LIKE ? OR u.Phone_No LIKE ?`
+    : '';
+  const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+
+  const countSql = `SELECT COUNT(*) AS total FROM users u ${searchCondition}`;
+  const dataSql = `
+    SELECT u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status
+    FROM users u
+    ${searchCondition}
+    ORDER BY u.name ASC
+    LIMIT ? OFFSET ?
+  `;
+
+  db.query(countSql, searchParams, (err, countResults) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const total = countResults[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    db.query(dataSql, [...searchParams, limit, offset], (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      res.json({
+        users: results,
+        totalPages,
+        currentPage: parseInt(page),
+        totalUsers: total,
+      });
+    });
+  });
+};
+
+
 // อัปเดตสถานะ address_verified เป็น 1
-exports.verifyAddress = (req, res) => {
+exports.verifyAddress = async (req, res) => {
   const { addressId } = req.params;
 
   if (!addressId) {
@@ -498,6 +553,7 @@ exports.verifyAddress = (req, res) => {
     res.json({ success: true, message: 'Address verified successfully' });
   });
 };
+
 
 //Admin Manual bill controller
 exports.searchUser = (req, res) => {
