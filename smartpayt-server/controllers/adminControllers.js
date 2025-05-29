@@ -4,14 +4,13 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 
-// ฟังก์ชันที่มีอยู่เดิม - ไม่มีการแก้ไข
+// Admin Register 
 exports.register = (req, res) => {
   const { admin_username, admin_password } = req.body;
   if (!admin_username || !admin_password) {
     return res.status(400).json({ message: "Missing fields" });
   }
 
-  // ✅ เข้ารหัสรหัสผ่านก่อนบันทึก
   bcrypt.hash(admin_password, 10, (err, hashedPassword) => {
     if (err) {
       console.error('Hashing Error:', err);
@@ -32,6 +31,7 @@ exports.register = (req, res) => {
   });
 };
 
+// Admin login
 exports.login = (req, res) => {
   const { admin_username, admin_password } = req.body;
   if (!admin_username || !admin_password) {
@@ -63,64 +63,126 @@ exports.login = (req, res) => {
   });
 };
 
-// ฟังก์ชันใหม่สำหรับหน้า AdminMain
+// AdminMain
 exports.getUserCount = (req, res) => {
   const sql = `
     SELECT 
       (SELECT COUNT(*) FROM users) AS totalUsers,
-      (SELECT COUNT(*) FROM addresses) AS totalAddress
+      (SELECT COUNT(*) FROM addresses) AS totalAddress,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'general') AS generalWaste,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'hazardous') AS hazardousWaste,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'recyclable') AS recycleWaste
   `;
   db.query(sql, (err, results) => {
     if (err) {
-      console.error('Error counting users:', err);
+      console.error('Error counting users and waste:', err);
       return res.status(500).json({
-        message: 'Failed to count users',
+        message: 'Failed to count users and waste',
         error: err.message
       });
     }
 
-    // ดึงข้อมูลที่ถูกต้องจากผลลัพธ์
-    const { totalUsers, totalAddress } = results[0];
+    const {
+      totalUsers,
+      totalAddress,
+      generalWaste,
+      hazardousWaste,
+      recycleWaste,
+    } = results[0];
 
-    // ส่งข้อมูลกลับ
     res.json({
       totalUsers,
-      totalAddress
+      totalAddress,
+      generalWaste,
+      hazardousWaste,
+      recycleWaste,
     });
   });
 };
 
+
 exports.getWasteStats = (req, res) => {
-  const sql = 'SELECT waste_type, COUNT(*) as count FROM waste_disposal GROUP BY waste_type';
-  db.query(sql, (err, results) => {
+  const { month } = req.query; // เช่น "2025-05"
+
+  let sql = `
+    SELECT waste_type, SUM(weight_kg) as total_weight
+    FROM waste_records
+  `;
+  const params = [];
+
+  if (month) {
+    sql += ` WHERE DATE_FORMAT(recorded_date, '%Y-%m') = ? `;
+    params.push(month);
+  }
+
+  sql += ` GROUP BY waste_type `;
+
+  db.query(sql, params, (err, results) => {
     if (err) {
       console.error('Error getting waste stats:', err);
       return res.status(500).json({
         message: 'Failed to get waste statistics',
-        error: err.message
+        error: err.message,
       });
     }
 
-    // แปลงข้อมูลให้เหมาะสมกับการแสดงในกราฟ
+    // เตรียมโครงสร้างข้อมูลสำหรับ frontend
     const wasteData = [
-      { name: 'ทั่วไป', value: 0 },
-      { name: 'อันตราย', value: 0 },
-      { name: 'รีไซเคิล', value: 0 }
+      { name: 'ขยะทั่วไป', value: 0 },
+      { name: 'ขยะอันตราย', value: 0 },
+      { name: 'ขยะรีไซเคิล', value: 0 },
     ];
 
     results.forEach(item => {
       if (item.waste_type === 'general') {
-        wasteData[0].value = item.count;
+        wasteData[0].value = Number(item.total_weight);
       } else if (item.waste_type === 'hazardous') {
-        wasteData[1].value = item.count;
-      } else if (item.waste_type === 'recycle') {
-        wasteData[2].value = item.count;
+        wasteData[1].value = Number(item.total_weight);
+      } else if (item.waste_type === 'recyclable') {
+        wasteData[2].value = Number(item.total_weight);
       }
     });
 
     res.json(wasteData);
   });
 };
+
+exports.getPendingCounts = (req, res) => {
+  const sql = `
+    SELECT
+      (SELECT COUNT(*) FROM users WHERE verify_status = 0) AS pendingUsers,
+      (SELECT COUNT(*) FROM addresses WHERE address_verified = 0) AS pendingAddresses
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting pending counts:', err);
+      return res.status(500).json({
+        message: 'Failed to get pending counts',
+        error: err.message,
+      });
+    }
+    const { pendingUsers, pendingAddresses } = results[0];
+    res.json({ pendingUsers, pendingAddresses });
+  });
+};
+
+exports.getWasteMonths = (req, res) => {
+  const sql = `
+    SELECT DISTINCT DATE_FORMAT(recorded_date, '%Y-%m') AS month
+    FROM waste_records
+    ORDER BY month DESC
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error fetching waste months:', err);
+      return res.status(500).json({ message: 'Failed to fetch waste months' });
+    }
+    const months = results.map(row => row.month);
+    res.json(months);
+  });
+};
+
+
 
 // ฟังก์ชันใหม่สำหรับหน้า AdminService
 

@@ -14,6 +14,13 @@ router.post('/users/:lineUserId/add-address', adminController.adduserAddress);
 // Protected routes
 router.use(verifyToken);
 
+//Admin Main
+router.get('/stats', adminController.getUserCount);
+router.get('/waste-stats', adminController.getWasteStats);
+router.get('/pending-counts', adminController.getPendingCounts);
+router.get('/waste-months', adminController.getWasteMonths);
+
+
 // Admin Service
 router.get('/stats', adminController.getUserCount);
 router.get('/users', adminController.getUsers);
