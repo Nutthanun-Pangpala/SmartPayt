@@ -78,3 +78,7 @@ CREATE TABLE waste_records (
   FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE CASCADE
 );
 
+--ไว้ค้อยเช็คจำนวนขยะต่อเดือนที่เข้ามา
+SELECT DISTINCT DATE_FORMAT(recorded_date, '%Y-%m') AS month
+FROM waste_records
+ORDER BY month DESC;
