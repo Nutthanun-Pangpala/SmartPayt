@@ -19,6 +19,8 @@ const AdminManualBill = () => {
   const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isBillingDropdownOpen, setIsBillingDropdownOpen] = useState(true);
+
 
   const wasteTypes = [
     { key: 'general', label: 'ขยะทั่วไป' },
@@ -139,8 +141,42 @@ const AdminManualBill = () => {
                                     <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-address')}>ยืนยันข้อมูลครัวเรือน</li>
                                 </ul>
                             )}
-            <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full">เพิ่มบิลชำระให้ผู้บริการ</li>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/editwaste')}>ตั้งค่าการเก็บขยะแต่ละประเภท</li>
+            <li
+  className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+  onClick={() => setIsBillingDropdownOpen(!isBillingDropdownOpen)}
+>
+  <div className="flex justify-between items-center">
+    <span>การจัดการบิลและขยะ</span>
+    <svg
+      className={`h-4 w-4 transform transition-transform ${isBillingDropdownOpen ? 'rotate-90' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  </div>
+</li>
+
+{isBillingDropdownOpen && (
+  <ul className="ml-4">
+    <li
+      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+      onClick={() => navigate('/admin/bills')}
+    >
+      สร้างใบแจ้งหนี้
+    </li>
+    <li
+      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+      onClick={() => navigate('/admin/editwaste')}
+    >
+      กำหนดราคาประเภทขยะ
+    </li>
+  </ul>
+)}
+
+           
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
               <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]" onClick={() => {
                 localStorage.removeItem("Admin_token");

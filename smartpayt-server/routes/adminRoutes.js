@@ -38,7 +38,6 @@ router.get('/waste-pricing', adminController.getWastePricing);
 
 //roure for Edit Waste
 router.post('/waste-pricing', adminController.updateWastePricing);
-
 router.get('/user-address/:lineUserId', adminController.getUserAddress);
 
 module.exports = router;

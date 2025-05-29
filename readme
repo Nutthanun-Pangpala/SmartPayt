@@ -6,6 +6,7 @@ CREATE TABLE users (
   Email VARCHAR(100) DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ALTER TABLE users ADD COLUMN verify_status TINYINT DEFAULT 0;
 );
 
 CREATE TABLE addresses (
@@ -65,3 +66,5 @@ INSERT INTO `waste_pricing` (`id`, `type`, `price_per_kg`, `updated_at`) VALUES
 
 -- รีเซ็ต AUTO_INCREMENT ให้ ID วิ่งต่อจาก 4 (ไม่ใส่ก็ได้)
 ALTER TABLE `waste_pricing` AUTO_INCREMENT = 4;
+
+

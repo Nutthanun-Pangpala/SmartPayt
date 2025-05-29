@@ -13,6 +13,7 @@ const AdminService = () => {
     const [sortField, setSortField] = useState('created_at');  // ✅ แก้ไขค่าเริ่มต้น
     const [sortDirection, setSortDirection] = useState('asc');
     const navigate = useNavigate();
+    const [isBillingDropdownOpen, setIsBillingDropdownOpen] = useState(false);
 
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
@@ -120,24 +121,56 @@ const AdminService = () => {
                             ข้อมูลผู้ค้างชำระค่าบริการ
                         </li>
                         <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
-                                <div className="flex justify-between items-center">
-                                    <span>ยืนยันสถานะผู้ใช้บริการ</span>
-                                    <svg className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
-                            </li>
+                            <div className="flex justify-between items-center">
+                                <span>ยืนยันสถานะผู้ใช้บริการ</span>
+                                <svg className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </li>
 
-                            {isDropdownOpen && (
-                                <ul className="ml-4">
-                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-user')}>ยืนยันข้อมูลผู้ใช้บริการ</li>
-                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-address')}>ยืนยันข้อมูลครัวเรือน</li>
-                                </ul>
-                            )}
-                        <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                            onClick={() => navigate('/admin/bills')}> เพิ่มบิลชำระให้ผู้บริการ </li>
-                            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/editwaste')}>ตั้งค่าการเก็บขยะแต่ละประเภท</li>
-                    </ul>
+                        {isDropdownOpen && (
+                            <ul className="ml-4">
+                                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-user')}>ยืนยันข้อมูลผู้ใช้บริการ</li>
+                                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-address')}>ยืนยันข้อมูลครัวเรือน</li>
+                            </ul>
+                        )}
+                        <li
+  className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+  onClick={() => setIsBillingDropdownOpen(!isBillingDropdownOpen)}
+>
+  <div className="flex justify-between items-center">
+    <span>การจัดการบิลและขยะ</span>
+    <svg
+      className={`h-4 w-4 transform transition-transform ${isBillingDropdownOpen ? 'rotate-90' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  </div>
+</li>
+
+{isBillingDropdownOpen && (
+  <ul className="ml-4">
+    <li
+      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+      onClick={() => navigate('/admin/bills')}
+    >
+      สร้างใบแจ้งหนี้
+    </li>
+    <li
+      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+      onClick={() => navigate('/admin/editwaste')}
+    >
+      กำหนดราคาประเภทขยะ
+    </li>
+  </ul>
+)}
+
+                        </ul>
                     <div className="absolute bottom-5 left-0 right-0 flex justify-center">
                         <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md"
                             onClick={() => {

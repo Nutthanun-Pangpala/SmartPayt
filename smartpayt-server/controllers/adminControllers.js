@@ -240,66 +240,66 @@ exports.getUserAddress = async (req, res) => {
   }
 };
 
-  exports.getuserAddressBill =  async (req, res) => {
-    try {
-      const { address_id } = req.params;
-  
-      const query = "SELECT * FROM bills WHERE address_id = ?";
-      const [bills] = await db.promise().query(query, [address_id]);
-  
-      if (bills.length === 0) {
-        return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
-      }
-  
-      res.status(200).json({ bills });
-    } catch (error) {
-      console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
-      res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
-    }
-  };
+exports.getuserAddressBill = async (req, res) => {
+  try {
+    const { address_id } = req.params;
 
+    const query = "SELECT * FROM bills WHERE address_id = ?";
+    const [bills] = await db.promise().query(query, [address_id]);
 
-  exports.verifyAddress = async (req, res) => {
-    const { addressId, lineUserId } = req.params;
-
-    if (!addressId || !lineUserId) {
-        return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+    if (bills.length === 0) {
+      return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
     }
 
-    try {
-        const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
-        const [result] = await db.promise().query(query, [1, addressId]);
+    res.status(200).json({ bills });
+  } catch (error) {
+    console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+  }
+};
+
+
+exports.verifyAddress = async (req, res) => {
+  const { addressId, lineUserId } = req.params;
+
+  if (!addressId || !lineUserId) {
+    return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+  }
+
+  try {
+    const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
+    const [result] = await db.promise().query(query, [1, addressId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'ไม่พบที่อยู่ที่ต้องการยืนยัน' });
     }
 
-        const access_token = process.env.LINE_ACCESS_TOKEN;
+    const access_token = process.env.LINE_ACCESS_TOKEN;
 
-        await axios.post("https://api.line.me/v2/bot/message/push",
-            {
-                to: lineUserId,
-                messages: [
-                    {
-                        type: "text",
-                        text: `📌 บ้านเลขที่: ${addressId}\n✅ ได้รับการตรวจสอบเรียบร้อยแล้ว!`,
-                    },
-                ],
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${access_token}`,
-                },
-            }
-        );
+    await axios.post("https://api.line.me/v2/bot/message/push",
+      {
+        to: lineUserId,
+        messages: [
+          {
+            type: "text",
+            text: `📌 บ้านเลขที่: ${addressId}\n✅ ได้รับการตรวจสอบเรียบร้อยแล้ว!`,
+          },
+        ],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${access_token}`,
+        },
+      }
+    );
 
-        return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันและส่งข้อความไปยัง LINE แล้ว' });
+    return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันและส่งข้อความไปยัง LINE แล้ว' });
 
-    } catch (err) {
-        console.error('❌ Error:', err);
-        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตหรือส่งข้อความ' });
-    }
+  } catch (err) {
+    console.error('❌ Error:', err);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตหรือส่งข้อความ' });
+  }
 };
 
 exports.verifyUser = async (req, res) => {
@@ -493,7 +493,7 @@ exports.getUsersWithAddressVerification = (req, res) => {
   });
 };
 
-
+// Verified User
 exports.getUsersForUserVerification = (req, res) => {
   const { page = 1, search = '' } = req.query;
   const limit = 10;
@@ -514,13 +514,20 @@ exports.getUsersForUserVerification = (req, res) => {
   `;
 
   db.query(countSql, searchParams, (err, countResults) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ Count SQL Error:', err);
+      return res.status(500).json({ error: err.message });
+    }
 
     const total = countResults[0].total;
     const totalPages = Math.ceil(total / limit);
+    const finalParams = [...searchParams, limit, offset];
 
-    db.query(dataSql, [...searchParams, limit, offset], (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
+    db.query(dataSql, finalParams, (err, results) => {
+      if (err) {
+        console.error('❌ Data SQL Error:', err);
+        return res.status(500).json({ error: err.message });
+      }
 
       res.json({
         users: results,
@@ -533,6 +540,7 @@ exports.getUsersForUserVerification = (req, res) => {
 };
 
 
+// Verify Address
 // อัปเดตสถานะ address_verified เป็น 1
 exports.verifyAddress = async (req, res) => {
   const { addressId } = req.params;
