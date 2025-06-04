@@ -48,3 +48,8 @@ router.post('/waste-pricing', adminController.updateWastePricing);
 router.get('/user-address/:lineUserId', adminController.getUserAddress);
 
 module.exports = router;
+
+router.patch('/users/:lineUserId/verify', verifyToken, adminController.verifyUser);
+router.post('/verify-address/:addressId', verifyToken, adminController.verifyAddress);
+router.post('/waste-pricing', verifyToken, adminController.updateWastePricing);
+

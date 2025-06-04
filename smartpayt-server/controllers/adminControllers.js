@@ -322,58 +322,38 @@ exports.getuserAddressBill = async (req, res) => {
 
 
 exports.verifyAddress = async (req, res) => {
-  const { addressId, lineUserId } = req.params;
+  const { addressId } = req.params;
+  const adminId = req.user?.id; // 🔑 ได้จาก JWT token
 
-  if (!addressId || !lineUserId) {
-    return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+  if (!addressId || !adminId) {
+    return res.status(400).json({ success: false, message: 'Missing addressId or adminId' });
   }
 
-  try {
-    const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
-    const [result] = await db.promise().query(query, [1, addressId]);
+  const sql = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ?';
+
+  db.query(sql, [adminId, addressId], (err, result) => {
+    if (err) return res.status(500).json({ success: false, message: 'Failed to update verification status' });
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'ไม่พบที่อยู่ที่ต้องการยืนยัน' });
+      return res.status(404).json({ success: false, message: 'Address not found' });
     }
 
-    const access_token = process.env.LINE_ACCESS_TOKEN;
-
-    await axios.post("https://api.line.me/v2/bot/message/push",
-      {
-        to: lineUserId,
-        messages: [
-          {
-            type: "text",
-            text: `📌 บ้านเลขที่: ${addressId}\n✅ ได้รับการตรวจสอบเรียบร้อยแล้ว!`,
-          },
-        ],
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${access_token}`,
-        },
-      }
-    );
-
-    return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันและส่งข้อความไปยัง LINE แล้ว' });
-
-  } catch (err) {
-    console.error('❌ Error:', err);
-    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตหรือส่งข้อความ' });
-  }
+    res.json({ success: true, message: 'Address verified successfully' });
+  });
 };
+
 
 exports.verifyUser = async (req, res) => {
   const { lineUserId } = req.params;
+  const adminId = req.user?.id;
 
-  if (!lineUserId) {
-    return res.status(400).json({ message: 'Missing lineUserId' });
+  if (!lineUserId || !adminId) {
+    return res.status(400).json({ message: 'Missing lineUserId or adminId' });
   }
 
   try {
-    const sql = 'UPDATE users SET verify_status = 1 WHERE lineUserId = ?';
-    const [result] = await db.promise().query(sql, [lineUserId]);
+    const sql = 'UPDATE users SET verify_status = 1, admin_verify = ? WHERE lineUserId = ?';
+    const [result] = await db.promise().query(sql, [adminId, lineUserId]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
@@ -385,6 +365,7 @@ exports.verifyUser = async (req, res) => {
     return res.status(500).json({ message: 'เกิดข้อผิดพลาด' });
   }
 };
+
 
 exports.adduserAddress = async (req, res) => {
   const lineUserId = req.params.lineUserId; // รับ lineUserId จาก URL
@@ -524,17 +505,17 @@ exports.getUsersWithAddressVerification = (req, res) => {
     ${searchCondition}
   `;
 
-  const dataSql = `
-    SELECT 
-      u.lineUserId, u.name, u.ID_card_No, u.Phone_No,
-      a.address_id, a.address_verified,
-      a.house_no, a.Alley, a.province, a.district, a.sub_district, a.postal_code
-    FROM addresses a
-    LEFT JOIN users u ON a.lineUserId = u.lineUserId
-    ${searchCondition}
-    ORDER BY ${safeSortField} ${safeSortDirection}
-    LIMIT ? OFFSET ?
-  `;
+ const dataSql = `
+  SELECT 
+  u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status,
+  a.address_id, a.address_verified,
+  a.house_no, a.Alley, a.province, a.district, a.sub_district, a.postal_code
+FROM addresses a
+LEFT JOIN users u ON a.lineUserId = u.lineUserId
+  ${searchCondition}
+  ORDER BY ${safeSortField} ${safeSortDirection}
+  LIMIT ? OFFSET ?
+`;
 
   db.query(countSql, searchParams, (err, countResults) => {
     if (err) return res.status(500).json({ message: 'Failed to count addresses', error: err.message });
@@ -566,14 +547,23 @@ exports.getUsersForUserVerification = (req, res) => {
     : '';
   const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
 
-  const countSql = `SELECT COUNT(*) AS total FROM users u ${searchCondition}`;
+  const countSql = `
+  SELECT COUNT(*) AS total 
+  FROM users u 
+  WHERE u.verify_status = 0
+  ${search ? 'AND (u.name LIKE ? OR u.ID_card_No LIKE ? OR u.Phone_No LIKE ?)' : ''}
+`;
+
   const dataSql = `
-    SELECT u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status
-    FROM users u
-    ${searchCondition}
-    ORDER BY u.name ASC
-    LIMIT ? OFFSET ?
-  `;
+  SELECT u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status
+  FROM users u
+  WHERE u.verify_status = 0
+  ${search ? 'AND (u.name LIKE ? OR u.ID_card_No LIKE ? OR u.Phone_No LIKE ?)' : ''}
+  ORDER BY u.name ASC
+  LIMIT ? OFFSET ?
+`;
+
+
 
   db.query(countSql, searchParams, (err, countResults) => {
     if (err) {
@@ -606,14 +596,15 @@ exports.getUsersForUserVerification = (req, res) => {
 // อัปเดตสถานะ address_verified เป็น 1
 exports.verifyAddress = async (req, res) => {
   const { addressId } = req.params;
+  const adminId = req.user?.id; // 🔑 ได้จาก JWT token
 
-  if (!addressId) {
-    return res.status(400).json({ success: false, message: 'Missing addressId' });
+  if (!addressId || !adminId) {
+    return res.status(400).json({ success: false, message: 'Missing addressId or adminId' });
   }
 
-  const sql = 'UPDATE addresses SET address_verified = 1 WHERE address_id = ?';
+  const sql = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ?';
 
-  db.query(sql, [addressId], (err, result) => {
+  db.query(sql, [adminId, addressId], (err, result) => {
     if (err) return res.status(500).json({ success: false, message: 'Failed to update verification status' });
 
     if (result.affectedRows === 0) {
@@ -625,15 +616,16 @@ exports.verifyAddress = async (req, res) => {
 };
 
 
+
 //Admin Manual bill controller
 exports.searchUser = (req, res) => {
   const search = req.query.search || '';
 
   const query = `
-    SELECT * FROM users
-    WHERE name LIKE ? OR ID_card_No LIKE ? OR Phone_No LIKE ?
-    ORDER BY created_at DESC
-  `;
+  SELECT * FROM users
+  WHERE name LIKE ? OR ID_card_No LIKE ? OR Phone_No LIKE ?
+  ORDER BY created_at DESC
+`;
 
   const searchParams = [`%${search}%`, `%${search}%`, `%${search}%`];
 
@@ -693,13 +685,15 @@ exports.getWastePricing = async (req, res) => {
 //EditWaste
 exports.updateWastePricing = async (req, res) => {
   const { general, hazardous, recyclable } = req.body;
+  const adminId = req.user?.id;
 
   if (
     typeof general !== 'number' ||
     typeof hazardous !== 'number' ||
-    typeof recyclable !== 'number'
+    typeof recyclable !== 'number' ||
+    !adminId
   ) {
-    return res.status(400).json({ message: 'ข้อมูลราคาต้องเป็นตัวเลข' });
+    return res.status(400).json({ message: 'ข้อมูลไม่ครบถ้วน' });
   }
 
   try {
@@ -711,10 +705,12 @@ exports.updateWastePricing = async (req, res) => {
 
     for (const [type, price] of queries) {
       await db.promise().query(
-        `INSERT INTO waste_pricing (type, price_per_kg) 
-         VALUES (?, ?) 
-         ON DUPLICATE KEY UPDATE price_per_kg = VALUES(price_per_kg)`
-        , [type, price]
+        `INSERT INTO waste_pricing (type, price_per_kg, admin_verify)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           price_per_kg = VALUES(price_per_kg),
+           admin_verify = VALUES(admin_verify)`
+        , [type, price, adminId]
       );
     }
 
