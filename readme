@@ -94,4 +94,7 @@ ALTER TABLE users ADD COLUMN admin_verify INT NULL;
 ALTER TABLE addresses ADD COLUMN admin_verify INT NULL;
 ALTER TABLE waste_pricing ADD COLUMN admin_verify INT NULL;
 
+ติดตั้งเพื่อ export Excel
+npm install file-saver
+npm install xlsx
 
