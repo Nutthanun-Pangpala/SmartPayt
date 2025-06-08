@@ -237,15 +237,23 @@ const VerifiedAddress = () => {
                                                 </td>
                                                 <td className="border px-4 py-2 text-center">
                                                     {user.address_verified === 1 ? (
-                                                        <span className="inline-block px-3 py-1 rounded bg-green-200 text-green-800 font-semibold"> ยืนยันแล้ว
-                                                        </span>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleVerify(user.address_id)}
-                                                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                        > ยืนยัน
-                                                        </button>
-                                                    )}
+                                                    <span className="inline-block px-3 py-1 rounded bg-green-200 text-green-800 font-semibold">
+                                                    ยืนยันแล้ว
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleVerify(user.address_id)}
+                                                    disabled={user.verify_status !== 1}
+                                                    className={`px-3 py-1 rounded font-semibold ${
+                                                        user.verify_status !== 1
+                                                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    }`}
+                                                > 
+                                                    ยืนยัน
+                                                </button>
+                                            )}
+
                                                 </td>
                                             </tr>
                                         ))

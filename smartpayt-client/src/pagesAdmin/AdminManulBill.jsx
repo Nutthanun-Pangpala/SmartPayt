@@ -2,6 +2,31 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import nanglaeIcon from "../assets/img/nanglaeicon.png";
+import DatePicker, { registerLocale } from 'react-datepicker';
+import th from 'date-fns/locale/th';
+import 'react-datepicker/dist/react-datepicker.css';
+
+registerLocale('th', th);
+
+const CustomInputWithBuddhistYear = React.forwardRef(({ value, onClick }, ref) => {
+  const convertToBuddhistYear = (dateStr) => {
+    const [day, month, year] = dateStr.split('/');
+    const buddhistYear = (parseInt(year) + 543).toString();
+    return `${day}/${month}/${buddhistYear}`;
+  };
+
+  return (
+    <input
+      className="w-full border px-4 py-2 rounded"
+      onClick={onClick}
+      ref={ref}
+      value={value ? convertToBuddhistYear(value) : ''}
+      readOnly
+      placeholder="เลือกวันครบกำหนด"
+    />
+  );
+});
+
 
 const AdminManualBill = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -13,7 +38,7 @@ const AdminManualBill = () => {
   const [wasteWeights, setWasteWeights] = useState({ general: '', hazardous: '', recyclable: '' });
   const [wastePrices, setWastePrices] = useState({ general: 0, hazardous: 0, recyclable: 0 });
   const [totalPrice, setTotalPrice] = useState(0);
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
@@ -89,7 +114,7 @@ const AdminManualBill = () => {
       await axios.post('http://localhost:3000/admin/bills', {
         address_id: selectedAddress,
         amount_due: parseFloat(totalPrice),
-        due_date: dueDate,
+        due_date: dueDate ? dueDate.toISOString().split('T')[0] : '',
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -265,10 +290,43 @@ const AdminManualBill = () => {
             </div>
 
             <div>
-              <label className="block mb-1">วันครบกำหนด:</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full border px-4 py-2 rounded" />
-            </div>
-
+            <label className="block mb-1">วันครบกำหนด:</label>
+            <DatePicker
+            selected={dueDate}
+            onChange={(date) => setDueDate(date)}
+            dateFormat="dd/MM/yyyy"
+            locale="th"
+            customInput={<CustomInputWithBuddhistYear />}
+            renderCustomHeader={({
+              date,
+              changeYear,
+              changeMonth,
+              decreaseMonth,
+              increaseMonth,
+              prevMonthButtonDisabled,
+              nextMonthButtonDisabled,
+            }) => {
+              const years = Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - 10 + i);
+              const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                return (
+                  <div className="flex justify-between items-center px-2 py-1">
+                    <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>{'<'}</button>
+                    <select value={date.getFullYear()} onChange={({ target: { value } }) => changeYear(value)}>
+                      {years.map((year) => (
+                        <option key={year} value={year}>{year + 543}</option>
+                      ))}
+                    </select>
+                    <select value={date.getMonth()} onChange={({ target: { value } }) => changeMonth(value)}>
+                      {months.map((month, index) => (
+                        <option key={month} value={index}>{month}</option>
+                    ))}
+                  </select>
+                <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>{'>'}</button>
+              </div>
+            );
+          }}
+        />
+      </div>
             <button onClick={handleSubmit} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
               สร้างใบแจ้งหนี้
             </button>
