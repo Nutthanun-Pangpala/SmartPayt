@@ -7,12 +7,19 @@ const router = express.Router();
 // Public routes
 router.post('/register', adminController.register);
 router.post('/login', adminController.login);
-router.patch('/:lineUserId/address/verify/:addressId',adminController.verifyUserAddress);
-router.post('/users/:lineUserId/add-address', adminController.adduserAsdress);
+router.patch('/:lineUserId/address/verify/:addressId',adminController.verifyAddress);
+router.post('/users/:lineUserId/add-address', adminController.adduserAddress);
 
 
 // Protected routes
 router.use(verifyToken);
+
+//Admin Main
+router.get('/stats', adminController.getUserCount);
+router.get('/waste-stats', adminController.getWasteStats);
+router.get('/pending-counts', adminController.getPendingCounts);
+router.get('/waste-months', adminController.getWasteMonths);
+
 
 // Admin Service
 router.get('/stats', adminController.getUserCount);
@@ -27,8 +34,10 @@ router.get('/debt', adminController.getDebtUsers);
 router.get('/users/:lineUserId/bills', adminController.getBillsByLineUserId);
 
 //Route for AdminVerified page
-router.get('/users-verify', adminController.getUsersWithAddressVerification);  // ดึง users + address_verified
 router.post('/verify-address/:addressId', adminController.verifyAddress);  // ยืนยันที่อยู่
+router.get('/users-verify-user', adminController.getUsersForUserVerification);
+router.get('/users-verify-address', adminController.getUsersWithAddressVerification);
+router.patch('/users/:lineUserId/verify', adminController.verifyUser);
 
 //Route for Admin Manual bill page
 router.post('/bills', verifyToken, adminController.createBill);
@@ -36,5 +45,11 @@ router.get('/waste-pricing', adminController.getWastePricing);
 
 //roure for Edit Waste
 router.post('/waste-pricing', adminController.updateWastePricing);
+router.get('/user-address/:lineUserId', adminController.getUserAddress);
 
 module.exports = router;
+
+router.patch('/users/:lineUserId/verify', verifyToken, adminController.verifyUser);
+router.post('/verify-address/:addressId', verifyToken, adminController.verifyAddress);
+router.post('/waste-pricing', verifyToken, adminController.updateWastePricing);
+

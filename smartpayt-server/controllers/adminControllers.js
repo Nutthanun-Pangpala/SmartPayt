@@ -4,14 +4,13 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 
-// ฟังก์ชันที่มีอยู่เดิม - ไม่มีการแก้ไข
+// Admin Register 
 exports.register = (req, res) => {
   const { admin_username, admin_password } = req.body;
   if (!admin_username || !admin_password) {
     return res.status(400).json({ message: "Missing fields" });
   }
 
-  // ✅ เข้ารหัสรหัสผ่านก่อนบันทึก
   bcrypt.hash(admin_password, 10, (err, hashedPassword) => {
     if (err) {
       console.error('Hashing Error:', err);
@@ -32,6 +31,7 @@ exports.register = (req, res) => {
   });
 };
 
+// Admin login
 exports.login = (req, res) => {
   const { admin_username, admin_password } = req.body;
   if (!admin_username || !admin_password) {
@@ -63,64 +63,126 @@ exports.login = (req, res) => {
   });
 };
 
-// ฟังก์ชันใหม่สำหรับหน้า AdminMain
+// AdminMain
 exports.getUserCount = (req, res) => {
   const sql = `
     SELECT 
       (SELECT COUNT(*) FROM users) AS totalUsers,
-      (SELECT COUNT(*) FROM addresses) AS totalAddress
+      (SELECT COUNT(*) FROM addresses) AS totalAddress,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'general') AS generalWaste,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'hazardous') AS hazardousWaste,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'recyclable') AS recycleWaste
   `;
   db.query(sql, (err, results) => {
     if (err) {
-      console.error('Error counting users:', err);
+      console.error('Error counting users and waste:', err);
       return res.status(500).json({
-        message: 'Failed to count users',
+        message: 'Failed to count users and waste',
         error: err.message
       });
     }
 
-    // ดึงข้อมูลที่ถูกต้องจากผลลัพธ์
-    const { totalUsers, totalAddress } = results[0];
+    const {
+      totalUsers,
+      totalAddress,
+      generalWaste,
+      hazardousWaste,
+      recycleWaste,
+    } = results[0];
 
-    // ส่งข้อมูลกลับ
     res.json({
       totalUsers,
-      totalAddress
+      totalAddress,
+      generalWaste,
+      hazardousWaste,
+      recycleWaste,
     });
   });
 };
 
+
 exports.getWasteStats = (req, res) => {
-  const sql = 'SELECT waste_type, COUNT(*) as count FROM waste_disposal GROUP BY waste_type';
-  db.query(sql, (err, results) => {
+  const { month } = req.query; // เช่น "2025-05"
+
+  let sql = `
+    SELECT waste_type, SUM(weight_kg) as total_weight
+    FROM waste_records
+  `;
+  const params = [];
+
+  if (month) {
+    sql += ` WHERE DATE_FORMAT(recorded_date, '%Y-%m') = ? `;
+    params.push(month);
+  }
+
+  sql += ` GROUP BY waste_type `;
+
+  db.query(sql, params, (err, results) => {
     if (err) {
       console.error('Error getting waste stats:', err);
       return res.status(500).json({
         message: 'Failed to get waste statistics',
-        error: err.message
+        error: err.message,
       });
     }
 
-    // แปลงข้อมูลให้เหมาะสมกับการแสดงในกราฟ
+    // เตรียมโครงสร้างข้อมูลสำหรับ frontend
     const wasteData = [
-      { name: 'ทั่วไป', value: 0 },
-      { name: 'อันตราย', value: 0 },
-      { name: 'รีไซเคิล', value: 0 }
+      { name: 'ขยะทั่วไป', value: 0 },
+      { name: 'ขยะอันตราย', value: 0 },
+      { name: 'ขยะรีไซเคิล', value: 0 },
     ];
 
     results.forEach(item => {
       if (item.waste_type === 'general') {
-        wasteData[0].value = item.count;
+        wasteData[0].value = Number(item.total_weight);
       } else if (item.waste_type === 'hazardous') {
-        wasteData[1].value = item.count;
-      } else if (item.waste_type === 'recycle') {
-        wasteData[2].value = item.count;
+        wasteData[1].value = Number(item.total_weight);
+      } else if (item.waste_type === 'recyclable') {
+        wasteData[2].value = Number(item.total_weight);
       }
     });
 
     res.json(wasteData);
   });
 };
+
+exports.getPendingCounts = (req, res) => {
+  const sql = `
+    SELECT
+      (SELECT COUNT(*) FROM users WHERE verify_status = 0) AS pendingUsers,
+      (SELECT COUNT(*) FROM addresses WHERE address_verified = 0) AS pendingAddresses
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting pending counts:', err);
+      return res.status(500).json({
+        message: 'Failed to get pending counts',
+        error: err.message,
+      });
+    }
+    const { pendingUsers, pendingAddresses } = results[0];
+    res.json({ pendingUsers, pendingAddresses });
+  });
+};
+
+exports.getWasteMonths = (req, res) => {
+  const sql = `
+    SELECT DISTINCT DATE_FORMAT(recorded_date, '%Y-%m') AS month
+    FROM waste_records
+    ORDER BY month DESC
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error fetching waste months:', err);
+      return res.status(500).json({ message: 'Failed to fetch waste months' });
+    }
+    const months = results.map(row => row.month);
+    res.json(months);
+  });
+};
+
+
 
 // ฟังก์ชันใหม่สำหรับหน้า AdminService
 
@@ -240,67 +302,72 @@ exports.getUserAddress = async (req, res) => {
   }
 };
 
-  exports.getuserAddressBill =  async (req, res) => {
-    try {
-      const { address_id } = req.params;
-  
-      const query = "SELECT * FROM bills WHERE address_id = ?";
-      const [bills] = await db.promise().query(query, [address_id]);
-  
-      if (bills.length === 0) {
-        return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
-      }
-  
-      res.status(200).json({ bills });
-    } catch (error) {
-      console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
-      res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
-    }
-  };
-  exports.verifyUserAddress = async (req, res) => {
-    const { addressId, lineUserId } = req.params;
+exports.getuserAddressBill = async (req, res) => {
+  try {
+    const { address_id } = req.params;
 
-    if (!addressId || !lineUserId) {
-        return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+    const query = "SELECT * FROM bills WHERE address_id = ?";
+    const [bills] = await db.promise().query(query, [address_id]);
+
+    if (bills.length === 0) {
+      return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
     }
 
-    try {
-        const query = 'UPDATE addresses SET address_verified = ? WHERE address_id = ?';
-        const [result] = await db.promise().query(query, [1, addressId]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'ไม่พบที่อยู่ที่ต้องการยืนยัน' });
-    }
-
-        const access_token = process.env.LINE_ACCESS_TOKEN;
-
-        await axios.post("https://api.line.me/v2/bot/message/push",
-            {
-                to: lineUserId,
-                messages: [
-                    {
-                        type: "text",
-                        text: `📌 บ้านเลขที่: ${addressId}\n✅ ได้รับการตรวจสอบเรียบร้อยแล้ว!`,
-                    },
-                ],
-            },
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${access_token}`,
-                },
-            }
-        );
-
-        return res.status(200).json({ success: true, message: 'ที่อยู่ได้รับการยืนยันและส่งข้อความไปยัง LINE แล้ว' });
-
-    } catch (err) {
-        console.error('❌ Error:', err);
-        return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปเดตหรือส่งข้อความ' });
-    }
+    res.status(200).json({ bills });
+  } catch (error) {
+    console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลบิล:", error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
+  }
 };
 
-exports.adduserAsdress = async (req, res) => {
+
+exports.verifyAddress = async (req, res) => {
+  const { addressId } = req.params;
+  const adminId = req.user?.id; // 🔑 ได้จาก JWT token
+
+  if (!addressId || !adminId) {
+    return res.status(400).json({ success: false, message: 'Missing addressId or adminId' });
+  }
+
+  const sql = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ?';
+
+  db.query(sql, [adminId, addressId], (err, result) => {
+    if (err) return res.status(500).json({ success: false, message: 'Failed to update verification status' });
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    res.json({ success: true, message: 'Address verified successfully' });
+  });
+};
+
+
+exports.verifyUser = async (req, res) => {
+  const { lineUserId } = req.params;
+  const adminId = req.user?.id;
+
+  if (!lineUserId || !adminId) {
+    return res.status(400).json({ message: 'Missing lineUserId or adminId' });
+  }
+
+  try {
+    const sql = 'UPDATE users SET verify_status = 1, admin_verify = ? WHERE lineUserId = ?';
+    const [result] = await db.promise().query(sql, [adminId, lineUserId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
+    }
+
+    return res.status(200).json({ message: 'ยืนยันผู้ใช้สำเร็จ' });
+  } catch (error) {
+    console.error('❌ verifyUser error:', error);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาด' });
+  }
+};
+
+
+exports.adduserAddress = async (req, res) => {
   const lineUserId = req.params.lineUserId; // รับ lineUserId จาก URL
   const {
     house_no,
@@ -309,10 +376,10 @@ exports.adduserAsdress = async (req, res) => {
     district,
     sub_district,
     postal_code,
-    address_verified,
     created_at,
     updated_at,
   } = req.body;
+  const address_verified = 0;
 
   const query = `
       INSERT INTO addresses (
@@ -423,7 +490,7 @@ exports.getUsersWithAddressVerification = (req, res) => {
   const safeSortField = allowedSortFields.includes(sortField) ? sortField : 'name';
   const safeSortDirection = sortDirection.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-  let searchCondition = 'WHERE 1=1';
+  let searchCondition = 'WHERE a.address_verified = 0'; // ✅ ดึงเฉพาะยังไม่ยืนยัน
   let searchParams = [];
 
   if (search) {
@@ -431,42 +498,33 @@ exports.getUsersWithAddressVerification = (req, res) => {
     searchParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  // Query ดึงข้อมูลผู้ใช้ + address_verified (join addresses แสดงสถานะล่าสุด / หรือ เฉพาะ address ล่าสุด)
   const countSql = `
-    SELECT COUNT(DISTINCT u.lineUserId) AS total
-    FROM users u
-    LEFT JOIN addresses a ON u.lineUserId = a.lineUserId
+    SELECT COUNT(*) AS total
+    FROM addresses a
+    LEFT JOIN users u ON a.lineUserId = u.lineUserId
     ${searchCondition}
   `;
 
-  // ดึงข้อมูล user + address_verified (สถานะที่อยู่ล่าสุด)
-  // สมมติเอา address_verified ของ address ล่าสุด (updated_at สูงสุด)
-  const sql = `
-    SELECT 
-      u.lineUserId, u.name, u.ID_card_No, u.Phone_No,
-      a.address_id, a.address_verified
-    FROM users u
-    LEFT JOIN addresses a ON u.lineUserId = a.lineUserId
-      AND a.updated_at = (
-        SELECT MAX(updated_at) FROM addresses WHERE lineUserId = u.lineUserId
-      )
-    ${searchCondition}
-    GROUP BY u.lineUserId
-    ORDER BY
-  CASE WHEN a.address_verified = 1 THEN 1 ELSE 0 END ASC, -- แสดงคนยังไม่ยืนยัน (0) ขึ้นก่อน
-  ${safeSortField} ${safeSortDirection}
-
-    LIMIT ? OFFSET ?
-  `;
+ const dataSql = `
+  SELECT 
+  u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status,
+  a.address_id, a.address_verified,
+  a.house_no, a.Alley, a.province, a.district, a.sub_district, a.postal_code
+FROM addresses a
+LEFT JOIN users u ON a.lineUserId = u.lineUserId
+  ${searchCondition}
+  ORDER BY ${safeSortField} ${safeSortDirection}
+  LIMIT ? OFFSET ?
+`;
 
   db.query(countSql, searchParams, (err, countResults) => {
-    if (err) return res.status(500).json({ message: 'Failed to count users', error: err.message });
+    if (err) return res.status(500).json({ message: 'Failed to count addresses', error: err.message });
 
     const total = countResults[0].total;
     const totalPages = Math.ceil(total / limit);
 
-    db.query(sql, [...searchParams, limit, offset], (err, results) => {
-      if (err) return res.status(500).json({ message: 'Failed to fetch users', error: err.message });
+    db.query(dataSql, [...searchParams, limit, offset], (err, results) => {
+      if (err) return res.status(500).json({ message: 'Failed to fetch data', error: err.message });
 
       res.json({
         users: results,
@@ -478,17 +536,75 @@ exports.getUsersWithAddressVerification = (req, res) => {
   });
 };
 
-// อัปเดตสถานะ address_verified เป็น 1
-exports.verifyAddress = (req, res) => {
-  const { addressId } = req.params;
+// Verified User
+exports.getUsersForUserVerification = (req, res) => {
+  const { page = 1, search = '' } = req.query;
+  const limit = 10;
+  const offset = (page - 1) * limit;
 
-  if (!addressId) {
-    return res.status(400).json({ success: false, message: 'Missing addressId' });
+  const searchCondition = search
+    ? `WHERE u.name LIKE ? OR u.ID_card_No LIKE ? OR u.Phone_No LIKE ?`
+    : '';
+  const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+
+  const countSql = `
+  SELECT COUNT(*) AS total 
+  FROM users u 
+  WHERE u.verify_status = 0
+  ${search ? 'AND (u.name LIKE ? OR u.ID_card_No LIKE ? OR u.Phone_No LIKE ?)' : ''}
+`;
+
+  const dataSql = `
+  SELECT u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status
+  FROM users u
+  WHERE u.verify_status = 0
+  ${search ? 'AND (u.name LIKE ? OR u.ID_card_No LIKE ? OR u.Phone_No LIKE ?)' : ''}
+  ORDER BY u.name ASC
+  LIMIT ? OFFSET ?
+`;
+
+
+
+  db.query(countSql, searchParams, (err, countResults) => {
+    if (err) {
+      console.error('❌ Count SQL Error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    const total = countResults[0].total;
+    const totalPages = Math.ceil(total / limit);
+    const finalParams = [...searchParams, limit, offset];
+
+    db.query(dataSql, finalParams, (err, results) => {
+      if (err) {
+        console.error('❌ Data SQL Error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      res.json({
+        users: results,
+        totalPages,
+        currentPage: parseInt(page),
+        totalUsers: total,
+      });
+    });
+  });
+};
+
+
+// Verify Address
+// อัปเดตสถานะ address_verified เป็น 1
+exports.verifyAddress = async (req, res) => {
+  const { addressId } = req.params;
+  const adminId = req.user?.id; // 🔑 ได้จาก JWT token
+
+  if (!addressId || !adminId) {
+    return res.status(400).json({ success: false, message: 'Missing addressId or adminId' });
   }
 
-  const sql = 'UPDATE addresses SET address_verified = 1 WHERE address_id = ?';
+  const sql = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ?';
 
-  db.query(sql, [addressId], (err, result) => {
+  db.query(sql, [adminId, addressId], (err, result) => {
     if (err) return res.status(500).json({ success: false, message: 'Failed to update verification status' });
 
     if (result.affectedRows === 0) {
@@ -499,15 +615,17 @@ exports.verifyAddress = (req, res) => {
   });
 };
 
+
+
 //Admin Manual bill controller
 exports.searchUser = (req, res) => {
   const search = req.query.search || '';
 
   const query = `
-    SELECT * FROM users
-    WHERE name LIKE ? OR ID_card_No LIKE ? OR Phone_No LIKE ?
-    ORDER BY created_at DESC
-  `;
+  SELECT * FROM users
+  WHERE name LIKE ? OR ID_card_No LIKE ? OR Phone_No LIKE ?
+  ORDER BY created_at DESC
+`;
 
   const searchParams = [`%${search}%`, `%${search}%`, `%${search}%`];
 
@@ -567,13 +685,15 @@ exports.getWastePricing = async (req, res) => {
 //EditWaste
 exports.updateWastePricing = async (req, res) => {
   const { general, hazardous, recyclable } = req.body;
+  const adminId = req.user?.id;
 
   if (
     typeof general !== 'number' ||
     typeof hazardous !== 'number' ||
-    typeof recyclable !== 'number'
+    typeof recyclable !== 'number' ||
+    !adminId
   ) {
-    return res.status(400).json({ message: 'ข้อมูลราคาต้องเป็นตัวเลข' });
+    return res.status(400).json({ message: 'ข้อมูลไม่ครบถ้วน' });
   }
 
   try {
@@ -585,10 +705,12 @@ exports.updateWastePricing = async (req, res) => {
 
     for (const [type, price] of queries) {
       await db.promise().query(
-        `INSERT INTO waste_pricing (type, price_per_kg) 
-         VALUES (?, ?) 
-         ON DUPLICATE KEY UPDATE price_per_kg = VALUES(price_per_kg)`
-        , [type, price]
+        `INSERT INTO waste_pricing (type, price_per_kg, admin_verify)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           price_per_kg = VALUES(price_per_kg),
+           admin_verify = VALUES(admin_verify)`
+        , [type, price, adminId]
       );
     }
 

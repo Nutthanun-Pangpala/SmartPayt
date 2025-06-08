@@ -10,8 +10,9 @@ import AdminManualBill from "./pagesAdmin/AdminManulBill";
 import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
-import AdminVerified from "./pagesAdmin/AdminVerified";
 import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
+import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
+import VerifiedUser from "./pagesAdmin/VerifiedUser";
 
 
 //User
@@ -23,6 +24,7 @@ import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
 import Issues from "./pagesUser/UserReportIssuesPages";
 
 
+
 const router = createBrowserRouter([
 //admin
   { path: "/admin/users/:lineUserId/add-address",element: <AddUser />,},
@@ -32,9 +34,10 @@ const router = createBrowserRouter([
   { path: "/admin/service", element:<AdminService/> },
   { path: "/admin/debt", element:<AdminDebtPage/> },
   { path:"/admin/user/:lineUserId",element:<UserDetails />},
-  { path:"/admin/users-verify",element:<AdminVerified />},
   { path:"/admin/bills",element:<AdminManualBill />},
   { path:"/admin/editwaste",element:<AdminWastePricing />},
+  { path:"/admin/verified-address",element:<VerifiedAddress />},
+  { path:"/admin/verified-user",element:<VerifiedUser />},
   
 //user
   { path: "/userLogin", element: <Login /> },

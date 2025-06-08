@@ -2,6 +2,31 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import nanglaeIcon from "../assets/img/nanglaeicon.png";
+import DatePicker, { registerLocale } from 'react-datepicker';
+import th from 'date-fns/locale/th';
+import 'react-datepicker/dist/react-datepicker.css';
+
+registerLocale('th', th);
+
+const CustomInputWithBuddhistYear = React.forwardRef(({ value, onClick }, ref) => {
+  const convertToBuddhistYear = (dateStr) => {
+    const [day, month, year] = dateStr.split('/');
+    const buddhistYear = (parseInt(year) + 543).toString();
+    return `${day}/${month}/${buddhistYear}`;
+  };
+
+  return (
+    <input
+      className="w-full border px-4 py-2 rounded"
+      onClick={onClick}
+      ref={ref}
+      value={value ? convertToBuddhistYear(value) : ''}
+      readOnly
+      placeholder="เลือกวันครบกำหนด"
+    />
+  );
+});
+
 
 const AdminManualBill = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -13,12 +38,14 @@ const AdminManualBill = () => {
   const [wasteWeights, setWasteWeights] = useState({ general: '', hazardous: '', recyclable: '' });
   const [wastePrices, setWastePrices] = useState({ general: 0, hazardous: 0, recyclable: 0 });
   const [totalPrice, setTotalPrice] = useState(0);
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isBillingDropdownOpen, setIsBillingDropdownOpen] = useState(true);
+
 
   const wasteTypes = [
     { key: 'general', label: 'ขยะทั่วไป' },
@@ -27,6 +54,7 @@ const AdminManualBill = () => {
   ];
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('Admin_token');
@@ -86,7 +114,7 @@ const AdminManualBill = () => {
       await axios.post('http://localhost:3000/admin/bills', {
         address_id: selectedAddress,
         amount_due: parseFloat(totalPrice),
-        due_date: dueDate,
+        due_date: dueDate ? dueDate.toISOString().split('T')[0] : '',
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -123,9 +151,57 @@ const AdminManualBill = () => {
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin')}>หน้าหลัก</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/debt')}>ข้อมูลผู้ค้างชำระค่าบริการ</li>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/users-verify')}>ยืนยันสถานะที่อยู่ผู้ใช้บริการ</li>
-            <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full">เพิ่มบิลชำระให้ผู้บริการ</li>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/editwaste')}>ตั้งค่าการเก็บขยะแต่ละประเภท</li>
+           <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+                                <div className="flex justify-between items-center">
+                                    <span>ยืนยันสถานะผู้ใช้บริการ</span>
+                                    <svg className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </li>
+
+                            {isDropdownOpen && (
+                                <ul className="ml-4">
+                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-user')}>ยืนยันข้อมูลผู้ใช้บริการ</li>
+                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-address')}>ยืนยันข้อมูลครัวเรือน</li>
+                                </ul>
+                            )}
+            <li
+  className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+  onClick={() => setIsBillingDropdownOpen(!isBillingDropdownOpen)}
+>
+  <div className="flex justify-between items-center">
+    <span>การจัดการบิลและขยะ</span>
+    <svg
+      className={`h-4 w-4 transform transition-transform ${isBillingDropdownOpen ? 'rotate-90' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  </div>
+</li>
+
+{isBillingDropdownOpen && (
+  <ul className="ml-4">
+    <li
+      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+      onClick={() => navigate('/admin/bills')}
+    >
+      สร้างใบแจ้งหนี้
+    </li>
+    <li
+      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+      onClick={() => navigate('/admin/editwaste')}
+    >
+      กำหนดราคาประเภทขยะ
+    </li>
+  </ul>
+)}
+
+           
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
               <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]" onClick={() => {
                 localStorage.removeItem("Admin_token");
@@ -214,10 +290,43 @@ const AdminManualBill = () => {
             </div>
 
             <div>
-              <label className="block mb-1">วันครบกำหนด:</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full border px-4 py-2 rounded" />
-            </div>
-
+            <label className="block mb-1">วันครบกำหนด:</label>
+            <DatePicker
+            selected={dueDate}
+            onChange={(date) => setDueDate(date)}
+            dateFormat="dd/MM/yyyy"
+            locale="th"
+            customInput={<CustomInputWithBuddhistYear />}
+            renderCustomHeader={({
+              date,
+              changeYear,
+              changeMonth,
+              decreaseMonth,
+              increaseMonth,
+              prevMonthButtonDisabled,
+              nextMonthButtonDisabled,
+            }) => {
+              const years = Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - 10 + i);
+              const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                return (
+                  <div className="flex justify-between items-center px-2 py-1">
+                    <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled}>{'<'}</button>
+                    <select value={date.getFullYear()} onChange={({ target: { value } }) => changeYear(value)}>
+                      {years.map((year) => (
+                        <option key={year} value={year}>{year + 543}</option>
+                      ))}
+                    </select>
+                    <select value={date.getMonth()} onChange={({ target: { value } }) => changeMonth(value)}>
+                      {months.map((month, index) => (
+                        <option key={month} value={index}>{month}</option>
+                    ))}
+                  </select>
+                <button onClick={increaseMonth} disabled={nextMonthButtonDisabled}>{'>'}</button>
+              </div>
+            );
+          }}
+        />
+      </div>
             <button onClick={handleSubmit} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
               สร้างใบแจ้งหนี้
             </button>

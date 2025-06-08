@@ -5,6 +5,9 @@ import axios from 'axios';
 
 const AdminWastePricing = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isBillingDropdownOpen, setIsBillingDropdownOpen] = useState(true);
+
     const [prices, setPrices] = useState({
         general: '',
         hazardous: '',
@@ -25,27 +28,27 @@ const AdminWastePricing = () => {
     };
 
     const handleSave = async () => {
-    const token = localStorage.getItem('Admin_token');
+        const token = localStorage.getItem('Admin_token');
 
-    if (!token) {
-        console.error('❌ ไม่พบ token ใน localStorage');
-        setStatus('ไม่ได้เข้าสู่ระบบ กรุณา login ใหม่');
-        return;
-    }
+        if (!token) {
+            console.error('❌ ไม่พบ token ใน localStorage');
+            setStatus('ไม่ได้เข้าสู่ระบบ กรุณา login ใหม่');
+            return;
+        }
 
-    try {
-        const response = await axios.post('http://localhost:3000/admin/waste-pricing', prices, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        setStatus('บันทึกสำเร็จ');
-    } catch (err) {
-        console.error('❌ Error while saving waste pricing:', err.response?.data || err.message);
-        setStatus('เกิดข้อผิดพลาดในการบันทึก');
-    }
-};
+        try {
+            const response = await axios.post('http://localhost:3000/admin/waste-pricing', prices, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            setStatus('บันทึกสำเร็จ');
+        } catch (err) {
+            console.error('❌ Error while saving waste pricing:', err.response?.data || err.message);
+            setStatus('เกิดข้อผิดพลาดในการบันทึก');
+        }
+    };
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-100">
@@ -73,9 +76,56 @@ const AdminWastePricing = () => {
                         <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin')}>หน้าหลัก</li>
                         <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/service')}> ข้อมูลผู้ใช้บริการ </li>
                         <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/debt')}>ข้อมูลผู้ค้างชำระค่าบริการ</li>
-                        <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/users-verify')}>ยืนยันสถานะที่อยู่ผู้ใช้บริการ</li>
-                        <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/bills')}>เพิ่มบิลชำระให้ผู้บริการ</li>
-                        <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded px-4 py-3 w-full">ตั้งค่าการเก็บขยะแต่ละประเภท</li>
+                        <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+                            <div className="flex justify-between items-center">
+                                <span>ยืนยันสถานะผู้ใช้บริการ</span>
+                                <svg className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </li>
+
+                        {isDropdownOpen && (
+                            <ul className="ml-4">
+                                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-user')}>ยืนยันข้อมูลผู้ใช้บริการ</li>
+                                <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-address')}>ยืนยันข้อมูลครัวเรือน</li>
+                            </ul>
+                        )}
+                        <li
+                            className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                            onClick={() => setIsBillingDropdownOpen(!isBillingDropdownOpen)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <span>การจัดการบิลและขยะ</span>
+                                <svg
+                                    className={`h-4 w-4 transform transition-transform ${isBillingDropdownOpen ? 'rotate-90' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </li>
+
+                        {isBillingDropdownOpen && (
+                            <ul className="ml-4">
+                                <li
+                                    className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                                    onClick={() => navigate('/admin/bills')}
+                                >
+                                    สร้างใบแจ้งหนี้
+                                </li>
+                                <li
+                                    className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                                    onClick={() => navigate('/admin/editwaste')}
+                                >
+                                    กำหนดราคาประเภทขยะ
+                                </li>
+                            </ul>
+                        )}
+
                     </ul>
                     <div className="absolute bottom-5 left-0 right-0 flex justify-center">
                         <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md" onClick={() => {

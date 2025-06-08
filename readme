@@ -6,6 +6,7 @@ CREATE TABLE users (
   Email VARCHAR(100) DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ALTER TABLE users ADD COLUMN verify_status TINYINT DEFAULT 0;
 );
 
 CREATE TABLE addresses (
@@ -65,3 +66,35 @@ INSERT INTO `waste_pricing` (`id`, `type`, `price_per_kg`, `updated_at`) VALUES
 
 -- รีเซ็ต AUTO_INCREMENT ให้ ID วิ่งต่อจาก 4 (ไม่ใส่ก็ได้)
 ALTER TABLE `waste_pricing` AUTO_INCREMENT = 4;
+
+-- สร้างตารางคอย records จำนวนขยะที่ทิ้งแล้วนำประมวลผลโชว์เป็น pie chart
+CREATE TABLE waste_records (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  address_id INT NOT NULL,
+  waste_type ENUM('general','hazardous','recyclable') NOT NULL,
+  weight_kg DECIMAL(10,2) NOT NULL,
+  recorded_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE CASCADE
+);
+
+--ไว้ค้อยเช็คจำนวนขยะต่อเดือนที่เข้ามา
+SELECT DISTINCT DATE_FORMAT(recorded_date, '%Y-%m') AS month
+FROM waste_records
+ORDER BY month DESC;
+
+
+ติดตั้งเพื่อให้สามารถแก้ ว/ด/ปี เป็นแบบไทย
+npm install react-datepicker date-fns
+npm install date-fns@2.30.0
+
+สร้างคอลลัมใหม่เพื่อแสดงว่า Admin คนไหนเป็นคนทำการยืนยันตัวตน ยืนยันครัวเรือน และแก้ไขราคาขยะ
+(smartpayt --> SQL --> แล้วก็อปข้างล่างวางเลย)
+ALTER TABLE users ADD COLUMN admin_verify INT NULL;
+ALTER TABLE addresses ADD COLUMN admin_verify INT NULL;
+ALTER TABLE waste_pricing ADD COLUMN admin_verify INT NULL;
+
+ติดตั้งเพื่อ export Excel
+npm install file-saver
+npm install xlsx
+
