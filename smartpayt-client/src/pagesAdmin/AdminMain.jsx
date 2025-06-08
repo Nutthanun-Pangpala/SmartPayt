@@ -315,9 +315,9 @@ const AdminMain = () => {
               <p className="text-gray-500">หลังคาเรือน</p>
 
               <div className="flex items-center justify-between mt-4">
-                <h2 className="text-xl font-semibold">จำนวนผู้ใช้รอยืนยัน</h2>
+                <h2 className="text-xl font-semibold">จำนวนผู้ใช้รอยืนยันตัวตน</h2>
                 <FaInfoCircle
-                  title="จำนวนผู้ใช้ที่รอการยืนยันสถานะ"
+                  title="จำนวนผู้ใช้ที่รอการยืนยันตัวตน"
                   className="text-yellow-600 cursor-pointer"
                   size={18}
                 />
@@ -326,9 +326,9 @@ const AdminMain = () => {
               <p className="text-gray-500">ผู้ใช้</p>
 
               <div className="flex items-center justify-between mt-4">
-                <h2 className="text-xl font-semibold">จำนวนครัวเรือนรอยืนยัน</h2>
+                <h2 className="text-xl font-semibold">จำนวนครัวเรือนรอยืนยันตัวตน</h2>
                 <FaInfoCircle
-                  title="จำนวนครัวเรือนที่รอการยืนยันข้อมูล"
+                  title="จำนวนครัวเรือนที่รอการยืนยันตัวตน"
                   className="text-yellow-600 cursor-pointer"
                   size={18}
                 />
