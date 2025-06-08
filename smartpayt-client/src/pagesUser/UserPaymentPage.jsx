@@ -8,13 +8,13 @@ const PaymentPage = () => {
   const { bills, addressId } = location.state || {};
 
   const [allBills, setAllBills] = useState(bills || []);
-  const [selectedBills, setSelectedBills] = useState([]); // เก็บ billId ที่เลือก (string)
+  const [selectedBills, setSelectedBills] = useState([]);
+  const [isPaying, setIsPaying] = useState(false);
 
   if (!bills || bills.length === 0) {
     return <div className="text-red-500 p-4">ไม่พบข้อมูลบิลสำหรับชำระ</div>;
   }
 
-  // toggle เลือก/ไม่เลือกบิล โดยแปลง billId เป็น string เพื่อเทียบให้ตรงกับ selectedBills
   const toggleBillSelection = (billId) => {
     const strId = String(billId);
     setSelectedBills((prev) =>
@@ -23,15 +23,13 @@ const PaymentPage = () => {
         : [...prev, strId]
     );
   };
-
-  // เลือกบิลที่ถูกติ๊กถูก
+  
   const selectedBillDetails = allBills.filter((bill) =>
     selectedBills.includes(String(bill.id))
   );
 
-  // คำนวณยอดรวม
   const totalAmount = selectedBillDetails.reduce(
-    (sum, bill) => sum + parseFloat(bill.amount_due),
+    (sum, bill) => sum + (parseFloat(bill.amount_due) || 0),
     0
   );
 
@@ -42,7 +40,8 @@ const PaymentPage = () => {
     }
 
     try {
-      // เรียก API ชำระบิล
+      setIsPaying(true);
+
       const response = await fetch(`http://localhost:3000/api/bills/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -54,13 +53,12 @@ const PaymentPage = () => {
 
       if (!response.ok) throw new Error("อัปเดตไม่สำเร็จ");
 
-      // ดึงข้อมูลบิลใหม่หลังชำระ เพื่ออัปเดต UI
       const updatedData = await fetch(
         `http://localhost:3000/api/bills?address_id=${addressId}`
       );
       if (!updatedData.ok) throw new Error("ไม่สามารถดึงข้อมูลบิลใหม่ได้");
-      const dataJson = await updatedData.json();
 
+      const dataJson = await updatedData.json();
       setAllBills(dataJson.bills);
       setSelectedBills([]);
 
@@ -68,6 +66,8 @@ const PaymentPage = () => {
     } catch (error) {
       console.error(error);
       alert("เกิดข้อผิดพลาดในการชำระเงิน ❌");
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -83,14 +83,16 @@ const PaymentPage = () => {
         <div className="space-y-2 mb-4">
           {allBills.map((bill) => (
             <div
-              key={bill.id} // ใช้ bill.id เป็น key จะดีและถูกต้องกว่า index
+              key={bill.id}
               className="p-3 border bg-gray-100 rounded-md"
             >
               <div>
-                <p>💵 {bill.amount_due} บาท</p>
+                <p>💵 {parseFloat(bill.amount_due).toFixed(2)} บาท</p>
                 <p className="mx-1">
                   📅 ครบกำหนด:{" "}
-                  {new Date(bill.due_date).toLocaleDateString("th-TH")}
+                  {bill.due_date
+                    ? new Date(bill.due_date).toLocaleDateString("th-TH")
+                    : "ไม่ทราบกำหนด"}
                 </p>
                 <p className="mx-1">
                   📌 สถานะ: {bill.status === "1" ? "✅ ชำระแล้ว" : "⏳ ยังไม่ชำระ"}
@@ -123,9 +125,12 @@ const PaymentPage = () => {
 
         <button
           onClick={handleConfirmPayment}
-          className="w-full text-white bg-green-600 hover:bg-green-700 font-semibold py-2 rounded"
+          disabled={isPaying}
+          className={`w-full text-white font-semibold py-2 rounded ${
+            isPaying ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+          }`}
         >
-          ยืนยันการชำระเงิน
+          {isPaying ? "กำลังดำเนินการ..." : "ยืนยันการชำระเงิน"}
         </button>
       </div>
     </div>

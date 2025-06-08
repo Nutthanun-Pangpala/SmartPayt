@@ -1,5 +1,7 @@
 import axios from 'axios';
+import 'leaflet/dist/leaflet.css';
 import React, { useEffect, useState } from 'react';
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import ToastNotification from '../assets/component/user/ToastNotification';
 import '../index.css';
@@ -97,7 +99,7 @@ const RegisterAddressForm = () => {
 
     try {
       const response = await axios.post('http://localhost:3000/api/registerAddress', formData);
-      setMessage('ลงทะเบียนสำเร็จ!');
+      setMessage(response.data.message || 'ลงทะเบียนสำเร็จ!');      
       setTimeout(() => navigate('/UserDashboard'), 2000);
     } catch (error) {
       setError(error.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
@@ -187,17 +189,15 @@ const RegisterAddressForm = () => {
 
         {/* แผนที่ */}
         <div className="mb-4" style={{ height: '300px', width: '100%' }}>
-          <MapContainer center={[51.505, -0.09]} zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={[51.505, -0.09]}>
-              <Popup>
-                A pretty CSS3 popup. <br /> Easily customizable.
-              </Popup>
-            </Marker>
-          </MapContainer>
+        <MapContainer center={[19.9105, 99.8406]} zoom={13} scrollWheelZoom={false}>
+  <TileLayer
+    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  />
+  <Marker position={[19.9105, 99.8406]}>
+    <Popup>ตำแหน่งตัวอย่างในเมืองเชียงราย</Popup>
+  </Marker>
+</MapContainer>
         </div>
 
         {/* ปุ่มส่งฟอร์ม */}
