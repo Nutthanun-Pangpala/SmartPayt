@@ -28,23 +28,23 @@ const RegisterAddressForm = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  
 
   useEffect(() => {
     const checkUserId = async () => {
       const lineUserId = localStorage.getItem("lineUserId");
 
       if (!lineUserId) {
-        navigate("/userLogin"); // ถ้าไม่มี lineUserId ให้ไปหน้า Login
+        navigate("/userLogin");
         return;
       }
 
       setFormData((prev) => ({ ...prev, lineUserId: lineUserId }));
 
       try {
-        // เช็คว่า lineUserId มีในฐานข้อมูลหรือไม่
         const checkUser = await axios.get(`http://localhost:3000/api/checkUser/${lineUserId}`);
         if (checkUser.data.exists) {
-          navigate("/"); // ถ้ามีบัญชีอยู่แล้วให้ไปหน้าแรก
+          navigate("/");
         }
       } catch (err) {
         console.error("Error checking user:", err);
@@ -54,156 +54,164 @@ const RegisterAddressForm = () => {
     checkUserId();
   }, [navigate]);
 
-  // ฟังก์ชันตรวจสอบและยืนยันตัวตนผู้ใช
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-      ...(name === 'district' ? { sub_district: '' } : {}) // รีเซ็ตตำบลเมื่อเปลี่ยนอำเภอ
+      ...(name === 'district' ? { sub_district: '' } : {})
     }));
   };
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
     setLoading(true);
-  
+
     const requiredFields = ["house_no", "district", "sub_district", "postal_code"];
     let errors = [];
-  
-    // ตรวจสอบว่ามีช่องว่างหรือไม่
+
     requiredFields.forEach((field) => {
       if (!formData[field]) {
         errors.push(`กรุณากรอก ${field}`);
       }
     });
-  
-    // ตรวจสอบบ้านเลขที่ (ต้องไม่มีอักขระพิเศษที่ไม่เกี่ยวข้อง)
+
     if (!/^[\w\s\/-]+$/.test(formData.house_no)) {
       errors.push("บ้านเลขที่ต้องเป็นตัวเลขหรือตัวอักษรเท่านั้น");
     }
-  
-    // ตรวจสอบรหัสไปรษณีย์ (ต้องเป็นตัวเลข 5 หลัก)
+
     if (!/^\d{5}$/.test(formData.postal_code)) {
       errors.push("รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก");
     }
     if (!formData.sub_district) {
       errors.push("กรุณาเลือกตำบล");
     }
-    
-  
-    // ถ้ามี error ให้แสดงและหยุดโหลด
+
     if (errors.length > 0) {
       setError(errors.join("\n"));
       setLoading(false);
       return;
     }
-  
+
     try {
       const response = await axios.post('http://localhost:3000/api/registerAddress', formData);
-      console.log("API Response:", response.data);
       setMessage('ลงทะเบียนสำเร็จ!');
       setTimeout(() => navigate('/UserDashboard'), 2000);
     } catch (error) {
-      console.error("API Error:", error.response?.data || error);
       setError(error.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+    } finally {
+      setLoading(false);
     }
   };
-  
-return (
-  <div>
-    <ToastNotification message={message} error={error} />
-    <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-6 border rounded-xl shadow-md bg-white">
-      
-      {/* บ้านเลขที่ & ตรอก */}
-      {[
-        { label: "บ้านเลขที่", name: "house_no", required: true },
-        { label: "ถนน / ซอย", name: "alley", required: false }
-      ].map(({ label, name, required }) => (
-        <div key={name} className="mb-4">
-          <label className="block text-gray-700">{label}</label>
-          <input
-            type="text"
-            name={name}
-            value={formData[name]}
+
+  return (
+    <div>
+      <ToastNotification message={message} error={error} />
+      <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-6 border rounded-xl shadow-md bg-white">
+
+        {/* บ้านเลขที่ & ตรอก */}
+        {[
+          { label: "บ้านเลขที่", name: "house_no", required: true },
+          { label: "ถนน / ซอย", name: "alley", required: false }
+        ].map(({ label, name, required }) => (
+          <div key={name} className="mb-4">
+            <label className="block text-gray-700">{label}</label>
+            <input
+              type="text"
+              name={name}
+              value={formData[name]}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-green-200"
+              required={required}
+            />
+          </div>
+        ))}
+
+        {/* จังหวัด (ล็อกค่าเชียงราย) */}
+        <div className="mb-4">
+          <label className="block text-gray-700">จังหวัด</label>
+          <select className="w-full px-3 py-2 border rounded-lg bg-gray-100" disabled>
+            <option>เชียงราย</option>
+          </select>
+        </div>
+
+        {/* อำเภอ */}
+        <div className="mb-4">
+          <label className="block text-gray-700">อำเภอ / เขต</label>
+          <select
+            name="district"
+            value={formData.district}
             onChange={handleChange}
             className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-green-200"
-            required={required}
+            required
+          >
+            <option value="">-- กรุณาเลือกอำเภอ --</option>
+            {Object.keys(provinceData["เชียงราย"]).map((district) => (
+              <option key={district} value={district}>{district}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* ตำบล */}
+        <div className="mb-4">
+          <label className="block text-gray-700">ตำบล / แขวง</label>
+          <select
+            name="sub_district"
+            value={formData.sub_district}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-green-200"
+            required
+            disabled={!formData.district}
+          >
+            <option value="">-- กรุณาเลือกตำบล --</option>
+            {formData.district && provinceData["เชียงราย"][formData.district]?.map((sub) => (
+              <option key={sub} value={sub}>{sub}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* รหัสไปรษณีย์ */}
+        <div className="mb-4">
+          <label className="block text-gray-700">รหัสไปรษณีย์</label>
+          <input
+            type="text"
+            name="postal_code"
+            value={formData.postal_code}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-green-200"
+            required
           />
         </div>
-      ))}
 
-      {/* จังหวัด (ล็อกค่าเชียงราย) */}
-      <div className="mb-4">
-        <label className="block text-gray-700">จังหวัด</label>
-        <select className="w-full px-3 py-2 border rounded-lg bg-gray-100" disabled>
-          <option>เชียงราย</option>
-        </select>
-      </div>
+        {/* แผนที่ */}
+        <div className="mb-4" style={{ height: '300px', width: '100%' }}>
+          <MapContainer center={[51.505, -0.09]} zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Marker position={[51.505, -0.09]}>
+              <Popup>
+                A pretty CSS3 popup. <br /> Easily customizable.
+              </Popup>
+            </Marker>
+          </MapContainer>
+        </div>
 
-      {/* อำเภอ */}
-      <div className="mb-4">
-        <label className="block text-gray-700">อำเภอ / เขต</label>
-        <select
-          name="district"
-          value={formData.district}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-green-200"
-          required
+        {/* ปุ่มส่งฟอร์ม */}
+        <button
+          type="submit"
+          className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-full transition-all"
+          disabled={loading}
         >
-          <option value="">-- กรุณาเลือกอำเภอ --</option>
-          {Object.keys(provinceData["เชียงราย"]).map((district) => (
-            <option key={district} value={district}>{district}</option>
-          ))}
-        </select>
-      </div>
+          {loading ? "กำลังลงทะเบียน..." : "ลงทะเบียนที่อยู่"}
+        </button>
 
-      {/* ตำบล */}
-      <div className="mb-4">
-        <label className="block text-gray-700">ตำบล / แขวง</label>
-        <select
-          name="sub_district"
-          value={formData.sub_district}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-green-200"
-          required
-          disabled={!formData.district}
-        >
-          <option value="">-- กรุณาเลือกตำบล --</option>
-          {formData.district && provinceData["เชียงราย"][formData.district]?.map((sub) => (
-            <option key={sub} value={sub}>{sub}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* รหัสไปรษณีย์ */}
-      <div className="mb-4">
-        <label className="block text-gray-700">รหัสไปรษณีย์</label>
-        <input
-          type="text"
-          name="postal_code"
-          value={formData.postal_code}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border rounded-lg focus:ring focus:ring-green-200"
-          required
-        />
-      </div>
-
-      {/* ปุ่มส่งฟอร์ม */}
-      <button
-        type="submit"
-        className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-full transition-all"
-        disabled={loading}
-      >
-        {loading ? "กำลังลงทะเบียน..." : "ลงทะเบียนที่อยู่"}
-      </button>
-
-    </form>
-  </div>
-);
+      </form>
+    </div>
+  );
 };
+
 export default RegisterAddressForm;
