@@ -13,6 +13,7 @@ import UserDetails from "./pagesAdmin/AdminUserDetails";
 import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
 import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
 import VerifiedUser from "./pagesAdmin/VerifiedUser";
+import Report from "./pagesAdmin/Report";
 
 
 //User
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
   { path:"/admin/editwaste",element:<AdminWastePricing />},
   { path:"/admin/verified-address",element:<VerifiedAddress />},
   { path:"/admin/verified-user",element:<VerifiedUser />},
+  { path:"/admin/report",element:<Report />},
   
 //user
   { path: "/userLogin", element: <Login /> },

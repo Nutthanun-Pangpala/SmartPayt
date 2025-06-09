@@ -200,7 +200,7 @@ const AdminManualBill = () => {
     </li>
   </ul>
 )}
-
+<li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/report')}>รายงาน</li>
            
             <div className="absolute bottom-5 left-0 right-0 flex justify-center">
               <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]" onClick={() => {

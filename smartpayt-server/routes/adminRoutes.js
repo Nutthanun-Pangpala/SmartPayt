@@ -53,3 +53,7 @@ router.patch('/users/:lineUserId/verify', verifyToken, adminController.verifyUse
 router.post('/verify-address/:addressId', verifyToken, adminController.verifyAddress);
 router.post('/waste-pricing', verifyToken, adminController.updateWastePricing);
 
+//report
+router.get('/report/export-waste', adminController.exportWasteReport);
+router.get('/stats-waste-daily', adminController.getDailyWasteStats);
+router.get('/report/export-finance', adminController.exportFinanceReport);
