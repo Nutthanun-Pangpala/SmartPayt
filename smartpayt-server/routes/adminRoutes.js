@@ -47,6 +47,11 @@ router.get('/waste-pricing', adminController.getWastePricing);
 router.post('/waste-pricing', adminController.updateWastePricing);
 router.get('/user-address/:lineUserId', adminController.getUserAddress);
 
+// Admin View slip
+router.get('/payment-slips', adminController.getAllPaymentSlips);
+router.patch('/payment-slips/:id', adminController.updateSlipStatus);
+
+
 module.exports = router;
 
 router.patch('/users/:lineUserId/verify', verifyToken, adminController.verifyUser);

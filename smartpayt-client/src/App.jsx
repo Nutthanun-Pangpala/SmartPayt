@@ -13,8 +13,7 @@ import UserDetails from "./pagesAdmin/AdminUserDetails";
 import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
 import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
 import VerifiedUser from "./pagesAdmin/VerifiedUser";
-import Report from "./pagesAdmin/Report";
-
+import AdminPaymentSlipPage from "./pagesAdmin/AdminPaymentSlipPage";
 
 //User
 import UserDashboard from "./pagesUser/UserDashboard";
@@ -23,7 +22,7 @@ import PaymentPage from "./pagesUser/UserPaymentPage";
 import RegisterAccount from "./pagesUser/UserRegisterAccounts";
 import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
 import Issues from "./pagesUser/UserReportIssuesPages";
-
+import QRPaymentPage from "./pagesUser/UserQrPaymentPage";
 
 
 const router = createBrowserRouter([
@@ -39,7 +38,8 @@ const router = createBrowserRouter([
   { path:"/admin/editwaste",element:<AdminWastePricing />},
   { path:"/admin/verified-address",element:<VerifiedAddress />},
   { path:"/admin/verified-user",element:<VerifiedUser />},
-  { path:"/admin/report",element:<Report />},
+  { path:"/admin/payment-slips",element:<AdminPaymentSlipPage />},
+
   
 //user
   { path: "/userLogin", element: <Login /> },
@@ -48,6 +48,8 @@ const router = createBrowserRouter([
   { path: "/userDashboard" ,element: <UserDashboard/>},
   { path: "/issues", element: <Issues/>},
   { path: "/payment", element: <PaymentPage/> },
+  { path: "/payment/qr", element: <QRPaymentPage/> },
+
 ], {
   future: {
     v7_startTransition: true,

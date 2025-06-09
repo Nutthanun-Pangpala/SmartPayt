@@ -106,7 +106,7 @@ const AdminDebtPage = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
+    <div className="flex flex-col min-h-screen bg-[#FDEFB2]">
       <div className="flex items-center justify-between p-4 bg-white shadow">
         <div className="flex items-center">
           <button onClick={toggleSidebar} className="text-gray-800 p-2 mr-2">
@@ -123,7 +123,7 @@ const AdminDebtPage = () => {
 
       <div className="flex flex-1">
         {/* Sidebar */}
-        <div className={`relative ${isSidebarOpen ? "w-1/5" : "w-0 opacity-0"} bg-green-700 p-5 text-white transition-all duration-300 ease-in-out overflow-hidden`}>
+        <div className={`relative ${isSidebarOpen ? "w-1/5" : "w-0 opacity-0"} bg-[#7A9442] p-5 text-white transition-all duration-300 ease-in-out overflow-hidden`}>
           <div className="flex flex-col h-full">
             <div>
               <h2 className="text-xl font-bold mb-4">Smart Payt</h2>
@@ -134,7 +134,41 @@ const AdminDebtPage = () => {
                 <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
                   onClick={() => navigate('/admin/service')}> ข้อมูลผู้ใช้บริการ </li>
 
-                <li className="mb-2 p-2 bg-green-900 cursor-pointer px-4 py-3 rounded w-full"> ข้อมูลผู้ค้างชำระค่าบริการ </li>
+                <li
+                  className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>ตรวจสอบบิลชำระ</span>
+                    <svg
+                      className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? "rotate-90" : ""
+                        }`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </li>
+
+                {isDropdownOpen && (
+                  <ul className="ml-4">
+                    <li
+                      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                      onClick={() => navigate("/admin/debt")}
+                    >
+                      ข้อมูลผู้ค้างชำระค่าบริการ
+                    </li>
+                    <li
+                      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                      onClick={() => navigate("/admin/payment-slips")}
+                    >
+                      ตรวจสอบสลิป
+                    </li>
+                  </ul>
+                )}
 
                 <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
                   <div className="flex justify-between items-center">
