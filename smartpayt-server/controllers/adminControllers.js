@@ -720,3 +720,42 @@ exports.updateWastePricing = async (req, res) => {
     res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึก', error: error.message });
   }
 };
+
+// Admin View Slip Qr code
+
+const getAllPaymentSlips = async (req, res) => {
+  try {
+    const [rows] = await db
+      .promise()
+      .query(`
+        SELECT ps.*, b.amount_due, u.name, a.house_no, a.district, a.sub_district, a.province
+        FROM payment_slips ps
+        JOIN bills b ON ps.bill_id = b.id
+        JOIN addresses a ON b.address_id = a.address_id
+        JOIN users u ON a.lineUserId = u.lineUserId
+        ORDER BY ps.uploaded_at DESC
+      `);
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ [getAllPaymentSlips ERROR]:", err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาด" });
+  }
+};
+
+const updateSlipStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    await db.promise().query(
+      `UPDATE payment_slips SET status = ? WHERE id = ?`,
+      [status, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ [updateSlipStatus ERROR]:", err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาด" });
+  }
+};
+exports.getAllPaymentSlips = getAllPaymentSlips;
+exports.updateSlipStatus = updateSlipStatus;
