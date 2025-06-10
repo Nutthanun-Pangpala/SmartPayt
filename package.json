@@ -4,7 +4,10 @@
   },
   "dependencies": {
     "date-fns": "^2.30.0",
+    "exceljs": "^4.4.0",
+    "file-saver": "^2.0.5",
     "react-datepicker": "^8.4.0",
-    "react-icons": "^5.5.0"
+    "react-icons": "^5.5.0",
+    "xlsx": "^0.18.5"
   }
 }

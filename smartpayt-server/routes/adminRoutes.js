@@ -2,6 +2,7 @@ const express = require('express');
 const adminController = require('../controllers/adminControllers');
 const verifyToken = require('../middleware/adminMiddleware');
 
+
 const router = express.Router();
 
 // Public routes
@@ -22,7 +23,6 @@ router.get('/waste-months', adminController.getWasteMonths);
 
 
 // Admin Service
-router.get('/stats', adminController.getUserCount);
 router.get('/users', adminController.getUsers);
 router.get('/users/:lineUserId',adminController.getUserDetails);
 router.get('/users/address/:lineUserId',adminController.getUserAddress);
@@ -51,10 +51,13 @@ router.get('/user-address/:lineUserId', adminController.getUserAddress);
 router.get('/payment-slips', adminController.getAllPaymentSlips);
 router.patch('/payment-slips/:id', adminController.updateSlipStatus);
 
-
-module.exports = router;
-
 router.patch('/users/:lineUserId/verify', verifyToken, adminController.verifyUser);
 router.post('/verify-address/:addressId', verifyToken, adminController.verifyAddress);
 router.post('/waste-pricing', verifyToken, adminController.updateWastePricing);
 
+//report
+router.get('/report/export-waste', adminController.exportWasteReport);
+router.get('/stats-waste-daily', adminController.getDailyWasteStats);
+router.get('/report/export-finance', adminController.exportFinanceReport);
+
+module.exports = router;
