@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const db = require('../db/dbConnection');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const ExcelJS = require('exceljs');
 
 
 // Admin Register 
@@ -747,10 +748,27 @@ const updateSlipStatus = async (req, res) => {
   const { status } = req.body;
 
   try {
+    // อัปเดตสถานะของสลิปก่อน
     await db.promise().query(
       `UPDATE payment_slips SET status = ? WHERE id = ?`,
       [status, id]
     );
+
+    // หาก status เป็น approved ให้ไปอัปเดตบิลด้วย
+    if (status === "approved") {
+      const [[slip]] = await db.promise().query(
+        `SELECT bill_id FROM payment_slips WHERE id = ?`,
+        [id]
+      );
+
+      if (slip?.bill_id) {
+        await db.promise().query(
+          `UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?`,
+          [slip.bill_id]
+        );
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error("❌ [updateSlipStatus ERROR]:", err);
@@ -759,3 +777,114 @@ const updateSlipStatus = async (req, res) => {
 };
 exports.getAllPaymentSlips = getAllPaymentSlips;
 exports.updateSlipStatus = updateSlipStatus;
+
+//Report
+//WasteReport
+exports.exportWasteReport = async (req, res) => {
+  try {
+    const sql = `SELECT waste_type, weight_kg, created_at FROM waste_records ORDER BY created_at DESC`;
+    const [results] = await db.promise().query(sql);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Waste Report');
+
+    worksheet.columns = [
+      { header: 'ประเภทขยะ', key: 'waste_type', width: 20 },
+      { header: 'น้ำหนัก (kg)', key: 'weight', width: 15 },
+      { header: 'วันที่ทิ้ง', key: 'created_at', width: 20 },
+    ];
+
+    results.forEach(row => {
+      worksheet.addRow(row);
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=waste_report.xlsx'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error('❌ Error exporting report:', error);
+    res.status(500).json({ message: 'Export ล้มเหลว' });
+  }
+};
+
+exports.getDailyWasteStats = async (req, res) => {
+  try {
+    const sql = `
+      SELECT DATE(created_at) AS date, waste_type, SUM(weight_kg) AS total_weight
+      FROM waste_records
+      GROUP BY DATE(created_at), waste_type
+      ORDER BY DATE(created_at) DESC
+    `;
+
+    const [rows] = await db.promise().query(sql);
+    const grouped = {};
+
+    rows.forEach(row => {
+      const { date, waste_type, total_weight } = row;
+      if (!grouped[date]) {
+        grouped[date] = { date };
+      }
+      grouped[date][waste_type] = total_weight;
+    });
+
+    const result = Object.values(grouped);
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Error fetching daily waste stats:", err);
+    res.status(500).json({ message: "ไม่สามารถดึงสถิติขยะรายวันได้" });
+  }
+};
+
+//FinanceReport
+exports.exportFinanceReport = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+  SELECT 
+    b.id AS bill_id,
+    b.address_id,
+    u.name,
+    u.ID_card_No,
+    b.amount_due,
+    b.due_date,
+    ps.uploaded_at AS paid_at
+  FROM bills b
+  JOIN addresses a ON b.address_id = a.address_id
+  JOIN users u ON a.lineUserId = u.lineUserId
+  JOIN payment_slips ps ON ps.bill_id = b.id
+  WHERE ps.status = 'approved' AND b.status = 1
+  ORDER BY ps.uploaded_at DESC
+`);
+
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Finance Report');
+
+    worksheet.columns = [
+      { header: 'Bill ID', key: 'bill_id', width: 10 },
+      { header: 'Address ID', key: 'address_id', width: 15 },
+      { header: 'Name', key: 'name', width: 20 },
+      { header: 'ID Card No.', key: 'ID_card_No', width: 20 },
+      { header: 'Amount Due', key: 'amount_due', width: 15 },
+      { header: 'Due Date', key: 'due_date', width: 20 },
+      { header: 'Paid At', key: 'updated_at', width: 20 },
+    ];
+
+    rows.forEach(row => worksheet.addRow(row));
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=finance_report.xlsx');
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('❌ Error exporting finance report:', err);
+    res.status(500).json({ message: 'Export failed' });
+  }
+};

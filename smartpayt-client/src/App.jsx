@@ -14,6 +14,7 @@ import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
 import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
 import VerifiedUser from "./pagesAdmin/VerifiedUser";
 import AdminPaymentSlipPage from "./pagesAdmin/AdminPaymentSlipPage";
+import Report from "./pagesAdmin/Report";
 
 //User
 import UserDashboard from "./pagesUser/UserDashboard";
@@ -39,6 +40,8 @@ const router = createBrowserRouter([
   { path:"/admin/verified-address",element:<VerifiedAddress />},
   { path:"/admin/verified-user",element:<VerifiedUser />},
   { path:"/admin/payment-slips",element:<AdminPaymentSlipPage />},
+  { path:"/admin/report",element:<Report />},
+
 
   
 //user
