@@ -1,18 +1,15 @@
-// routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/userController'); // นำเข้าคอนโทรลเลอร์
+const userController = require('../controllers/userController'); // ✅ นำเข้าฟังก์ชัน controller
 
-// Route สำหรับดึงข้อมูลผู้ใช้
-exports.getUser = (req, res) => {
-  // ตัวอย่างการดึงข้อมูลผู้ใช้
-  const user = {
-    id: 1,
-    name: "John Doe",
-    email: "john@example.com",
-  };
+// 👉 ตัวอย่าง route ปกติ
+router.get("/user", userController.getUser);
 
-  res.json(user);
-};
+// 👉 เพิ่ม route สำหรับอัปโหลดสลิป
 
+router.post(
+  "/upload-slip",
+  userController.upload.single("slip"), // <-- สำคัญ!
+  userController.uploadSlip
+);
 module.exports = router;

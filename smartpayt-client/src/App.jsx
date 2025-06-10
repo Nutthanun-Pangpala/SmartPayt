@@ -10,8 +10,10 @@ import AdminManualBill from "./pagesAdmin/AdminManulBill";
 import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
-import AdminVerified from "./pagesAdmin/AdminVerified";
-
+import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
+import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
+import VerifiedUser from "./pagesAdmin/VerifiedUser";
+import AdminPaymentSlipPage from "./pagesAdmin/AdminPaymentSlipPage";
 
 //User
 import UserDashboard from "./pagesUser/UserDashboard";
@@ -20,6 +22,7 @@ import PaymentPage from "./pagesUser/UserPaymentPage";
 import RegisterAccount from "./pagesUser/UserRegisterAccounts";
 import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
 import Issues from "./pagesUser/UserReportIssuesPages";
+import QRPaymentPage from "./pagesUser/UserQrPaymentPage";
 
 
 const router = createBrowserRouter([
@@ -31,8 +34,12 @@ const router = createBrowserRouter([
   { path: "/admin/service", element:<AdminService/> },
   { path: "/admin/debt", element:<AdminDebtPage/> },
   { path:"/admin/user/:lineUserId",element:<UserDetails />},
-  { path:"/admin/users-verify",element:<AdminVerified />},
   { path:"/admin/bills",element:<AdminManualBill />},
+  { path:"/admin/editwaste",element:<AdminWastePricing />},
+  { path:"/admin/verified-address",element:<VerifiedAddress />},
+  { path:"/admin/verified-user",element:<VerifiedUser />},
+  { path:"/admin/payment-slips",element:<AdminPaymentSlipPage />},
+
   
 //user
   { path: "/userLogin", element: <Login /> },
@@ -41,6 +48,8 @@ const router = createBrowserRouter([
   { path: "/userDashboard" ,element: <UserDashboard/>},
   { path: "/issues", element: <Issues/>},
   { path: "/payment", element: <PaymentPage/> },
+  { path: "/payment/qr", element: <QRPaymentPage/> },
+
 ], {
   future: {
     v7_startTransition: true,

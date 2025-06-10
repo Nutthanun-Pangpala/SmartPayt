@@ -1,48 +1,140 @@
+รวมทั้งหมด: แพ็กเกจ NPM ที่ใช้ในโปรเจกต์ SmartPayt
+หลังจากที่ clone projectไปแล้วก็ควร cd เข้าทีละตัว 
+เช่น cd smartpayt-server และ cd smartpayt-client แล้วจึง npm install
+
+🖥️ ฝั่ง Server (smartpayt-server)
+| Package         | Version | หมายเหตุ                                 |
+| --------------- | ------- | ---------------------------------------- |
+| `@line/bot-sdk` | 9.9.0   | ใช้สำหรับ LINE Bot API                   |
+| `axios`         | 1.8.4   | สำหรับทำ HTTP request                    |
+| `bcrypt`        | 5.1.1   | สำหรับ hash รหัสผ่าน (native)            |
+| `bcryptjs`      | 2.4.3   | สำหรับ hash รหัสผ่าน (JS)                |
+| `body-parser`   | 1.20.3  | สำหรับ parse HTTP body                   |
+| `bwip-js`       | 4.6.0   | สร้าง barcode                            |
+| `cors`          | 2.8.5   | อนุญาต cross-origin request              |
+| `dotenv`        | 16.5.0  | โหลด config จาก `.env`                   |
+| `express`       | 4.21.2  | Web framework หลัก                       |
+| `jsonwebtoken`  | 9.0.2   | สำหรับ JWT auth                          |
+| `morgan`        | 1.10.0  | Logger                                   |
+| `multer`        | 2.0.1   | จัดการ multipart/form-data (อัปโหลดไฟล์) |
+| `mysql2`        | 3.14.0  | เชื่อมต่อ MySQL (รองรับ promise)         |
+| `nodemon`       | 3.1.9   | Dev tool สำหรับ restart server อัตโนมัติ |
+| `querystring`   | 0.2.1   | แปลง query string                        |
+
+
+💻 ฝั่ง Client (smartpayt-client)
+
+
+| Package                       | Version | หมายเหตุ                                         |
+| ----------------------------- | ------- | ------------------------------------------------ |
+| `@eslint/js`                  | 9.25.1  | ESLint core                                      |
+| `@flaticon/flaticon-uicons`   | 3.3.1   | ไอคอน Flaticon                                   |
+| `@line/liff`                  | 2.26.0  | ใช้เชื่อมต่อ LIFF SDK (LINE Front-end Framework) |
+| `@types/react`                | 18.3.20 | Type definitions for React                       |
+| `@types/react-dom`            | 18.3.6  | Type definitions for ReactDOM                    |
+| `@vitejs/plugin-react`        | 4.4.1   | Plugin สำหรับ Vite ที่รองรับ React               |
+| `autoprefixer`                | 10.4.21 | สำหรับ PostCSS (ใช้กับ Tailwind)                 |
+| `axios`                       | 1.8.4   | สำหรับส่ง request                                |
+| `buffer`                      | 6.0.3   | รองรับ Buffer ในเบราว์เซอร์                      |
+| `eslint`                      | 9.25.1  | เครื่องมือตรวจสอบโค้ด                            |
+| `eslint-plugin-react`         | 7.37.5  | Plugin สำหรับ ESLint ที่รองรับ React             |
+| `eslint-plugin-react-hooks`   | 5.2.0   | สำหรับตรวจสอบการใช้ React hooks                  |
+| `eslint-plugin-react-refresh` | 0.4.20  | ใช้กับ fast refresh ใน React dev                 |
+| `express`                     | 4.21.2  | ⚠️ ไม่ควรอยู่ใน frontend — อาจติดตั้งผิด         |
+| `globals`                     | 15.15.0 | ใช้ร่วมกับ ESLint                                |
+| `mysql2`                      | 3.14.0  | ⚠️ ไม่ควรอยู่ใน frontend — อาจติดตั้งผิด         |
+| `postcss`                     | 8.5.3   | ใช้ร่วมกับ Tailwind                              |
+| `prop-types`                  | 15.8.1  | ตรวจสอบชนิด props                                |
+| `react`                       | 18.3.1  | React Core                                       |
+| `react-dom`                   | 18.3.1  | React DOM                                        |
+| `react-icons`                 | 5.5.0   | ไอคอนใน React                                    |
+| `react-router-dom`            | 6.30.0  | Routing                                          |
+| `recharts`                    | 2.15.3  | สำหรับวาดกราฟ/แผนภูมิ                            |
+| `tailwindcss`                 | 3.4.17  | CSS Framework                                    |
+| `vite`                        | 5.4.18  | Dev server & build tool                          |
+
+
+
+| Table               | Description               |
+| ------------------- | ------------------------- |
+| **`users`**         | ข้อมูลผู้ใช้ (LINE)       |
+| **`addresses`**     | ที่อยู่ของผู้ใช้          |
+| **`admins`**        | ข้อมูลแอดมินระบบ          |
+| **`bills`**         | ใบแจ้งหนี้ของแต่ละที่อยู่ |
+| **`payment_slips`** | สลิปการโอนเงินจากผู้ใช้   |
+| **`waste_pricing`** | ราคาขยะแต่ละประเภท        |
+| **`waste_records`** | บันทึกขยะตามที่อยู่และวัน |
+
 CREATE TABLE users (
-  lineUserId VARCHAR(255) NOT NULL PRIMARY KEY,
+  lineUserId VARCHAR(255) PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   ID_card_No VARCHAR(20) NOT NULL,
   Phone_No VARCHAR(20) NOT NULL,
-  Email VARCHAR(100) DEFAULT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  Email VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  verify_status TINYINT DEFAULT 0,
+  admin_verify INT
 );
 
 CREATE TABLE addresses (
-  address_id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  lineUserId VARCHAR(255) DEFAULT NULL,
-  house_no VARCHAR(100) DEFAULT NULL,
-  Alley VARCHAR(255) DEFAULT NULL,
+  address_id INT AUTO_INCREMENT PRIMARY KEY,
+  lineUserId VARCHAR(255),
+  house_no VARCHAR(100),
+  Alley VARCHAR(255),
   province VARCHAR(100) NOT NULL,
   district VARCHAR(100) NOT NULL,
   sub_district VARCHAR(100) NOT NULL,
   postal_code VARCHAR(10) NOT NULL,
-  address_verified TINYINT(1) DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  address_verified TINYINT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  admin_verify INT,
   FOREIGN KEY (lineUserId) REFERENCES users(lineUserId) ON DELETE CASCADE
 );
 
-CREATE TABLE bills (
-  id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  address_id INT(11) NOT NULL,
-  amount_due DECIMAL(10, 2) NOT NULL,
-  due_date DATE NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  status TINYINT(1) DEFAULT 0,
-  FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE CASCADE
-);
-
-mockup data bill ในส่วนของ status หลัง 0 จะแทนว่า ยังไม่ได้ชำระ 1 จะแทนว่า ชำระแล้ว
-
-INSERT INTO bills (address_id, amount_due, due_date, status) VALUES
-(1, 1200.50, '2024-04-10', 0),
-(2, 850.75, '2024-04-15', 1),
-
-
 CREATE TABLE admins (
-  id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   admin_username VARCHAR(255) NOT NULL,
   admin_password VARCHAR(255) NOT NULL
 );
+
+CREATE TABLE bills (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  address_id INT NOT NULL,
+  amount_due DECIMAL(10,2) NOT NULL,
+  due_date DATE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  status TINYINT DEFAULT 0,
+  FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE CASCADE
+);
+
+CREATE TABLE payment_slips (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  bill_id INT NOT NULL,
+  image_path VARCHAR(255) NOT NULL,
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  status ENUM('pending','approved','rejected') DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (bill_id) REFERENCES bills(id) ON DELETE CASCADE
+);
+
+CREATE TABLE waste_pricing (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  type ENUM('general','hazardous','recyclable') NOT NULL UNIQUE,
+  price_per_kg DECIMAL(10,2) NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  admin_verify INT
+);
+
+CREATE TABLE waste_records (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  address_id INT NOT NULL,
+  waste_type ENUM('general','hazardous','recyclable') NOT NULL,
+  weight_kg DECIMAL(10,2) NOT NULL,
+  recorded_date DATE DEFAULT CURDATE(),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE CASCADE
+);
+
