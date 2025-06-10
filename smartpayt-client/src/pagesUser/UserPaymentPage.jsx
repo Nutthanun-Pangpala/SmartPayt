@@ -39,78 +39,41 @@ const PaymentPage = () => {
       return;
     }
 
-    try {
-      setIsPaying(true);
-
-      const response = await fetch(`http://localhost:3000/api/bills/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address_id: addressId,
-          billIds: selectedBills,
-        }),
-      });
-
-      if (!response.ok) throw new Error("อัปเดตไม่สำเร็จ");
-
-      const updatedData = await fetch(
-        `http://localhost:3000/api/bills?address_id=${addressId}`
-      );
-      if (!updatedData.ok) throw new Error("ไม่สามารถดึงข้อมูลบิลใหม่ได้");
-
-      const dataJson = await updatedData.json();
-      setAllBills(dataJson.bills);
-      setSelectedBills([]);
-
-      alert(`ชำระเงินแล้วจำนวน ${totalAmount.toFixed(2)} บาท ✅`);
-    } catch (error) {
-      console.error(error);
-      alert("เกิดข้อผิดพลาดในการชำระเงิน ❌");
-    } finally {
-      setIsPaying(false);
-    }
+    navigate("/payment/qr", {
+      state: {
+        selectedBills,
+        totalAmount
+      }
+    });
   };
 
+
   return (
-    <div className="bg-gray-200 min-h-screen">
+    <div className=' bg-gray-200 min-h-screen' >
       <NavbarComponent />
       <div className="p-4 max-w-xl mx-auto">
         <h1 className="text-xl font-bold mb-4">💳 หน้าชำระค่าบริการ</h1>
-        <p className="mb-2">
-          <strong>🏠 ที่อยู่ ID:</strong> {addressId}
-        </p>
+        <p className="mb-2"><strong>🏠 ที่อยู่ ID:</strong> {addressId}</p>
 
         <div className="space-y-2 mb-4">
-          {allBills.map((bill) => (
-            <div
-              key={bill.id}
-              className="p-3 border bg-gray-100 rounded-md"
-            >
+          {bills.map((bill, index) => (
+            <div key={index} className="p-3 border bg-gray-100 rounded-md">
               <div>
-                <p>💵 {parseFloat(bill.amount_due).toFixed(2)} บาท</p>
-                <p className="mx-1">
-                  📅 ครบกำหนด:{" "}
-                  {bill.due_date
-                    ? new Date(bill.due_date).toLocaleDateString("th-TH")
-                    : "ไม่ทราบกำหนด"}
-                </p>
-                <p className="mx-1">
-                  📌 สถานะ: {bill.status === "1" ? "✅ ชำระแล้ว" : "⏳ ยังไม่ชำระ"}
-                </p>
+                <p>💵 {bill.amount_due} บาท</p>
+                <div className="flex ">
+                  <p className="mx-1">ครบกำหนด: {new Date(bill.due_date).toLocaleDateString("th-TH")}</p>
+                </div>
               </div>
               {bill.status !== "1" && (
                 <div className="flex items-center mt-2">
                   <input
                     id={`checkbox-${bill.id}`}
                     type="checkbox"
-                    checked={selectedBills.includes(String(bill.id))}
+                    checked={selectedBills.includes(bill.id)}
                     onChange={() => toggleBillSelection(bill.id)}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <label
-                    htmlFor={`checkbox-${bill.id}`}
-                    className="ms-2 text-sm text-gray-900"
-                  >
+                  <label htmlFor={`checkbox-${bill.id}`} className="ms-2 text-sm text-gray-900">
                     เลือกชำระบิลนี้
                   </label>
                 </div>
@@ -124,13 +87,11 @@ const PaymentPage = () => {
         </div>
 
         <button
+
           onClick={handleConfirmPayment}
-          disabled={isPaying}
-          className={`w-full text-white font-semibold py-2 rounded ${
-            isPaying ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-          }`}
+          className="w-full text-white bg-green-600 hover:bg-green-700 font-semibold py-2 rounded"
         >
-          {isPaying ? "กำลังดำเนินการ..." : "ยืนยันการชำระเงิน"}
+          ยืนยันการชำระเงิน
         </button>
       </div>
     </div>

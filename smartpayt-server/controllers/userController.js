@@ -1,54 +1,76 @@
-const axios = require("axios");
 const db = require("../db/dbConnection");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
+const path = require("path");
 
-// Controller: ฟังก์ชันเพื่อดึงข้อมูลผู้ใช้จากฐานข้อมูล
-exports.userInfo = async (req, res) => {
+
+const getUser = (req, res) => {
+  const user = {
+    id: 1,
+    name: "John Doe",
+    email: "john@example.com",
+  };
+  res.json(user);
+};
+const uploadSlip = async (req, res) => {
   try {
-    const { lineUserId } = req.params; // ดึง lineUserId จาก URL parameters
+    console.log("📥 [upload-slip] body:", req.body);
+    console.log("📷 [upload-slip] file:", req.file);
 
-    if (!lineUserId) {
-      return res.status(400).json({ message: "lineUserId ไม่พบในคำขอ" });
+    const billIds = JSON.parse(req.body.bill_ids);
+    const filePath = req.file.path;
+
+    const dbConn = db.promise(); // ✅ เพิ่มตรงนี้
+
+    for (let billId of billIds) {
+      await dbConn.query(
+        "INSERT INTO payment_slips (bill_id, image_path) VALUES (?, ?)",
+        [billId, filePath]
+      );
     }
 
-    // Query เพื่อตรวจสอบข้อมูลผู้ใช้จากฐานข้อมูล
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("❌ [upload-slip ERROR]:", err);
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดใน server" });
+    }
+  }
+};
+
+
+
+
+const userInfo = async (req, res) => {
+  try {
+    const { lineUserId } = req.params;
+    if (!lineUserId) return res.status(400).json({ message: "lineUserId ไม่พบในคำขอ" });
+
     const query = "SELECT * FROM users WHERE lineUserId = ?";
     const [userData] = await db.promise().query(query, [lineUserId]);
 
-    if (userData.length === 0) {
-      return res.status(404).json({ message: "ไม่พบข้อมูลผู้ใช้" });
-    }
+    if (userData.length === 0) return res.status(404).json({ message: "ไม่พบข้อมูลผู้ใช้" });
 
-    // ส่งข้อมูลผู้ใช้กลับไปที่ Frontend
     res.status(200).json({
       message: "ดึงข้อมูลผู้ใช้สำเร็จ",
-      user: userData[0], // ส่งข้อมูลแค่แถวเดียว
+      user: userData[0],
     });
-
   } catch (error) {
     console.error("❌ เกิดข้อผิดพลาด:", error);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 };
 
-
-exports.removeUserByID = async (req, res) => {
+const removeUserByID = async (req, res) => {
   try {
-    const lineUserId = req.params.id; // รับค่า lineUserId จาก URL
-
-    if (!lineUserId) {
-      return res.status(400).json({ message: "กรุณาระบุ id" });
-    }
+    const lineUserId = req.params.id;
+    if (!lineUserId) return res.status(400).json({ message: "กรุณาระบุ id" });
 
     const [user] = await db.promise().query("SELECT * FROM users WHERE lineUserId = ?", [lineUserId]);
-    if (user.length === 0) {
-      return res.status(404).json({ message: "ไม่พบผู้ใช้ในระบบ" });
-    }
+    if (user.length === 0) return res.status(404).json({ message: "ไม่พบผู้ใช้ในระบบ" });
 
-    // ลบข้อมูลที่เกี่ยวข้องกับผู้ใช้
     await db.promise().query("DELETE FROM orders WHERE lineUserId = ?", [lineUserId]);
     await db.promise().query("DELETE FROM user_addresses WHERE lineUserId = ?", [lineUserId]);
-
-    // ลบผู้ใช้จากระบบ
     await db.promise().query("DELETE FROM users WHERE lineUserId = ?", [lineUserId]);
 
     res.status(200).json({ message: "ลบผู้ใช้สำเร็จ" });
@@ -58,7 +80,7 @@ exports.removeUserByID = async (req, res) => {
   }
 };
 
-exports.checkUser=  async (req, res) => {
+const checkUser = async (req, res) => {
   const { lineUserId } = req.params;
   try {
     const [rows] = await db.promise().query("SELECT COUNT(*) AS count FROM users WHERE lineUserId = ?", [lineUserId]);
@@ -67,4 +89,14 @@ exports.checkUser=  async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล" });
   }
+};
+
+// ✅ Export ฟังก์ชันทั้งหมด
+module.exports = {
+  getUser,
+  uploadSlip,
+  upload,
+  userInfo,
+  removeUserByID,
+  checkUser,
 };
