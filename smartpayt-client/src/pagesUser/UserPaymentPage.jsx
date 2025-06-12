@@ -67,12 +67,12 @@ const PaymentPage = () => {
               {bill.status !== "1" && (
                 <div className="flex items-center mt-2">
                   <input
-                    id={`checkbox-${bill.id}`}
-                    type="checkbox"
-                    checked={selectedBills.includes(bill.id)}
-                    onChange={() => toggleBillSelection(bill.id)}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                  />
+  id={`checkbox-${bill.id}`}
+  type="checkbox"
+  checked={selectedBills.includes(String(bill.id))}
+  onChange={() => toggleBillSelection(bill.id)}
+  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+/>
                   <label htmlFor={`checkbox-${bill.id}`} className="ms-2 text-sm text-gray-900">
                     เลือกชำระบิลนี้
                   </label>

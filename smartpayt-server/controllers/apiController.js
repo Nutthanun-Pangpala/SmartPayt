@@ -126,7 +126,7 @@ exports.registerAddress = async (req, res) => {
           messages: [
             {
               type: "text",
-              text: `✅ ลงทะเบียนที่อยู่สำเร็จ!\n🏠 บ้านเลขที่: ${house_no}\n📍 ${sub_district}, ${district}, ${province} ${postal_code}`,
+              text: `🕞 รอการตรวจสอบ!\n🏠 บ้านเลขที่: ${house_no}\n📍 ${sub_district}, ${district}, ${province} ${postal_code}\n🟠 กรุณาติดต่อที่เทศบาล`,
             },
           ],
         },
