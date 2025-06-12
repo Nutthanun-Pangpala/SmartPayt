@@ -3,6 +3,8 @@ const db = require('../db/dbConnection');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const ExcelJS = require('exceljs');
+const { sendMessageToUser } = require("../utils/lineNotify");
+
 
 
 // Admin Register 
@@ -324,23 +326,46 @@ exports.getuserAddressBill = async (req, res) => {
 
 exports.verifyAddress = async (req, res) => {
   const { addressId } = req.params;
-  const adminId = req.user?.id; // 🔑 ได้จาก JWT token
+  const adminId = req.user?.id;
 
   if (!addressId || !adminId) {
     return res.status(400).json({ success: false, message: 'Missing addressId or adminId' });
   }
 
-  const sql = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ?';
+  const sqlUpdate = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ?';
 
-  db.query(sql, [adminId, addressId], (err, result) => {
-    if (err) return res.status(500).json({ success: false, message: 'Failed to update verification status' });
+  try {
+    // อัปเดตสถานะที่อยู่
+    const [updateResult] = await db.promise().query(sqlUpdate, [adminId, addressId]);
 
-    if (result.affectedRows === 0) {
+    if (updateResult.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Address not found' });
     }
 
+    // ดึงข้อมูลที่อยู่พร้อม lineUserId
+    const [rows] = await db.promise().query(
+      `SELECT lineUserId, house_no, sub_district, district, province, postal_code
+       FROM addresses WHERE address_id = ?`,
+      [addressId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Address data not found' });
+    }
+
+    const { lineUserId, house_no, sub_district, district, province, postal_code } = rows[0];
+
+    if (lineUserId) {
+      const message = `✅ ที่อยู่\n🏠 บ้านเลขที่: ${house_no}\n📍 ${sub_district}, ${district}, ${province} ${postal_code}\nได้รับการตรวจสอบเรียบร้อยแล้ว\nขอบคุณที่ใช้บริการ Smart Payt ครับ/ค่ะ`;
+
+      await sendMessageToUser(lineUserId, message);
+    }
+
     res.json({ success: true, message: 'Address verified successfully' });
-  });
+  } catch (err) {
+    console.error('Error verifying address or sending LINE message:', err);
+    res.status(500).json({ success: false, message: 'Failed to verify address' });
+  }
 };
 
 
@@ -640,7 +665,7 @@ exports.searchUser = (req, res) => {
   });
 };
 
-exports.createBill = (req, res) => {
+exports.createBill = async (req, res) => {
   const { address_id, amount_due, due_date } = req.body;
   const status = 0;
 
@@ -649,10 +674,25 @@ exports.createBill = (req, res) => {
     VALUES (?, ?, ?, NOW(), NOW(), ?)
   `;
 
-  db.query(sql, [address_id, amount_due, due_date, status], (err, result) => {
+  db.query(sql, [address_id, amount_due, due_date, status], async (err, result) => {
     if (err) {
       console.error("เกิดข้อผิดพลาดในการสร้างบิล:", err);
       return res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
+    }
+
+    // ✅ ดึง lineUserId จาก address_id
+    const [addressRows] = await db.promise().query(
+      `SELECT lineUserId, house_no FROM addresses WHERE address_id = ?`,
+      [address_id]
+    );
+
+    if (addressRows.length > 0 && addressRows[0].lineUserId) {
+      const lineUserId = addressRows[0].lineUserId;
+      const houseNo = addressRows[0].house_no;
+
+      const message = `📬 มีบิลใหม่!\n🏠 บ้านเลขที่ ${houseNo}\n💰 จำนวน ${amount_due} บาท\n📅 ครบกำหนด ${new Date(due_date).toLocaleDateString("th-TH")}`;
+
+      await sendMessageToUser(lineUserId, message);
     }
 
     res.status(201).json({ message: "สร้างบิลสำเร็จ", billId: result.insertId });
@@ -748,31 +788,56 @@ const updateSlipStatus = async (req, res) => {
   const { status } = req.body;
 
   try {
-    // อัปเดตสถานะของสลิปก่อน
+    // อัปเดตสถานะสลิป
     await db.promise().query(
       `UPDATE payment_slips SET status = ? WHERE id = ?`,
       [status, id]
     );
 
-    // หาก status เป็น approved ให้ไปอัปเดตบิลด้วย
     if (status === "approved") {
+      // ดึง slip
       const [[slip]] = await db.promise().query(
         `SELECT bill_id FROM payment_slips WHERE id = ?`,
         [id]
       );
 
       if (slip?.bill_id) {
+        // อัปเดตบิล
         await db.promise().query(
           `UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?`,
           [slip.bill_id]
         );
+
+        // ดึงข้อมูลบิลพร้อม user lineUserId
+        const [[billUser]] = await db.promise().query(
+          `SELECT 
+            b.id, b.amount_due, b.due_date, b.status, 
+            a.lineUserId, a.house_no, a.sub_district, a.district, a.province, a.postal_code
+          FROM bills b
+          JOIN addresses a ON b.address_id = a.address_id
+          WHERE b.id = ?`,
+          [slip.bill_id]
+        );
+
+        if (billUser?.lineUserId) {
+          // สร้างข้อความรายละเอียดบิล
+          const dueDateStr = new Date(billUser.due_date).toLocaleDateString("th-TH");
+          const message = `🎉 ขอบคุณที่ชำระบิลเรียบร้อยแล้ว!\n\n` +
+            `🏠 ที่อยู่: บ้านเลขที่ ${billUser.house_no}, ${billUser.sub_district}, ${billUser.district}, ${billUser.province} ${billUser.postal_code}\n` +
+            `🧾 บิลเลขที่: ${billUser.id}\n` +
+            `💰 จำนวนที่ชำระ: ${parseFloat(billUser.amount_due).toFixed(2)} บาท\n` +
+            `📅 วันครบกำหนด: ${dueDateStr}\n\n` +
+            `หากมีข้อสงสัย ติดต่อฝ่ายบริการลูกค้าได้ตลอดเวลา 🙏`;
+
+          await sendMessageToUser(billUser.lineUserId, message);
+        }
       }
     }
 
-    res.json({ success: true });
-  } catch (err) {
-    console.error("❌ [updateSlipStatus ERROR]:", err);
-    res.status(500).json({ message: "เกิดข้อผิดพลาด" });
+    res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
+  } catch (error) {
+    console.error("เกิดข้อผิดพลาด:", error);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 };
 exports.getAllPaymentSlips = getAllPaymentSlips;
