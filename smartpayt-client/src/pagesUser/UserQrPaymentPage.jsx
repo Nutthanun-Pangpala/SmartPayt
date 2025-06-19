@@ -1,6 +1,7 @@
+import axios from "axios";
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import NavbarComponent from "../assets/component/user/userNavbar";
 import qrImage from "../assets/img/qr.jpg";
 
 
@@ -47,6 +48,8 @@ const QRPaymentPage = () => {
     };
 
     return (
+        <div>
+        <NavbarComponent/>
         <div className="p-6 max-w-lg mx-auto bg-white rounded shadow mt-8">
             <h1 className="text-xl font-bold mb-4">📷 ชำระเงินผ่าน QR Code</h1>
             <img src={qrImage} alt="QR Code" className="w-full mb-4" />
@@ -61,6 +64,7 @@ const QRPaymentPage = () => {
             >
                 {uploading ? "กำลังอัปโหลด..." : "📤 อัปโหลดสลิป"}
             </button>
+        </div>
         </div>
     );
 };
