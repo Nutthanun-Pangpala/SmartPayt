@@ -75,7 +75,7 @@ const RegisterAddressForm = () => {
       setFormData((prev) => ({ ...prev, lineUserId }));
 
       try {
-        const res = await axios.get(`http://localhost:3000/api/checkUser/${lineUserId}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/checkUser/${lineUserId}`);
         if (res.data.exists) navigate("/");
       } catch (err) {
         console.error("Error checking user:", err);
@@ -142,7 +142,7 @@ const RegisterAddressForm = () => {
     }
 
     try {
-      const res = await axios.post('http://localhost:3000/api/registerAddress', formData);
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/registerAddress`, formData);
       setMessage(res.data.message || 'ลงทะเบียนสำเร็จ!');
       setTimeout(() => navigate('/UserDashboard'), 2000);
     } catch (err) {
