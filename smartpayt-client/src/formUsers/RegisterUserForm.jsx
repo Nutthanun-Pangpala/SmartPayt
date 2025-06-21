@@ -29,7 +29,7 @@ const RegisterUserForm = () => {
 
       try {
         // เช็คว่า lineUserId มีในฐานข้อมูลหรือไม่
-        const checkUser = await axios.get(`http://localhost:3000/api/checkUser/${lineUserId}`);
+        const checkUser = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/checkUser/${lineUserId}`);
         if (checkUser.data.exists) {
           navigate("/"); // ถ้ามีบัญชีอยู่แล้วให้ไปหน้าแรก
         }
@@ -59,7 +59,7 @@ const RegisterUserForm = () => {
 
     try {
       // ลงทะเบียนบัญชีใหม่
-      const res = await axios.post("http://localhost:3000/api/registerAccount", formData);
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/registerAccount`, formData);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("lineUserId", formData.lineUserId);
       setMessage("ลงทะเบียนสำเร็จ!");

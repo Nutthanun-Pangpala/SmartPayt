@@ -21,7 +21,7 @@ const UserAddressesCard = () => {
     const fetchUserAddresses = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:3000/api/address/${lineUserId}`
+          `${import.meta.env.VITE_API_BASE_URL}/api/address/${lineUserId}`
         );
         const addresses = response.data.addresses;
         setUserAddresses(addresses);
@@ -33,7 +33,7 @@ const UserAddressesCard = () => {
             }
             try {
               const res = await axios.get(
-                `http://localhost:3000/api/bills/${address.address_id}`
+                `${import.meta.env.VITE_API_BASE_URL}/api/bills/${address.address_id}`
               );
               const unpaidBills = res.data.bills.filter(
                 (bill) => bill.status !== "1"
