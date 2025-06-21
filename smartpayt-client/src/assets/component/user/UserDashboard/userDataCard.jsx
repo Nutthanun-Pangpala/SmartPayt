@@ -20,7 +20,7 @@ const UserDatacard = () => {
     const fetchUserData = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:3000/api/user/${lineUserId}`
+          `${import.meta.env.VITE_API_BASE_URL}/api/user/${lineUserId}`
         );
         setUserData(response.data.user);
       } catch (error) {

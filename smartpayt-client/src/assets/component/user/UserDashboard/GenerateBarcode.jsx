@@ -25,7 +25,7 @@ const GenerateBarcode = ({ addressId, status }) => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://localhost:3000/api/generate-barcode/${addressId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/generate-barcode/${addressId}`,
         { responseType: "arraybuffer" }
       );
       const buffer = response.data;
