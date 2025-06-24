@@ -51,9 +51,9 @@ const RegisterAddressForm = () => {
     house_no: "",
     alley: "",
     province: "เชียงราย",
-    district: "",
+    district: "อำเภอเมือง",
     sub_district: "",
-    postal_code: "",
+    postal_code: "57100",
     lat: null,
     lng: null
   });
@@ -246,7 +246,7 @@ const RegisterAddressForm = () => {
             />
           </div>
           <div>
-            <label className="block mb-1 font-medium" htmlFor="sub_district">ตำบล / แขวง</label>
+            <label className="block mb-1 font-medium" htmlFor="sub_district">ตำบล </label>
             <input
               id="sub_district"
               name="sub_district"

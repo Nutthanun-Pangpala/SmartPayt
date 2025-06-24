@@ -531,7 +531,7 @@ exports.getUsersWithAddressVerification = (req, res) => {
     ${searchCondition}
   `;
 
- const dataSql = `
+  const dataSql = `
   SELECT 
   u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status,
   a.address_id, a.address_verified,
@@ -855,12 +855,22 @@ exports.exportWasteReport = async (req, res) => {
 
     worksheet.columns = [
       { header: 'ประเภทขยะ', key: 'waste_type', width: 20 },
-      { header: 'น้ำหนัก (kg)', key: 'weight', width: 15 },
+      { header: 'น้ำหนัก (kg)', key: 'weight_kg', width: 15 },
       { header: 'วันที่ทิ้ง', key: 'created_at', width: 20 },
     ];
 
+    const typeMap = {
+      general: 'ขยะทั่วไป',
+      hazardous: 'ขยะอันตราย',
+      recyclable: 'ขยะรีไซเคิล'
+    };
+
     results.forEach(row => {
-      worksheet.addRow(row);
+      worksheet.addRow({
+        waste_type: typeMap[row.waste_type] || row.waste_type,
+        weight_kg: row.weight_kg,
+        created_at: row.created_at
+      });
     });
 
     res.setHeader(
@@ -895,7 +905,13 @@ exports.getDailyWasteStats = async (req, res) => {
     rows.forEach(row => {
       const { date, waste_type, total_weight } = row;
       if (!grouped[date]) {
-        grouped[date] = { date };
+        // เตรียมให้ครบทุกประเภท
+        grouped[date] = {
+          date,
+          general: 0,
+          hazardous: 0,
+          recyclable: 0,
+        };
       }
       grouped[date][waste_type] = total_weight;
     });
@@ -907,6 +923,7 @@ exports.getDailyWasteStats = async (req, res) => {
     res.status(500).json({ message: "ไม่สามารถดึงสถิติขยะรายวันได้" });
   }
 };
+
 
 //FinanceReport
 exports.exportFinanceReport = async (req, res) => {
