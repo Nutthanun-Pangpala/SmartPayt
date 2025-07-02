@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import nanglaeIcon from "../assets/img/nanglaeicon.png";
 import axios from 'axios';
 
-const AdminWastePricing = () => {
+const WastePricehousehold = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isBillDropdownOpen, setIsBillDropdownOpen] = useState(false);
     const [isVerifyDropdownOpen, setIsVerifyDropdownOpen] = useState(false);
     const [isWasteDropdownOpen, setIsWasteDropdownOpen] = useState(true);
+    const [selectedWasteType, setSelectedWasteType] = useState('household'); // สถานะสำหรับการเลือกขยะ
 
     const [prices, setPrices] = useState({
         general: '',
@@ -29,27 +30,34 @@ const AdminWastePricing = () => {
     };
 
     const handleSave = async () => {
-        const token = localStorage.getItem('Admin_token');
+    const token = localStorage.getItem('Admin_token');
+    if (!token) {
+        console.error('❌ ไม่พบ token ใน localStorage');
+        setStatus('ไม่ได้เข้าสู่ระบบ กรุณา login ใหม่');
+        return;
+    }
 
-        if (!token) {
-            console.error('❌ ไม่พบ token ใน localStorage');
-            setStatus('ไม่ได้เข้าสู่ระบบ กรุณา login ใหม่');
-            return;
-        }
+    const wasteType = selectedWasteType === 'household' ? 'household' : 'establishment';
 
-        try {
-            const response = await axios.post('http://localhost:3000/admin/waste-pricing', prices, {
+    try {
+        const response = await axios.post(`http://localhost:3000/admin/${wasteType}`, 
+            { 
+                ...prices, 
+                waste_type: wasteType // ส่ง waste_type ไปด้วย
+            },
+            {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
-            });
-            setStatus('บันทึกสำเร็จ');
-        } catch (err) {
-            console.error('❌ Error while saving waste pricing:', err.response?.data || err.message);
-            setStatus('เกิดข้อผิดพลาดในการบันทึก');
-        }
-    };
+            }
+        );
+        setStatus('บันทึกสำเร็จ');
+    } catch (err) {
+        console.error('❌ Error while saving waste pricing:', err.response?.data || err.message);
+        setStatus('เกิดข้อผิดพลาดในการบันทึก');
+    }
+};
 
     return (
         <div className="flex flex-col min-h-screen bg-[#FDEFB2]">
@@ -175,6 +183,18 @@ const AdminWastePricing = () => {
                     <h1 className="text-3xl font-bold mb-6 text-center lg:text-left">ตั้งค่าราคาค่าบริการขยะแต่ละประเภท (บาท/กิโลกรัม)</h1>
 
                     <div className="bg-white p-6 rounded-xl shadow-md max-w-xl mx-auto">
+                        {/* แถบเลือกประเภทขยะ */}
+                <div className="flex mb-5 justify-start gap-4">
+                    <button
+                    className={`px-8 py-3 text-lg font-semibold rounded-full text-white ${selectedWasteType === 'household' ? 'bg-green-600' : 'bg-gray-400'}`}>
+                        ครัวเรือน
+                        </button>
+                        <button
+                        onClick={() => navigate('/admin/establishment')}
+                        className={`px-8 py-3 text-lg font-semibold rounded-full text-white ${selectedWasteType === 'establishment' ? 'bg-green-600' : 'bg-gray-400'}`}>
+                            สถานประกอบการ
+                            </button>
+                            </div>
                         {[{ key: 'general', label: 'ขยะทั่วไป' }, { key: 'hazardous', label: 'ขยะอันตราย' }, { key: 'recyclable', label: 'ขยะรีไซเคิล (ใส่ค่าติดลบได้)' }].map(({ key, label }) => (
                             <div className="mb-5" key={key}>
                                 <label className="block mb-1 font-semibold text-gray-700">{label}</label>
@@ -202,4 +222,4 @@ const AdminWastePricing = () => {
     );
 };
 
-export default AdminWastePricing;
+export default WastePricehousehold;

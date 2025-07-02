@@ -230,7 +230,7 @@ const AdminManualBill = () => {
     </li>
     <li
       className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-      onClick={() => navigate('/admin/editwaste')}
+      onClick={() => navigate('/admin/household')}
     >
       กำหนดราคาประเภทขยะ
     </li>
@@ -271,31 +271,32 @@ const AdminManualBill = () => {
                 className="w-full border px-4 py-2 rounded mb-2"
               />
               {showDropdown && searchKeyword.trim().length > 0 && (() => {
-                const keyword = searchKeyword.toLowerCase().trim();
-                const filteredUsers = users.filter(user =>
-                  user.name.toLowerCase().includes(keyword)
-                );
-                return filteredUsers.length > 0 ? (
-                  <ul className="border rounded max-h-40 overflow-y-auto bg-white shadow">
-                    {filteredUsers.map(user => (
-                      <li
-                        key={user.lineUserId}
-                        className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser === user.lineUserId ? 'bg-gray-200' : ''}`}
-                        onClick={() => {
-                          handleUserSelect(user.lineUserId, user.name);
-                          setSearchTerm(user.name);
-                          setSearchKeyword('');
-                          setShowDropdown(false);
-                        }}
-                      >
-                        {user.name}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-red-500 mt-1">ไม่มีรายชื่อผู้ใช้บริการ</p>
-                );
-              })()}
+  const keyword = searchKeyword.toLowerCase().trim();
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(keyword)
+  );
+  return filteredUsers.length > 0 ? (
+    <ul className="border rounded max-h-40 overflow-y-auto bg-white shadow">
+      {filteredUsers.map(user => (
+        <li
+          key={user.lineUserId}
+          className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser === user.lineUserId ? 'bg-gray-200' : ''}`}
+          onClick={() => {
+            handleUserSelect(user.lineUserId, user.name);
+            setSearchTerm(user.name);
+            setSearchKeyword('');
+            setShowDropdown(false);
+          }}
+        >
+          {user.name}
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p className="text-red-500 mt-1">ไม่มีรายชื่อผู้ใช้บริการ</p>
+  );
+})()}
+
             </div>
 
             <div>

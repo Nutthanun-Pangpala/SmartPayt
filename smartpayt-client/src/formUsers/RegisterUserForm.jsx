@@ -8,7 +8,7 @@ const RegisterUserForm = () => {
   const [formData, setFormData] = useState({
     lineUserId: "",
     name: "",
-    ID_card_No: "",
+    house_id: "",
     Phone_No: "",
     Email: "",
   });
@@ -52,7 +52,7 @@ const RegisterUserForm = () => {
     setError("");
     setMessage("");
 
-    if (!formData.lineUserId || !formData.ID_card_No || !formData.Phone_No || !formData.Email || !formData.name) {
+    if (!formData.lineUserId || !formData.house_id || !formData.Phone_No || !formData.Email || !formData.name) {
       setError("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
@@ -73,7 +73,7 @@ const RegisterUserForm = () => {
     <div>
       <ToastNotification message={message} error={error} />
       <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-4 border rounded-xl">
-        {["ID_card_No", "name", "Phone_No", "Email"].map((field) => (
+        {["house_id", "name", "Phone_No", "Email"].map((field) => (
           <div key={field} className="m-6">
             <label className="block text-gray-700 mb-2">{field}</label>
             <input

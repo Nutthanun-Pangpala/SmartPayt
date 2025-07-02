@@ -202,7 +202,7 @@ const VerifiedAddress = () => {
                                 </li>
                                 <li
                                     className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                    onClick={() => navigate('/admin/editwaste')}
+                                    onClick={() => navigate('/admin/household')}
                                 >
                                     กำหนดราคาประเภทขยะ
                                 </li>
@@ -265,6 +265,7 @@ const VerifiedAddress = () => {
                                                     {[
                                                         user.house_no,
                                                         user.Alley,
+                                                        `หมู่ที่: ${user.village_no}`,
                                                         `ต.${user.sub_district}`,
                                                         `อ.${user.district}`,
                                                         `จ.${user.province}`,

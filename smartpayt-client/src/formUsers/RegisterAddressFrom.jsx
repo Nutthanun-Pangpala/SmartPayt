@@ -49,13 +49,15 @@ const RegisterAddressForm = () => {
   const [formData, setFormData] = useState({
     lineUserId: localStorage.getItem("lineUserId") || "",
     house_no: "",
+    village_no:"",
     alley: "",
     province: "เชียงราย",
     district: "อำเภอเมือง",
     sub_district: "",
     postal_code: "57100",
     lat: null,
-    lng: null
+    lng: null,
+    
   });
   const [searchAddress, setSearchAddress] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -128,19 +130,19 @@ const RegisterAddressForm = () => {
     setError('');
     setMessage('');
     setLoading(true);
-
-    const requiredFields = ["house_no", "province", "district", "sub_district", "postal_code"];
+    
+    const requiredFields = ["house_no", "village_no", "province", "district", "sub_district", "postal_code"];
     const errors = requiredFields.filter(f => !formData[f]).map(f => `กรุณากรอก ${f}`);
-
+    
     if (!/^[\w\s\/-]+$/.test(formData.house_no)) errors.push("บ้านเลขที่ต้องเป็นตัวเลขหรือตัวอักษรเท่านั้น");
     if (!/^\d{5}$/.test(formData.postal_code)) errors.push("รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก");
-
+    
     if (errors.length) {
       setError(errors.join("\n"));
       setLoading(false);
       return;
     }
-
+    
     try {
       const res = await axios.post('http://localhost:3000/api/registerAddress', formData);
       setMessage(res.data.message || 'ลงทะเบียนสำเร็จ!');
@@ -151,6 +153,7 @@ const RegisterAddressForm = () => {
       setLoading(false);
     }
   };
+
 
   const fetchSuggestions = debounce(async (query) => {
     if (!query) {
@@ -193,6 +196,21 @@ const RegisterAddressForm = () => {
         onSubmit={handleSubmit}
         className="w-full max-w-xl bg-white p-6 rounded-lg shadow-md"
       >
+       <div className="mb-4">
+  <label className="block mb-1 font-medium" htmlFor="address_type">ประเภทที่อยู่</label>
+  <select
+    id="address_type"
+    name="address_type"
+    value={formData.address_type}
+    onChange={handleChange}
+    className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="household">ครัวเรือน</option>
+    <option value="establishment">สถานประกอบการ</option>
+  </select>
+</div>
+
+
 
         <div className="mb-4">
           <label className="block mb-1 font-medium" htmlFor="house_no">บ้านเลขที่</label>
@@ -201,6 +219,19 @@ const RegisterAddressForm = () => {
             name="house_no"
             type="text"
             value={formData.house_no}
+            onChange={handleChange}
+            className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block mb-1 font-medium" htmlFor="house_no">หมู่ที่</label>
+          <input
+            id="village_no"
+            name="village_no"
+            type="text"
+            value={formData.village_no}
             onChange={handleChange}
             className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required

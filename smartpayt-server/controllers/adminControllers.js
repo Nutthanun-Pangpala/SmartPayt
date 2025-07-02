@@ -219,7 +219,7 @@ exports.getUsers = (req, res) => {
     `;
 
   const sql = `
-        SELECT c.lineUserId, c.name, c.ID_card_No, c.Phone_No, c.Email, c.created_at, c.updated_at 
+        SELECT DISTINCT c.lineUserId, c.name, c.ID_card_No, c.Phone_No, c.Email, c.created_at, c.updated_at 
         FROM users c
         ${searchCondition}
         ORDER BY ${safeSortField} ${safeSortDirection}

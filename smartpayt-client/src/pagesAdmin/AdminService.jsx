@@ -24,38 +24,44 @@ const AdminService = () => {
 
 
     const fetchUsers = async () => {
-        try {
-            const token = localStorage.getItem('Admin_token');
-            if (!token) {
-                navigate('/adminlogin');
-                return;
-            }
+    try {
+        const token = localStorage.getItem('Admin_token');
+        if (!token) {
+            navigate('/adminlogin');
+            return;
+        }
 
-            const response = await axios.get('http://localhost:3000/admin/users', {
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Authorization': `Bearer ${token}`, // Make sure token is correct
-                }, params: {
-                    page: currentPage,
-                    search: searchTerm,  // ✅ เพิ่มตัวแปรค้นหา
-                    sortField,
-                    sortDirection
-                }
-            });
-
-            // Ensure response and response.data exist
-            if (response && response.data) {
-                setUsers(response.data.users || []);
-                setTotalPages(response.data.totalPages || 1);
-            } else {
-                console.error('No data in response');
-                setError('ไม่สามารถดึงข้อมูลผู้ใช้บริการได้');
+        const response = await axios.get('http://localhost:3000/admin/users', {
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Authorization': `Bearer ${token}`,
+            }, 
+            params: {
+                page: currentPage,
+                search: searchTerm,
+                sortField,
+                sortDirection
             }
-        } catch (error) {
-            console.error('Error fetching users:', error.message);
+        });
+
+        if (response && response.data) {
+            const usersData = response.data.users || [];
+            // กรองข้อมูลที่ซ้ำ
+            const uniqueUsers = Array.from(new Set(usersData.map(a => a.lineUserId)))
+                .map(id => usersData.find(a => a.lineUserId === id));
+
+            setUsers(uniqueUsers);
+            setTotalPages(response.data.totalPages || 1);
+        } else {
+            console.error('No data in response');
             setError('ไม่สามารถดึงข้อมูลผู้ใช้บริการได้');
         }
-    };
+    } catch (error) {
+        console.error('Error fetching users:', error.message);
+        setError('ไม่สามารถดึงข้อมูลผู้ใช้บริการได้');
+    }
+};
+
 
     useEffect(() => {
         fetchUsers();
@@ -177,7 +183,7 @@ const AdminService = () => {
                                 </li>
                                 <li
                                     className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
-                                    onClick={() => navigate('/admin/editwaste')}
+                                    onClick={() => navigate('/admin/household')}
                                 >
                                     กำหนดราคาประเภทขยะ
                                 </li>

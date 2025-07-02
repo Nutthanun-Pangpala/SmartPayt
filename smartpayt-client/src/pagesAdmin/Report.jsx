@@ -54,7 +54,7 @@ const Report = () => {
 
 
   const handleFinanceReport = async () => {
-    try {
+    try { 
       const token = localStorage.getItem('Admin_token');
       const response = await axios.get('http://localhost:3000/admin/report/export-finance', {
         responseType: 'blob',
@@ -167,7 +167,7 @@ const Report = () => {
                   <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/bills')}>
                     สร้างใบแจ้งหนี้
                   </li>
-                  <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/editwaste')}>
+                  <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/household')}>
                     กำหนดราคาประเภทขยะ </li>
                 </ul>
               )}
