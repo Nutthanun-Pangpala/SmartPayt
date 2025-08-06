@@ -160,3 +160,7 @@ CREATE TABLE `waste_pricing` (
 เพิ่ม type ขยะ organic ด้วย
 ALTER TABLE waste_pricing 
 MODIFY COLUMN type ENUM('general', 'hazardous', 'recyclable', 'organic') NOT NULL;
+
+เพิ่มประเภทขยะอินทรีย์ลง db
+ALTER TABLE waste_records 
+MODIFY waste_type ENUM('general','hazardous','recyclable','organic') NOT NULL;
