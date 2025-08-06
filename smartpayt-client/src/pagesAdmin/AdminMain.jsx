@@ -25,6 +25,7 @@ const AdminMain = () => {
     generalWaste: 0,
     hazardousWaste: 0,
     recycleWaste: 0,
+    organicWaste: 0,
     pendingUsers: 0,           
     pendingAddresses: 0,
   });
@@ -33,6 +34,7 @@ const AdminMain = () => {
     { name: "ขยะทั่วไป", value: 0 },
     { name: "ขยะอันตราย", value: 0 },
     { name: "ขยะรีไซเคิล", value: 0 },
+    { name: "ขยะอินทรีย์", value: 0 },
   ]);
 
   const [pendingUsers, setPendingUsers] = useState(0);
@@ -42,7 +44,7 @@ const AdminMain = () => {
 
   const navigate = useNavigate();
 
-  const COLORS = ["#0088FE", "#FF8042", "#00C49F"]; // สีสำหรับ pie chart
+  const COLORS = ["#0088FE", "#FF8042", "#00C49F", "#A52A2A"]; // สีสำหรับ pie chart
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -317,6 +319,8 @@ const AdminMain = () => {
                     { name: "ขยะทั่วไป", value: stats.generalWaste, color: "text-blue-500" },
                     { name: "ขยะอันตราย", value: stats.hazardousWaste, color: "text-orange-500" },
                     { name: "ขยะรีไซเคิล", value: stats.recycleWaste, color: "text-green-500" },
+                    { name: "ขยะอินทรีย์", value: stats.organicWaste, color: "text-brown-500" }
+
                   ].map((item, index) => (
                     <div className="bg-white p-4 rounded-lg shadow-md" key={index}>
                       <h3 className="text-lg font-semibold">{item.name}</h3>

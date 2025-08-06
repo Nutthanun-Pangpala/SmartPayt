@@ -75,6 +75,7 @@ exports.getUserCount = (req, res) => {
       (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'general') AS generalWaste,
       (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'hazardous') AS hazardousWaste,
       (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'recyclable') AS recycleWaste
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'organic') AS organicWaste
   `;
   db.query(sql, (err, results) => {
     if (err) {
@@ -91,6 +92,7 @@ exports.getUserCount = (req, res) => {
       generalWaste,
       hazardousWaste,
       recycleWaste,
+      organicWaste,
     } = results[0];
 
     res.json({
@@ -99,6 +101,8 @@ exports.getUserCount = (req, res) => {
       generalWaste,
       hazardousWaste,
       recycleWaste,
+      organicWaste,
+
     });
   });
 };
@@ -134,6 +138,8 @@ exports.getWasteStats = (req, res) => {
       { name: 'ขยะทั่วไป', value: 0 },
       { name: 'ขยะอันตราย', value: 0 },
       { name: 'ขยะรีไซเคิล', value: 0 },
+      { name: 'ขยะอินทรีย์', value: 0 },
+
     ];
 
     results.forEach(item => {
@@ -143,6 +149,8 @@ exports.getWasteStats = (req, res) => {
         wasteData[1].value = Number(item.total_weight);
       } else if (item.waste_type === 'recyclable') {
         wasteData[2].value = Number(item.total_weight);
+      } else if (item.waste_type === 'organic') {
+        wasteData[3].value = Number(item.total_weight);
       }
     });
 
@@ -862,7 +870,8 @@ exports.exportWasteReport = async (req, res) => {
     const typeMap = {
       general: 'ขยะทั่วไป',
       hazardous: 'ขยะอันตราย',
-      recyclable: 'ขยะรีไซเคิล'
+      recyclable: 'ขยะรีไซเคิล',
+      organic :'ขยะอินทรีย์'
     };
 
     results.forEach(row => {
