@@ -156,3 +156,7 @@ CREATE TABLE `waste_pricing` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `admin_verify` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+เพิ่ม type ขยะ organic ด้วย
+ALTER TABLE waste_pricing 
+MODIFY COLUMN type ENUM('general', 'hazardous', 'recyclable', 'organic') NOT NULL;
