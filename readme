@@ -140,3 +140,27 @@ CREATE TABLE waste_records (
   FOREIGN KEY (address_id) REFERENCES addresses(address_id) ON DELETE CASCADE
 );
 
+เพิ่มข้อมูล"หมู่ที่" ใน table address
+ALTER TABLE addresses
+ADD COLUMN village_no VARCHAR(20) NOT NULL AFTER house_no;
+
+ALTER TABLE addresses
+ADD COLUMN address_type ENUM('household', 'establishment') NOT NULL;
+
+ตารางอันนี้เราลบแล้วลงอันนี้ใหม่
+CREATE TABLE `waste_pricing` (
+  `id` int(11) NOT NULL,
+  `type` enum('general','hazardous','recyclable') NOT NULL,
+  `waste_type` enum('household','establishment') NOT NULL,
+  `price_per_kg` decimal(10,2) NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `admin_verify` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+เพิ่ม type ขยะ organic ด้วย
+ALTER TABLE waste_pricing 
+MODIFY COLUMN type ENUM('general', 'hazardous', 'recyclable', 'organic') NOT NULL;
+
+เพิ่มประเภทขยะอินทรีย์ลง db
+ALTER TABLE waste_records 
+MODIFY waste_type ENUM('general','hazardous','recyclable','organic') NOT NULL;
