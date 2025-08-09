@@ -14,6 +14,7 @@ const WastePricehousehold = () => {
         general: '',
         hazardous: '',
         recyclable: '',
+        organic: '',
     });
     const [status, setStatus] = useState('');
     const navigate = useNavigate();
@@ -195,7 +196,7 @@ const WastePricehousehold = () => {
                             สถานประกอบการ
                             </button>
                             </div>
-                        {[{ key: 'general', label: 'ขยะทั่วไป' }, { key: 'hazardous', label: 'ขยะอันตราย' }, { key: 'recyclable', label: 'ขยะรีไซเคิล (ใส่ค่าติดลบได้)' }].map(({ key, label }) => (
+                        {[{ key: 'general', label: 'ขยะทั่วไป' }, { key: 'hazardous', label: 'ขยะอันตราย' }, { key: 'recyclable', label: 'ขยะรีไซเคิล (ใส่ค่าติดลบได้)' }, { key: 'organic', label: 'ขยะเปียก' }].map(({ key, label }) => (
                             <div className="mb-5" key={key}>
                                 <label className="block mb-1 font-semibold text-gray-700">{label}</label>
                                 <input

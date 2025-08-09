@@ -673,49 +673,93 @@ exports.searchUser = (req, res) => {
   });
 };
 
+function classifyAddressType(houseNo) {
+  const keywordsEstablishment = ['สถานประกอบการณ์'];
+  for (const keyword of keywordsEstablishment) {
+    if (houseNo.includes(keyword)) return 'establishment';
+  }
+  return 'household';
+}
+
 exports.createBill = async (req, res) => {
-  const { address_id, amount_due, due_date } = req.body;
+  const { address_id, due_date, generalWeight = 0, hazardousWeight = 0, recyclableWeight = 0, organicWeight = 0 } = req.body;
   const status = 0;
 
-  const sql = `
-    INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status)
-    VALUES (?, ?, ?, NOW(), NOW(), ?)
-  `;
+  try {
+    // ดึงข้อมูลที่อยู่
+   const [[addressRow]] = await db.promise().query(
+  `SELECT house_no, lineUserId, address_type FROM addresses WHERE address_id = ?`,
+  [address_id]
+);
 
-  db.query(sql, [address_id, amount_due, due_date, status], async (err, result) => {
-    if (err) {
-      console.error("เกิดข้อผิดพลาดในการสร้างบิล:", err);
-      return res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
+
+    if (!addressRow) {
+      return res.status(404).json({ message: 'ไม่พบบ้านหรือสถานประกอบการนี้' });
     }
 
-    // ✅ ดึง lineUserId จาก address_id
-    const [addressRows] = await db.promise().query(
-      `SELECT lineUserId, house_no FROM addresses WHERE address_id = ?`,
-      [address_id]
+    const addressType = addressRow.address_type || 'household';
+
+    // ดึงราคาขยะตามประเภท
+    const [rows] = await db.promise().query(
+      'SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?',
+      [addressType]
     );
 
-    if (addressRows.length > 0 && addressRows[0].lineUserId) {
-      const lineUserId = addressRows[0].lineUserId;
-      const houseNo = addressRows[0].house_no;
+    const pricing = { general: 0, hazardous: 0, recyclable: 0, organic: 0 };
+    rows.forEach(row => {
+      if (pricing.hasOwnProperty(row.type)) {
+        pricing[row.type] = parseFloat(row.price_per_kg);
+      }
+    });
 
-      const message = `📬 มีบิลใหม่!\n🏠 บ้านเลขที่ ${houseNo}\n💰 จำนวน ${amount_due} บาท\n📅 ครบกำหนด ${new Date(due_date).toLocaleDateString("th-TH")}`;
+    // คำนวณราคารวม
+    const amount_due = (
+      (generalWeight * pricing.general) +
+      (hazardousWeight * pricing.hazardous) +
+      (recyclableWeight * pricing.recyclable) +
+      (organicWeight * pricing.organic)
+    ).toFixed(2);
 
-      await sendMessageToUser(lineUserId, message);
+    // สร้างบิล
+    const [result] = await db.promise().query(
+      `INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status)
+       VALUES (?, ?, ?, NOW(), NOW(), ?)`,
+      [address_id, amount_due, due_date, status]
+    );
+
+    // แจ้งเตือน LINE ถ้ามี lineUserId
+    if (addressRow.lineUserId) {
+      const message = `📬 มีบิลใหม่!\n🏠 ${addressRow.house_no}\n💰 จำนวน ${amount_due} บาท\n📅 ครบกำหนด ${new Date(due_date).toLocaleDateString("th-TH")}`;
+      await sendMessageToUser(addressRow.lineUserId, message);
     }
 
-    res.status(201).json({ message: "สร้างบิลสำเร็จ", billId: result.insertId });
-  });
+    res.status(201).json({ 
+  message: "สร้างบิลสำเร็จ", 
+  billId: result.insertId,
+  amount_due
+});
+
+  } catch (err) {
+    console.error("❌ createBill error:", err);
+    res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
+  }
 };
+
 
 //คำณวนราคาขยะ
 exports.getWastePricing = async (req, res) => {
   try {
-    const [rows] = await db.promise().query('SELECT type, price_per_kg FROM waste_pricing');
+    const type = req.query.type || 'household';
+    const [rows] = await db.promise().query(
+      'SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?',
+      [type]
+    );
 
     const pricing = {
       general: 0,
       hazardous: 0,
       recyclable: 0,
+      organic: 0,
     };
 
     rows.forEach(row => {
@@ -731,9 +775,10 @@ exports.getWastePricing = async (req, res) => {
   }
 };
 
+
 //EditWaste
 exports.updateWastePricing = async (req, res) => {
-  const { general, hazardous, recyclable } = req.body;
+  const { general, hazardous, recyclable, organic, waste_type } = req.body; 
   const adminId = req.user?.id;
 
   if (
@@ -750,17 +795,20 @@ exports.updateWastePricing = async (req, res) => {
       ['general', general],
       ['hazardous', hazardous],
       ['recyclable', recyclable],
+      ['organic', organic],
     ];
 
     for (const [type, price] of queries) {
       await db.promise().query(
-        `INSERT INTO waste_pricing (type, price_per_kg, admin_verify)
-         VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE 
-           price_per_kg = VALUES(price_per_kg),
-           admin_verify = VALUES(admin_verify)`
-        , [type, price, adminId]
+        `INSERT INTO waste_pricing (type, price_per_kg, admin_verify, waste_type)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+        price_per_kg = VALUES(price_per_kg),
+        admin_verify = VALUES(admin_verify),
+        waste_type = VALUES(waste_type)`,
+        [type, price, adminId, waste_type]
       );
+
     }
 
     res.status(200).json({ message: 'บันทึกราคาสำเร็จ' });

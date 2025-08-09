@@ -157,7 +157,15 @@ CREATE TABLE `waste_pricing` (
   `admin_verify` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+<<<<<<< HEAD
 เพิ่มประเภทขยะอินทรีย์ลง db
 
+=======
+เพิ่ม type ขยะ organic ด้วย
+ALTER TABLE waste_pricing 
+MODIFY COLUMN type ENUM('general', 'hazardous', 'recyclable', 'organic') NOT NULL;
+
+เพิ่มประเภทขยะอินทรีย์ลง db
+>>>>>>> 2015ff94d48852fd611183a4db92820722661155
 ALTER TABLE waste_records 
 MODIFY waste_type ENUM('general','hazardous','recyclable','organic') NOT NULL;

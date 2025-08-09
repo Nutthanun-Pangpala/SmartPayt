@@ -35,8 +35,8 @@ const AdminManualBill = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState('');
-  const [wasteWeights, setWasteWeights] = useState({ general: '', hazardous: '', recyclable: '' });
-  const [wastePrices, setWastePrices] = useState({ general: 0, hazardous: 0, recyclable: 0 });
+  const [wasteWeights, setWasteWeights] = useState({ general: '', hazardous: '', recyclable: '', organic: '' });
+  const [wastePrices, setWastePrices] = useState({ general: 0, hazardous: 0, recyclable: 0, organic: 0 });
   const [totalPrice, setTotalPrice] = useState(0);
   const [dueDate, setDueDate] = useState(null);
   const [error, setError] = useState('');
@@ -47,12 +47,15 @@ const AdminManualBill = () => {
   const [isBillDropdownOpen, setIsBillDropdownOpen] = useState(false);
   const [isVerifyDropdownOpen, setIsVerifyDropdownOpen] = useState(false);
   const [isWasteDropdownOpen, setIsWasteDropdownOpen] = useState(true);
+  const [selectedAddressType, setSelectedAddressType] = useState('household');
+
 
 
   const wasteTypes = [
     { key: 'general', label: 'ขยะทั่วไป' },
     { key: 'hazardous', label: 'ขยะอันตราย' },
     { key: 'recyclable', label: 'ขยะรีไซเคิล' },
+    { key: 'organic', label: 'ขยะเปียก' },
   ];
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -96,37 +99,66 @@ const AdminManualBill = () => {
     }
   };
 
+  const fetchPricesByAddressType = async (type) => {
+  const token = localStorage.getItem('Admin_token');
+  try {
+    const res = await axios.get(`http://localhost:3000/admin/waste-pricing?type=${type}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setWastePrices(res.data || {});
+  } catch (err) {
+    console.error('Error loading pricing by type', err);
+  }
+};
+
+useEffect(() => {
+  if (selectedAddressType) {
+    fetchPricesByAddressType(selectedAddressType);
+  }
+}, [selectedAddressType]);
+
+
   useEffect(() => {
     const g = parseFloat(wasteWeights.general || 0);
     const h = parseFloat(wasteWeights.hazardous || 0);
     const r = parseFloat(wasteWeights.recyclable || 0);
+    const o = parseFloat(wasteWeights.organic || 0);
 
-    const total = (g * wastePrices.general) + (h * wastePrices.hazardous) + (r * wastePrices.recyclable);
+    const total = (g * wastePrices.general) + (h * wastePrices.hazardous) + (r * wastePrices.recyclable) + (o * wastePrices.organic);
     setTotalPrice(total.toFixed(2));
   }, [wasteWeights, wastePrices]);
 
   const handleSubmit = async () => {
-    const token = localStorage.getItem('Admin_token');
-    if (!selectedAddress || totalPrice <= 0 || !dueDate) {
-      setError('กรุณากรอกข้อมูลให้ครบ');
-      return;
+  const token = localStorage.getItem('Admin_token');
+  if (!selectedAddress || !dueDate) {
+    setError('กรุณากรอกข้อมูลให้ครบ');
+    return;
+  }
+
+  try {
+    const response = await axios.post('http://localhost:3000/admin/bills', {
+      address_id: selectedAddress,
+      generalWeight: parseFloat(wasteWeights.general || 0),
+      hazardousWeight: parseFloat(wasteWeights.hazardous || 0),
+      recyclableWeight: parseFloat(wasteWeights.recyclable || 0),
+      organicWeight: parseFloat(wasteWeights.organic || 0),
+      due_date: dueDate ? dueDate.toISOString().split('T')[0] : '',
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const realAmount = response.data?.amount_due;
+    if (realAmount) {
+      setTotalPrice(realAmount); // ✅ set ค่าที่ backend คำนวณจริง
     }
 
-    try {
-      await axios.post('http://localhost:3000/admin/bills', {
-        address_id: selectedAddress,
-        amount_due: parseFloat(totalPrice),
-        due_date: dueDate ? dueDate.toISOString().split('T')[0] : '',
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    setSuccess('สร้างบิลสำเร็จ');
+    setError('');
+  } catch (err) {
+    setError('ไม่สามารถสร้างบิลได้');
+  }
+};
 
-      setSuccess('สร้างบิลสำเร็จ');
-      setError('');
-    } catch (err) {
-      setError('ไม่สามารถสร้างบิลได้');
-    }
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FDEFB2]">
@@ -300,14 +332,25 @@ const AdminManualBill = () => {
             </div>
 
             <div>
-              <label className="block mb-1">เลือกบ้าน/ที่อยู่:</label>
-              <select onChange={(e) => setSelectedAddress(e.target.value)} className="w-full border px-4 py-2 rounded">
-                <option value="">เลือกที่อยู่</option>
-                {addresses.map(addr => (
-                  <option key={addr.address_id} value={addr.address_id}>{addr.house_no}, {addr.sub_district}, {addr.district}</option>
-                ))}
-              </select>
-            </div>
+  <label className="block mb-1">เลือกบ้าน/ที่อยู่:</label>
+  <select
+    onChange={(e) => {
+      const selectedId = parseInt(e.target.value);
+      const selected = addresses.find(a => a.address_id === selectedId);
+      setSelectedAddress(e.target.value);
+      setSelectedAddressType(selected?.address_type || 'household'); // ✅ ตั้งค่า address_type
+    }}
+    className="w-full border px-4 py-2 rounded"
+  >
+    <option value="">เลือกที่อยู่</option>
+    {addresses.map(addr => (
+      <option key={addr.address_id} value={addr.address_id}>
+        {addr.house_no}, {addr.sub_district}, {addr.district}
+      </option>
+    ))}
+  </select>
+</div>
+
 
             {wasteTypes.map(({ key, label }) => (
               <div key={key}>
