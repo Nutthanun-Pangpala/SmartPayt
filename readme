@@ -169,3 +169,7 @@ MODIFY COLUMN type ENUM('general', 'hazardous', 'recyclable', 'organic') NOT NUL
 >>>>>>> 2015ff94d48852fd611183a4db92820722661155
 ALTER TABLE waste_records 
 MODIFY waste_type ENUM('general','hazardous','recyclable','organic') NOT NULL;
+
+สร้าง .emv ใน smartpayt-client แล้ววาง
+VITE_API_BASE_URL=http://localhost:3000
+
