@@ -265,12 +265,12 @@ exports.userAddressBill = async (req, res) => {
   try {
     const { address_id } = req.params;
 
-    // Modify query to fetch only bills with a status of "1" (paid)
-    const query = "SELECT * FROM bills WHERE address_id = ? AND status = 0";
+    // ดึงบิลที่ยังไม่ชำระ (0) และรอตรวจสอบ (2)
+    const query = "SELECT * FROM bills WHERE address_id = ? AND status IN (0, 2)";
     const [bills] = await db.promise().query(query, [address_id]);
 
     if (bills.length === 0) {
-      return res.status(200).json({ bills: [] }); // ✅ แก้จาก 404 → 200 และคืนค่าบิลเป็น []
+      return res.status(200).json({ bills: [] }); // คืนค่าบิลเป็น array ว่าง
     }
 
     res.status(200).json({ bills });
@@ -279,6 +279,7 @@ exports.userAddressBill = async (req, res) => {
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 };
+
 exports.generateBarcode = (req, res) => {
   const { addressId } = req.params;
 
@@ -287,7 +288,6 @@ exports.generateBarcode = (req, res) => {
     text: addressId,        // Text to encode in the barcode
     scale: 3,               // Barcode scale
     height: 10,             // Barcode height
-    includetext: true,      // Include the text under the barcode
   })
   .then((buffer) => {
     // Set headers for image response

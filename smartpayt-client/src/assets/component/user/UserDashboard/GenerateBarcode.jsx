@@ -3,7 +3,7 @@ import { Buffer } from "buffer";
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 
-const GenerateBarcode = ({ addressId, status }) => {
+const GenerateBarcode = ({ addressId, status, addressInfo }) => {
   const [barcodeUrl, setBarcodeUrl] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -87,8 +87,17 @@ const GenerateBarcode = ({ addressId, status }) => {
             {loading && <p>กำลังสร้างบาร์โค้ด...</p>}
 
             {barcodeUrl && !loading && (
-              <div className="flex justify-center py-4">
+              <div className="flex flex-col items-center py-4">
                 <img src={barcodeUrl} alt="Barcode" className="max-w-full h-auto" />
+                <div className="mt-4 text-center">
+                  <p className="font-semibold">บ้านเลขที่: {addressInfo.house_no}</p>
+                  <p>หมู่ที่: {addressInfo.village_no}</p>
+                  <p>ถนน/ซอย: {addressInfo.Alley}</p>
+                  <p>ตำบล/แขวง: {addressInfo.sub_district}</p>
+                  <p>อำเภอ/เขต: {addressInfo.district}</p>
+                  <p>จังหวัด: {addressInfo.province}</p>
+                  {/* เพิ่มข้อมูลที่อยู่ตามที่มี */}
+                </div>
               </div>
             )}
 
@@ -103,6 +112,14 @@ const GenerateBarcode = ({ addressId, status }) => {
 GenerateBarcode.propTypes = {
   addressId: PropTypes.string.isRequired,
   status: PropTypes.number.isRequired,
+  addressInfo: PropTypes.shape({
+    house_no: PropTypes.string,
+    village_no: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    Alley: PropTypes.string,
+    sub_district: PropTypes.string,
+    district: PropTypes.string,
+    province: PropTypes.string,
+  }).isRequired,
 };
 
 export default GenerateBarcode;
