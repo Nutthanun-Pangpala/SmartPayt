@@ -14,14 +14,16 @@ const getUser = (req, res) => {
 };
 const uploadSlip = async (req, res) => {
   try {
-    console.log("📥 [upload-slip] body:", req.body);
-    console.log("📷 [upload-slip] file:", req.file);
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "ไม่มีไฟล์แนบมา" });
+    }
 
     const billIds = JSON.parse(req.body.bill_ids);
     const filePath = req.file.path;
 
-    const dbConn = db.promise(); // ✅ เพิ่มตรงนี้
+    const dbConn = db.promise();
 
+    // บันทึกภาพสลิปใน payment_slips
     for (let billId of billIds) {
       await dbConn.query(
         "INSERT INTO payment_slips (bill_id, image_path) VALUES (?, ?)",
@@ -29,7 +31,14 @@ const uploadSlip = async (req, res) => {
       );
     }
 
-    return res.json({ success: true });
+    // อัปเดตสถานะบิลเป็น 2 (รอตรวจสอบ)
+    const placeholders = billIds.map(() => "?").join(",");
+    await dbConn.query(
+      `UPDATE bills SET status = 2 WHERE id IN (${placeholders})`,
+      billIds
+    );
+
+    return res.json({ success: true, message: "อัปโหลดและอัปเดตสถานะสำเร็จ" });
   } catch (err) {
     console.error("❌ [upload-slip ERROR]:", err);
     if (!res.headersSent) {
@@ -37,6 +46,7 @@ const uploadSlip = async (req, res) => {
     }
   }
 };
+
 
 
 
