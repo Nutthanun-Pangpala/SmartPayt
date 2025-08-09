@@ -218,10 +218,15 @@ const UserDetails = () => {
                         {address.house_no}
                       </p>
                       <p>
+                        <i className=""></i> หมู่ที่:{" "}
+                        {address.village_no}
+                        </p>
+                        </div>
+                      <p>
                         <i className="fi fi-ss-road"></i> ถนน/ซอย:{" "}
                         {address.Alley}
                       </p>
-                    </div>
+                 
                     <p>
                       <i className="fi fi-sr-marker"></i> อำเภอ/เขต:{" "}
                       {address.district}

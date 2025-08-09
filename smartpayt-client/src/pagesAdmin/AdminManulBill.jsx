@@ -35,8 +35,8 @@ const AdminManualBill = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState('');
-  const [wasteWeights, setWasteWeights] = useState({ general: '', hazardous: '', recyclable: '' });
-  const [wastePrices, setWastePrices] = useState({ general: 0, hazardous: 0, recyclable: 0 });
+  const [wasteWeights, setWasteWeights] = useState({ general: '', hazardous: '', recyclable: '', organic: '' });
+  const [wastePrices, setWastePrices] = useState({ general: 0, hazardous: 0, recyclable: 0, organic: 0 });
   const [totalPrice, setTotalPrice] = useState(0);
   const [dueDate, setDueDate] = useState(null);
   const [error, setError] = useState('');
@@ -44,13 +44,18 @@ const AdminManualBill = () => {
   const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [isBillingDropdownOpen, setIsBillingDropdownOpen] = useState(true);
+  const [isBillDropdownOpen, setIsBillDropdownOpen] = useState(false);
+  const [isVerifyDropdownOpen, setIsVerifyDropdownOpen] = useState(false);
+  const [isWasteDropdownOpen, setIsWasteDropdownOpen] = useState(true);
+  const [selectedAddressType, setSelectedAddressType] = useState('household');
+
 
 
   const wasteTypes = [
     { key: 'general', label: 'ขยะทั่วไป' },
     { key: 'hazardous', label: 'ขยะอันตราย' },
     { key: 'recyclable', label: 'ขยะรีไซเคิล' },
+    { key: 'organic', label: 'ขยะเปียก' },
   ];
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -94,40 +99,69 @@ const AdminManualBill = () => {
     }
   };
 
+  const fetchPricesByAddressType = async (type) => {
+  const token = localStorage.getItem('Admin_token');
+  try {
+    const res = await axios.get(`http://localhost:3000/admin/waste-pricing?type=${type}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setWastePrices(res.data || {});
+  } catch (err) {
+    console.error('Error loading pricing by type', err);
+  }
+};
+
+useEffect(() => {
+  if (selectedAddressType) {
+    fetchPricesByAddressType(selectedAddressType);
+  }
+}, [selectedAddressType]);
+
+
   useEffect(() => {
     const g = parseFloat(wasteWeights.general || 0);
     const h = parseFloat(wasteWeights.hazardous || 0);
     const r = parseFloat(wasteWeights.recyclable || 0);
+    const o = parseFloat(wasteWeights.organic || 0);
 
-    const total = (g * wastePrices.general) + (h * wastePrices.hazardous) + (r * wastePrices.recyclable);
+    const total = (g * wastePrices.general) + (h * wastePrices.hazardous) + (r * wastePrices.recyclable) + (o * wastePrices.organic);
     setTotalPrice(total.toFixed(2));
   }, [wasteWeights, wastePrices]);
 
   const handleSubmit = async () => {
-    const token = localStorage.getItem('Admin_token');
-    if (!selectedAddress || totalPrice <= 0 || !dueDate) {
-      setError('กรุณากรอกข้อมูลให้ครบ');
-      return;
+  const token = localStorage.getItem('Admin_token');
+  if (!selectedAddress || !dueDate) {
+    setError('กรุณากรอกข้อมูลให้ครบ');
+    return;
+  }
+
+  try {
+    const response = await axios.post('http://localhost:3000/admin/bills', {
+      address_id: selectedAddress,
+      generalWeight: parseFloat(wasteWeights.general || 0),
+      hazardousWeight: parseFloat(wasteWeights.hazardous || 0),
+      recyclableWeight: parseFloat(wasteWeights.recyclable || 0),
+      organicWeight: parseFloat(wasteWeights.organic || 0),
+      due_date: dueDate ? dueDate.toISOString().split('T')[0] : '',
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const realAmount = response.data?.amount_due;
+    if (realAmount) {
+      setTotalPrice(realAmount); // ✅ set ค่าที่ backend คำนวณจริง
     }
 
-    try {
-      await axios.post('http://localhost:3000/admin/bills', {
-        address_id: selectedAddress,
-        amount_due: parseFloat(totalPrice),
-        due_date: dueDate ? dueDate.toISOString().split('T')[0] : '',
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    setSuccess('สร้างบิลสำเร็จ');
+    setError('');
+  } catch (err) {
+    setError('ไม่สามารถสร้างบิลได้');
+  }
+};
 
-      setSuccess('สร้างบิลสำเร็จ');
-      setError('');
-    } catch (err) {
-      setError('ไม่สามารถสร้างบิลได้');
-    }
-  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
+    <div className="flex flex-col min-h-screen bg-[#FDEFB2]">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-white shadow">
         <div className="flex items-center">
@@ -137,7 +171,7 @@ const AdminManualBill = () => {
             </svg>
           </button>
           <div className="flex items-center space-x-3">
-            <img src={nanglaeIcon} alt="nanglaeIcon" className="h-20" />
+            <img src={nanglaeIcon} alt="icon" className="h-20" />
             <h2 className="text-2xl font-bold text-gray-800">เทศบาลตำบลนางแล</h2>
           </div>
         </div>
@@ -150,17 +184,51 @@ const AdminManualBill = () => {
           <ul>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin')}>หน้าหลัก</li>
             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
-            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/debt')}>ข้อมูลผู้ค้างชำระค่าบริการ</li>
-           <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+            <li
+                            className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
+                            onClick={() => setIsBillDropdownOpen(!isBillDropdownOpen)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <span>ตรวจสอบบิลชำระ</span>
+                                <svg
+                                    className={`h-4 w-4 transform transition-transform ${isBillDropdownOpen ? "rotate-90" : ""
+                                        }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </li>
+
+                        {isBillDropdownOpen && (
+                            <ul className="ml-4">
+                                <li
+                                    className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
+                                    onClick={() => navigate("/admin/debt")}
+                                >
+                                    ข้อมูลผู้ค้างชำระค่าบริการ
+                                </li>
+                                <li
+                                    className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
+                                    onClick={() => navigate("/admin/payment-slips")}
+                                >
+                                    ตรวจสอบสลิป
+                                </li>
+                            </ul>
+                        )}
+           <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsVerifyDropdownOpen(!isVerifyDropdownOpen)}>
                                 <div className="flex justify-between items-center">
                                     <span>ยืนยันสถานะผู้ใช้บริการ</span>
-                                    <svg className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <svg className={`h-4 w-4 transform transition-transform ${isVerifyDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </li>
 
-                            {isDropdownOpen && (
+                            {isVerifyDropdownOpen && (
                                 <ul className="ml-4">
                                     <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-user')}>ยืนยันข้อมูลผู้ใช้บริการ</li>
                                     <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-address')}>ยืนยันข้อมูลครัวเรือน</li>
@@ -168,12 +236,12 @@ const AdminManualBill = () => {
                             )}
             <li
   className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-  onClick={() => setIsBillingDropdownOpen(!isBillingDropdownOpen)}
+  onClick={() => setIsWasteDropdownOpen(!isWasteDropdownOpen)}
 >
   <div className="flex justify-between items-center">
     <span>การจัดการบิลและขยะ</span>
     <svg
-      className={`h-4 w-4 transform transition-transform ${isBillingDropdownOpen ? 'rotate-90' : ''}`}
+      className={`h-4 w-4 transform transition-transform ${isWasteDropdownOpen ? 'rotate-90' : ''}`}
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -184,17 +252,17 @@ const AdminManualBill = () => {
   </div>
 </li>
 
-{isBillingDropdownOpen && (
+{isWasteDropdownOpen && (
   <ul className="ml-4">
     <li
-      className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+      className="mb-2 p-2 bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
       onClick={() => navigate('/admin/bills')}
     >
       สร้างใบแจ้งหนี้
     </li>
     <li
       className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-      onClick={() => navigate('/admin/editwaste')}
+      onClick={() => navigate('/admin/household')}
     >
       กำหนดราคาประเภทขยะ
     </li>
@@ -235,42 +303,54 @@ const AdminManualBill = () => {
                 className="w-full border px-4 py-2 rounded mb-2"
               />
               {showDropdown && searchKeyword.trim().length > 0 && (() => {
-                const keyword = searchKeyword.toLowerCase().trim();
-                const filteredUsers = users.filter(user =>
-                  user.name.toLowerCase().includes(keyword)
-                );
-                return filteredUsers.length > 0 ? (
-                  <ul className="border rounded max-h-40 overflow-y-auto bg-white shadow">
-                    {filteredUsers.map(user => (
-                      <li
-                        key={user.lineUserId}
-                        className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser === user.lineUserId ? 'bg-gray-200' : ''}`}
-                        onClick={() => {
-                          handleUserSelect(user.lineUserId, user.name);
-                          setSearchTerm(user.name);
-                          setSearchKeyword('');
-                          setShowDropdown(false);
-                        }}
-                      >
-                        {user.name}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-red-500 mt-1">ไม่มีรายชื่อผู้ใช้บริการ</p>
-                );
-              })()}
+  const keyword = searchKeyword.toLowerCase().trim();
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(keyword)
+  );
+  return filteredUsers.length > 0 ? (
+    <ul className="border rounded max-h-40 overflow-y-auto bg-white shadow">
+      {filteredUsers.map(user => (
+        <li
+          key={user.lineUserId}
+          className={`p-2 cursor-pointer hover:bg-gray-100 ${selectedUser === user.lineUserId ? 'bg-gray-200' : ''}`}
+          onClick={() => {
+            handleUserSelect(user.lineUserId, user.name);
+            setSearchTerm(user.name);
+            setSearchKeyword('');
+            setShowDropdown(false);
+          }}
+        >
+          {user.name}
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <p className="text-red-500 mt-1">ไม่มีรายชื่อผู้ใช้บริการ</p>
+  );
+})()}
+
             </div>
 
             <div>
-              <label className="block mb-1">เลือกบ้าน/ที่อยู่:</label>
-              <select onChange={(e) => setSelectedAddress(e.target.value)} className="w-full border px-4 py-2 rounded">
-                <option value="">เลือกที่อยู่</option>
-                {addresses.map(addr => (
-                  <option key={addr.address_id} value={addr.address_id}>{addr.house_no}, {addr.sub_district}, {addr.district}</option>
-                ))}
-              </select>
-            </div>
+  <label className="block mb-1">เลือกบ้าน/ที่อยู่:</label>
+  <select
+    onChange={(e) => {
+      const selectedId = parseInt(e.target.value);
+      const selected = addresses.find(a => a.address_id === selectedId);
+      setSelectedAddress(e.target.value);
+      setSelectedAddressType(selected?.address_type || 'household'); // ✅ ตั้งค่า address_type
+    }}
+    className="w-full border px-4 py-2 rounded"
+  >
+    <option value="">เลือกที่อยู่</option>
+    {addresses.map(addr => (
+      <option key={addr.address_id} value={addr.address_id}>
+        {addr.house_no}, {addr.sub_district}, {addr.district}
+      </option>
+    ))}
+  </select>
+</div>
+
 
             {wasteTypes.map(({ key, label }) => (
               <div key={key}>

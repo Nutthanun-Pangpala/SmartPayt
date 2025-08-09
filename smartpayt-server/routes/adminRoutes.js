@@ -44,7 +44,8 @@ router.post('/bills', verifyToken, adminController.createBill);
 router.get('/waste-pricing', adminController.getWastePricing);
 
 //roure for Edit Waste
-router.post('/waste-pricing', adminController.updateWastePricing);
+router.post('/household', adminController.updateWastePricing); // สำหรับครัวเรือน
+router.post('/establishment', adminController.updateWastePricing); // สำหรับสถานประกอบการ
 router.get('/user-address/:lineUserId', adminController.getUserAddress);
 
 // Admin View slip

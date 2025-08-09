@@ -11,10 +11,10 @@ exports.registerAccount = async (req, res) => {
   try {
     console.log("🔹 รับข้อมูลจาก Frontend:", req.body);
 
-    const { lineUserId, name, ID_card_No, Phone_No, Email } = req.body;
+    const { lineUserId, name, house_id, Phone_No, Email } = req.body;
 
-    if (!ID_card_No || !Phone_No || !Email) {
-      console.log("❌ ข้อมูลไม่ครบ:", { ID_card_No, Phone_No, Email });
+    if (!house_id || !Phone_No || !Email) {
+      console.log("❌ ข้อมูลไม่ครบ:", { house_id, Phone_No, Email });
       return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
 
@@ -24,8 +24,8 @@ exports.registerAccount = async (req, res) => {
     }
 
     console.log("🔎 ตรวจสอบข้อมูลในฐานข้อมูล...");
-    const checkQuery = "SELECT * FROM users WHERE lineUserId = ? OR ID_card_No = ?";
-    const [existingUser] = await db.promise().query(checkQuery, [lineUserId, ID_card_No]);
+    const checkQuery = "SELECT * FROM users WHERE lineUserId = ? OR house_id = ?";
+    const [existingUser] = await db.promise().query(checkQuery, [lineUserId, house_id]);
 
     if (existingUser.length > 0) {
       console.log("❌ พบข้อมูลซ้ำในระบบ:", existingUser);
@@ -34,11 +34,11 @@ exports.registerAccount = async (req, res) => {
 
     console.log("📝 กำลังเพิ่มข้อมูลลงฐานข้อมูล...");
     const insertQuery = `
-      INSERT INTO users (lineUserId, name, ID_card_No, Phone_No, Email)
+      INSERT INTO users (lineUserId, name, house_id, Phone_No, Email)
       VALUES (?, ?, ?, ?, ?)
     `;
     const [result] = await db.promise().query(insertQuery, [
-      lineUserId, name, ID_card_No, Phone_No, Email
+      lineUserId, name, house_id, Phone_No, Email
     ]);
 
     if (result.affectedRows === 0) {
@@ -50,7 +50,7 @@ exports.registerAccount = async (req, res) => {
 
     res.status(201).json({
       message: "ลงทะเบียนสำเร็จ!",
-      userData: { lineUserId, name, ID_card_No, Phone_No, Email },
+      userData: { lineUserId, name, house_id, Phone_No, Email },
     });
 
   } catch (error) {
@@ -64,35 +64,38 @@ exports.registerAddress = async (req, res) => {
     const { 
       lineUserId, 
       house_no, 
+      village_no, 
       alley, 
       province, 
       district, 
       sub_district, 
-      postal_code 
+      postal_code, 
+      address_type
     } = req.body;
 
-    // ✅ ตรวจสอบว่าข้อมูลครบถ้วน
-    if (!lineUserId || !house_no || !province || !district || !sub_district || !postal_code) {
+
+    // ตรวจสอบข้อมูลที่ได้รับ
+    if (!lineUserId || !house_no || !village_no || !province || !district || !sub_district || !postal_code || !address_type) {
       return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
 
-    // ✅ ตรวจสอบว่า lineUserId มีอยู่ในตาราง users หรือไม่
+    // ตรวจสอบว่าผู้ใช้มีข้อมูลในระบบหรือไม่
     const [user] = await db.promise().query("SELECT * FROM users WHERE lineUserId = ?", [lineUserId]);
 
     if (user.length === 0) {
       return res.status(400).json({ message: "ไม่พบผู้ใช้ในระบบ กรุณาลงทะเบียนก่อน" });
     }
 
-    // ✅ ตรวจสอบว่าที่อยู่ซ้ำหรือไม่
+    // ตรวจสอบว่าที่อยู่ซ้ำหรือไม่
     const [existingAddress] = await db.promise().query(
       `SELECT * FROM addresses 
-      WHERE lineUserId = ? 
-      AND house_no = ? 
-      AND alley = ? 
-      AND sub_district = ? 
-      AND district = ? 
-      AND province = ? 
-      AND postal_code = ?`,
+       WHERE lineUserId = ? 
+       AND house_no = ? 
+       AND alley = ? 
+       AND sub_district = ? 
+       AND district = ? 
+       AND province = ? 
+       AND postal_code = ?`,
       [lineUserId, house_no, alley || "", sub_district, district, province, postal_code]
     );
 
@@ -100,52 +103,25 @@ exports.registerAddress = async (req, res) => {
       return res.status(400).json({ message: "ที่อยู่นี้ถูกลงทะเบียนแล้ว" });
     }
 
-    // ✅ เพิ่มข้อมูลที่อยู่ใหม่
+    // เพิ่มข้อมูลที่อยู่ใหม่ลงในฐานข้อมูล
     const insertQuery = `
       INSERT INTO addresses (
-        lineUserId, house_no, Alley, province, district, sub_district, postal_code, 
-        address_verified, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `;
-
+    lineUserId, house_no, village_no, alley, province, district, sub_district, postal_code, address_type, 
+    address_verified, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+`;
     const [result] = await db.promise().query(insertQuery, [
-      lineUserId, house_no, alley || "", province, district, sub_district, postal_code, false
+      lineUserId, house_no, village_no, alley || "", province, district, sub_district, postal_code, address_type, false
     ]);
 
     if (result.affectedRows === 0) {
       return res.status(500).json({ message: "ไม่สามารถเพิ่มข้อมูลที่อยู่ได้" });
     }
 
-    // ✅ ส่งข้อความแจ้งเตือนผ่าน LINE
-    try {
-      const access_token = process.env.LINE_ACCESS_TOKEN;
-      await axios.post(
-        "https://api.line.me/v2/bot/message/push",
-        {
-          to: lineUserId,
-          messages: [
-            {
-              type: "text",
-              text: `🕞 รอการตรวจสอบ!\n🏠 บ้านเลขที่: ${house_no}\n📍 ${sub_district}, ${district}, ${province} ${postal_code}\n🟠 กรุณาติดต่อที่เทศบาล`,
-            },
-          ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${access_token}`,
-          },
-        }
-      );
-    } catch (lineError) {
-      console.error("❌ ไม่สามารถส่งข้อความไปยัง LINE:", lineError);
-    }
-
-    // ✅ ส่งข้อมูลกลับไปยัง Frontend
     res.status(201).json({
       message: "ลงทะเบียนที่อยู่สำเร็จ!",
       addressData: { 
-        lineUserId, house_no, alley, province, district, sub_district, postal_code, address_verified: false 
+        lineUserId, house_no, village_no, alley, province, district, sub_district, postal_code, address_type, address_verified: false 
       },
     });
 
@@ -154,7 +130,6 @@ exports.registerAddress = async (req, res) => {
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 };
-
 
 exports.userAddressList = async (req, res) => {
   const { page = 1, search = '', sortField = 'id', sortDirection = 'ASC' } = req.query;
@@ -165,12 +140,12 @@ exports.userAddressList = async (req, res) => {
   let searchParams = [];
 
   if (search) {
-      searchCondition += `
-          AND (c.ID_card_No LIKE ? 
-          OR c.Phone_No LIKE ? 
-          OR ch.Address LIKE ?)
-      `;
-      searchParams = [`%${search}%`, `%${search}%`, `%${search}%`];
+    searchCondition += `
+        AND (c.house_id LIKE ? 
+        OR c.Phone_No LIKE ? 
+        OR ch.Address LIKE ?)
+    `;
+    searchParams = [`%${search}%`, `%${search}%`, `%${search}%`];
   }
 
   const countSql = `
@@ -181,13 +156,13 @@ exports.userAddressList = async (req, res) => {
   `;
 
   const sql = `
-  SELECT c.id, c.Name, c.ID_card_No, c.Phone_No, ch.Home_ID, ch.Address 
+  SELECT c.id, c.Name, c.house_id, c.Phone_No, ch.Home_ID, ch.Address, ch.village_no  // เพิ่ม village_no
   FROM customers c
   LEFT JOIN customer_homes ch ON c.id = ch.customer_id
   ${searchCondition}
   ORDER BY ?? ${sortDirection === 'desc' ? 'DESC' : 'ASC'}
   LIMIT ? OFFSET ?
-`;
+  `;
 
   db.query(countSql, searchParams, (err, countResults) => {
       if (err) {
@@ -210,8 +185,8 @@ exports.userAddressList = async (req, res) => {
           });
       });
   });
-
 };
+
 
 exports.reportiIssue = (req, res) => {
   const { Issues, lineUserId, name } = req.body;
