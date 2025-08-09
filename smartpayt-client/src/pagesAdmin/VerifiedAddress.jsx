@@ -12,8 +12,9 @@ const VerifiedAddress = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isBillingDropdownOpen, setIsBillingDropdownOpen] = useState(false);
+    const [isBillDropdownOpen, setIsBillDropdownOpen] = useState(false);
+    const [isVerifyDropdownOpen, setIsVerifyDropdownOpen] = useState(true);
+    const [isWasteDropdownOpen, setIsWasteDropdownOpen] = useState(false);
 
 
     const location = useLocation();
@@ -21,7 +22,7 @@ const VerifiedAddress = () => {
 
     useEffect(() => {
         if (isInVerifyGroup) {
-            setIsDropdownOpen(true);
+            setIsVerifyDropdownOpen(true);
         }
     }, [location.pathname]);
 
@@ -92,7 +93,7 @@ const VerifiedAddress = () => {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-gray-100">
+        <div className="flex flex-col min-h-screen bg-[#FDEFB2]">
             {/* Header Bar */}
             <div className="flex items-center justify-between p-4 bg-white shadow">
                 <div className="flex items-center">
@@ -102,7 +103,7 @@ const VerifiedAddress = () => {
                         </svg>
                     </button>
                     <div className="flex items-center space-x-3">
-                        <img src={nanglaeIcon} alt="nanglaeIcon" className="h-20" />
+                        <img src={nanglaeIcon} alt="icon" className="h-20" />
                         <h2 className="text-2xl font-bold text-gray-800">เทศบาลตำบลนางแล</h2>
                     </div>
                 </div>
@@ -116,12 +117,47 @@ const VerifiedAddress = () => {
                         <ul>
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin')}>หน้าหลัก</li>
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
-                            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/debt')}>ข้อมูลผู้ค้างชำระค่าบริการ</li>
-                            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+                             <li
+                            className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
+                            onClick={() => setIsBillDropdownOpen(!isBillDropdownOpen)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <span>ตรวจสอบบิลชำระ</span>
+                                <svg
+                                    className={`h-4 w-4 transform transition-transform ${isBillDropdownOpen ? "rotate-90" : ""
+                                        }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </li>
+
+                        {isBillDropdownOpen && (
+                            <ul className="ml-4">
+                                <li
+                                    className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
+                                    onClick={() => navigate("/admin/debt")}
+                                >
+                                    ข้อมูลผู้ค้างชำระค่าบริการ
+                                </li>
+                                <li
+                                    className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
+                                    onClick={() => navigate("/admin/payment-slips")}
+                                >
+                                    ตรวจสอบสลิป
+                                </li>
+                            </ul>
+                        )}
+
+                            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsVerifyDropdownOpen(!isVerifyDropdownOpen)}>
                                 <div className="flex justify-between items-center">
                                     <span>ยืนยันสถานะผู้ใช้บริการ</span>
                                     <svg
-                                        className={`h-4 w-4 transform transition-transform ${isDropdownOpen ? 'rotate-90' : ''}`}
+                                        className={`h-4 w-4 transform transition-transform ${isVerifyDropdownOpen ? 'rotate-90' : ''}`}
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="2"
@@ -131,7 +167,7 @@ const VerifiedAddress = () => {
                                 </div>
                             </li>
 
-                            {isDropdownOpen && (
+                            {isVerifyDropdownOpen && (
                                 <ul className="ml-4">
                                     <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
                                         onClick={() => navigate('/admin/verified-user')} > ยืนยันข้อมูลผู้ใช้บริการ </li>
@@ -139,39 +175,39 @@ const VerifiedAddress = () => {
                                 </ul>
                             )}
                             <li
-                                className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                onClick={() => setIsBillingDropdownOpen(!isBillingDropdownOpen)}
-                            >
-                                <div className="flex justify-between items-center">
-                                    <span>การจัดการบิลและขยะ</span>
-                                    <svg
-                                        className={`h-4 w-4 transform transition-transform ${isBillingDropdownOpen ? 'rotate-90' : ''}`}
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
-                            </li>
+                            className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                            onClick={() => setIsWasteDropdownOpen(!isWasteDropdownOpen)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <span>การจัดการบิลและขยะ</span>
+                                <svg
+                                    className={`h-4 w-4 transform transition-transform ${isWasteDropdownOpen ? 'rotate-90' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </li>
 
-                            {isBillingDropdownOpen && (
-                                <ul className="ml-4">
-                                    <li
-                                        className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                        onClick={() => navigate('/admin/bills')}
-                                    >
-                                        สร้างใบแจ้งหนี้
-                                    </li>
-                                    <li
-                                        className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                        onClick={() => navigate('/admin/editwaste')}
-                                    >
-                                        กำหนดราคาประเภทขยะ
-                                    </li>
-                                </ul>
-                            )}
+                        {isWasteDropdownOpen && (
+                            <ul className="ml-4">
+                                <li
+                                    className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                                    onClick={() => navigate('/admin/bills')}
+                                >
+                                    สร้างใบแจ้งหนี้
+                                </li>
+                                <li
+                                    className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
+                                    onClick={() => navigate('/admin/household')}
+                                >
+                                    กำหนดราคาประเภทขยะ
+                                </li>
+                            </ul>
+                        )}
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/report')}>รายงาน</li>
                         </ul>
                         <div className="absolute bottom-5 left-0 right-0 flex justify-center">
@@ -229,6 +265,7 @@ const VerifiedAddress = () => {
                                                     {[
                                                         user.house_no,
                                                         user.Alley,
+                                                        `หมู่ที่: ${user.village_no}`,
                                                         `ต.${user.sub_district}`,
                                                         `อ.${user.district}`,
                                                         `จ.${user.province}`,

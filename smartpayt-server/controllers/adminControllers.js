@@ -75,6 +75,7 @@ exports.getUserCount = (req, res) => {
       (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'general') AS generalWaste,
       (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'hazardous') AS hazardousWaste,
       (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'recyclable') AS recycleWaste
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'organic') AS organicWaste
   `;
   db.query(sql, (err, results) => {
     if (err) {
@@ -91,6 +92,7 @@ exports.getUserCount = (req, res) => {
       generalWaste,
       hazardousWaste,
       recycleWaste,
+      organicWaste,
     } = results[0];
 
     res.json({
@@ -99,6 +101,8 @@ exports.getUserCount = (req, res) => {
       generalWaste,
       hazardousWaste,
       recycleWaste,
+      organicWaste,
+
     });
   });
 };
@@ -134,6 +138,8 @@ exports.getWasteStats = (req, res) => {
       { name: 'ขยะทั่วไป', value: 0 },
       { name: 'ขยะอันตราย', value: 0 },
       { name: 'ขยะรีไซเคิล', value: 0 },
+      { name: 'ขยะอินทรีย์', value: 0 },
+
     ];
 
     results.forEach(item => {
@@ -143,6 +149,8 @@ exports.getWasteStats = (req, res) => {
         wasteData[1].value = Number(item.total_weight);
       } else if (item.waste_type === 'recyclable') {
         wasteData[2].value = Number(item.total_weight);
+      } else if (item.waste_type === 'organic') {
+        wasteData[3].value = Number(item.total_weight);
       }
     });
 
@@ -219,7 +227,7 @@ exports.getUsers = (req, res) => {
     `;
 
   const sql = `
-        SELECT c.lineUserId, c.name, c.ID_card_No, c.Phone_No, c.Email, c.created_at, c.updated_at 
+        SELECT DISTINCT c.lineUserId, c.name, c.ID_card_No, c.Phone_No, c.Email, c.created_at, c.updated_at 
         FROM users c
         ${searchCondition}
         ORDER BY ${safeSortField} ${safeSortDirection}
@@ -531,7 +539,7 @@ exports.getUsersWithAddressVerification = (req, res) => {
     ${searchCondition}
   `;
 
- const dataSql = `
+  const dataSql = `
   SELECT 
   u.lineUserId, u.name, u.ID_card_No, u.Phone_No, u.verify_status,
   a.address_id, a.address_verified,
@@ -855,12 +863,23 @@ exports.exportWasteReport = async (req, res) => {
 
     worksheet.columns = [
       { header: 'ประเภทขยะ', key: 'waste_type', width: 20 },
-      { header: 'น้ำหนัก (kg)', key: 'weight', width: 15 },
+      { header: 'น้ำหนัก (kg)', key: 'weight_kg', width: 15 },
       { header: 'วันที่ทิ้ง', key: 'created_at', width: 20 },
     ];
 
+    const typeMap = {
+      general: 'ขยะทั่วไป',
+      hazardous: 'ขยะอันตราย',
+      recyclable: 'ขยะรีไซเคิล',
+      organic :'ขยะอินทรีย์'
+    };
+
     results.forEach(row => {
-      worksheet.addRow(row);
+      worksheet.addRow({
+        waste_type: typeMap[row.waste_type] || row.waste_type,
+        weight_kg: row.weight_kg,
+        created_at: row.created_at
+      });
     });
 
     res.setHeader(
@@ -895,7 +914,13 @@ exports.getDailyWasteStats = async (req, res) => {
     rows.forEach(row => {
       const { date, waste_type, total_weight } = row;
       if (!grouped[date]) {
-        grouped[date] = { date };
+        // เตรียมให้ครบทุกประเภท
+        grouped[date] = {
+          date,
+          general: 0,
+          hazardous: 0,
+          recyclable: 0,
+        };
       }
       grouped[date][waste_type] = total_weight;
     });
@@ -907,6 +932,7 @@ exports.getDailyWasteStats = async (req, res) => {
     res.status(500).json({ message: "ไม่สามารถดึงสถิติขยะรายวันได้" });
   }
 };
+
 
 //FinanceReport
 exports.exportFinanceReport = async (req, res) => {

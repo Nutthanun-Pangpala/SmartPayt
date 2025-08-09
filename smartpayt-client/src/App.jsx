@@ -10,7 +10,8 @@ import AdminManualBill from "./pagesAdmin/AdminManulBill";
 import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
-import AdminWastePricing from "./pagesAdmin/AdminWastePricing";
+import WastePricehousehold from "./pagesAdmin/WastePricehousehold";
+import WastePriceEstablishment from "./pagesAdmin/WastePriceEstablishment";
 import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
 import VerifiedUser from "./pagesAdmin/VerifiedUser";
 import AdminPaymentSlipPage from "./pagesAdmin/AdminPaymentSlipPage";
@@ -36,7 +37,8 @@ const router = createBrowserRouter([
   { path: "/admin/debt", element:<AdminDebtPage/> },
   { path:"/admin/user/:lineUserId",element:<UserDetails />},
   { path:"/admin/bills",element:<AdminManualBill />},
-  { path:"/admin/editwaste",element:<AdminWastePricing />},
+  { path:"/admin/household",element:<WastePricehousehold />},
+  { path:"/admin/establishment",element:<WastePriceEstablishment />},
   { path:"/admin/verified-address",element:<VerifiedAddress />},
   { path:"/admin/verified-user",element:<VerifiedUser />},
   { path:"/admin/payment-slips",element:<AdminPaymentSlipPage />},
