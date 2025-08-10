@@ -299,3 +299,27 @@ exports.generateBarcode = (req, res) => {
     res.status(500).json({ message: 'Error generating barcode', error: error.message });
   });
 };
+
+exports.updateAccount = async (req, res) => {
+  try {
+    const lineUserId = req.params.lineUserId || req.body.lineUserId;
+    const { name, ID_card_No, Phone_No, Email } = req.body;
+
+    if (!lineUserId) {
+      return res.status(400).json({ message: 'lineUserId is required' });
+    }
+
+    await db.promise().query(
+      'UPDATE users SET name = ?, ID_card_No = ?, Phone_No = ?, Email = ? WHERE lineUserId = ?',
+      [name, ID_card_No, Phone_No, Email, lineUserId]
+    );
+
+    res.json({ message: 'Account updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+
+

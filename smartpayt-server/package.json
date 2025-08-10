@@ -31,6 +31,7 @@
     "pdfkit": "^0.17.1",
     "querystring": "^0.2.1",
     "smartpayt-server": "file:",
+    "stripe": "^18.4.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

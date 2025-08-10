@@ -1,3 +1,4 @@
+import axios from "axios";
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import NavbarComponent from "../assets/component/user/userNavbar";
@@ -8,6 +9,7 @@ const PaymentPage = () => {
   const { bills, addressId } = location.state || {};
 
   const [selectedBills, setSelectedBills] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   if (!bills || bills.length === 0) {
     return <div className="text-red-500 p-4">ไม่พบข้อมูลบิลสำหรับชำระ</div>;
@@ -31,17 +33,36 @@ const PaymentPage = () => {
     0
   );
 
-  const handleConfirmPayment = () => {
+  const handleConfirmPayment = async () => {
     if (selectedBills.length === 0) {
       alert("กรุณาเลือกบิลที่ต้องการชำระก่อน");
       return;
     }
-    navigate("/payment/qr", {
-      state: {
-        selectedBills,
-        totalAmount,
-      },
-    });
+
+    try {
+      setLoading(true);
+
+      // ยิงไป backend เพื่อสร้าง QR
+      const res = await axios.post("http://localhost:3000/gbprimepay/create-qr", {
+        amount: totalAmount.toFixed(2),
+        referenceNo: `BILL-${Date.now()}` // ใช้ timestamp กันซ้ำ
+      });
+
+      // ไปหน้า QR พร้อมข้อมูลที่ backend ส่งมา
+      navigate("/payment/qr", {
+        state: {
+          selectedBills,
+          totalAmount,
+          qrData: res.data
+        },
+      });
+
+    } catch (error) {
+      console.error(error);
+      alert("ไม่สามารถสร้าง QR ได้");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -89,9 +110,10 @@ const PaymentPage = () => {
 
         <button
           onClick={handleConfirmPayment}
+          disabled={loading}
           className="w-full text-white bg-green-600 hover:bg-green-700 font-semibold py-2 rounded"
         >
-          ยืนยันการชำระเงิน
+          {loading ? "กำลังสร้าง QR..." : "ยืนยันการชำระเงิน"}
         </button>
       </div>
     </div>

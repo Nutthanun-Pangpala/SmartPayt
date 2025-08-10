@@ -21,7 +21,7 @@ const QRPaymentPage = () => {
 
     const handleUpload = async () => {
         if (!image) {
-            alert("กรุณาแนบหลักฐานการชำระเงินก่อน");
+            alert("กรุณาเลือกภาพสลิปก่อน");
             return;
         }
 

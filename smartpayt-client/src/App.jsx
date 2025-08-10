@@ -7,24 +7,25 @@ import AdminDebtPage from "./pagesAdmin/AdminDebtPage";
 import AdminLogin from "./pagesAdmin/AdminLogin";
 import AdminMain from "./pagesAdmin/AdminMain";
 import AdminManualBill from "./pagesAdmin/AdminManulBill";
+import AdminPaymentSlipPage from "./pagesAdmin/AdminPaymentSlipPage";
 import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
-import WastePricehousehold from "./pagesAdmin/WastePricehousehold";
-import WastePriceEstablishment from "./pagesAdmin/WastePriceEstablishment";
+import Report from "./pagesAdmin/Report";
 import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
 import VerifiedUser from "./pagesAdmin/VerifiedUser";
-import AdminPaymentSlipPage from "./pagesAdmin/AdminPaymentSlipPage";
-import Report from "./pagesAdmin/Report";
+import WastePriceEstablishment from "./pagesAdmin/WastePriceEstablishment";
+import WastePricehousehold from "./pagesAdmin/WastePricehousehold";
 
 //User
+import AccountManagement from "./pagesUser/UserAccountManagement";
 import UserDashboard from "./pagesUser/UserDashboard";
 import Login from "./pagesUser/UserLoginPage";
 import PaymentPage from "./pagesUser/UserPaymentPage";
+import QRPaymentPage from "./pagesUser/UserQrPaymentPage";
 import RegisterAccount from "./pagesUser/UserRegisterAccounts";
 import RegisterAddress from "./pagesUser/UserRegisterAddressPages";
 import Issues from "./pagesUser/UserReportIssuesPages";
-import QRPaymentPage from "./pagesUser/UserQrPaymentPage";
 
 
 const router = createBrowserRouter([
@@ -54,6 +55,7 @@ const router = createBrowserRouter([
   { path: "/issues", element: <Issues/>},
   { path: "/payment", element: <PaymentPage/> },
   { path: "/payment/qr", element: <QRPaymentPage/> },
+  { path: "/accountmanagement/:lineUserId", element: <AccountManagement/> },
 
 ], {
   future: {
