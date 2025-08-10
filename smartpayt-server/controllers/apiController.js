@@ -321,5 +321,23 @@ exports.updateAccount = async (req, res) => {
   }
 };
 
-
+exports.getPaymentHistory = async (req, res) => {
+    const { lineUserId } = req.params;
+  
+    try {
+      const [rows] = await db.promise().query(
+        `SELECT bills.*
+         FROM bills
+         JOIN addresses ON bills.address_id = addresses.address_id
+         WHERE addresses.lineUserId = ? AND bills.status = 1
+         ORDER BY bills.due_date DESC`,
+        [lineUserId]
+      );
+  
+      res.json(rows);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  };
 

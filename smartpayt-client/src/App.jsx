@@ -21,6 +21,7 @@ import WastePricehousehold from "./pagesAdmin/WastePricehousehold";
 import AccountManagement from "./pagesUser/UserAccountManagement";
 import UserDashboard from "./pagesUser/UserDashboard";
 import Login from "./pagesUser/UserLoginPage";
+import PaymentHistory from "./pagesUser/UserPaymentHistory";
 import PaymentPage from "./pagesUser/UserPaymentPage";
 import QRPaymentPage from "./pagesUser/UserQrPaymentPage";
 import RegisterAccount from "./pagesUser/UserRegisterAccounts";
@@ -56,6 +57,7 @@ const router = createBrowserRouter([
   { path: "/payment", element: <PaymentPage/> },
   { path: "/payment/qr", element: <QRPaymentPage/> },
   { path: "/accountmanagement/:lineUserId", element: <AccountManagement/> },
+  { path: "/paymenthistory/:lineUserId", element: <PaymentHistory/> },
 
 ], {
   future: {

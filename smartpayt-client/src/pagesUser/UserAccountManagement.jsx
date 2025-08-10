@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import NavbarComponent from "../assets/component/user/userNavbar";
+import BottomNav from "../assets/component/user/userNavigate";
 
 export default function AccountManagement() {
   const [account, setAccount] = useState(null); // สมมติได้ข้อมูลแค่ user เดียว
@@ -162,6 +163,7 @@ export default function AccountManagement() {
           </div>
         </div>
       </div>
+      <BottomNav/>
     </div>
   );
 }
