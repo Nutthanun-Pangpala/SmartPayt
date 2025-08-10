@@ -10,6 +10,7 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 
+
 const app = express();
 
 app.use(cors());
@@ -25,6 +26,8 @@ app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes); // ไว้ใช้สำหรับ front ของ admin บางตัวเพราะถ้าไม่มีบางอันมันรันไม่ได้
 app.use("/api/user", userRoutes);
 app.use("/api/admin", adminRoutes);
+
+
 
 
 
