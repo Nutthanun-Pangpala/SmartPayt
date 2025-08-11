@@ -341,3 +341,129 @@ exports.getPaymentHistory = async (req, res) => {
     }
   };
 
+  // controllers/userWaste.controller.js
+
+// controller
+exports.getWasteSummary = async (req, res) => {
+  try {
+    const { address_id, from, to } = req.query;
+    const lineUserId = req.params.lineUserId || req.query.lineUserId;
+
+    if (!lineUserId && !address_id) {
+      return res.status(400).json({ message: 'ต้องระบุ lineUserId หรือ address_id' });
+    }
+
+    const now = new Date();
+    const startDefault = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+    const endDefault   = new Date(now.getFullYear(), now.getMonth()+1, 1).toISOString().slice(0,10);
+    const start = (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) ? from : startDefault;
+    const end   = (to   && /^\d{4}-\d{2}-\d{2}$/.test(to))   ? to   : endDefault;
+
+    // ✅ ใช้ db.promise().query แทน pool
+    let addressIds = [];
+    if (address_id) {
+      addressIds = [address_id];
+    } else {
+      const [rows] = await db.promise().query(
+        `SELECT address_id FROM addresses WHERE lineUserId = ?`,
+        [lineUserId]
+      );
+      if (!rows.length) {
+        return res.json({
+          range: { from: start, to: end },
+          addresses: [],
+          overall: {},
+          byAddress: {},
+          daily: [],
+          dailyByAddress: {}
+        });
+      }
+      addressIds = rows.map(r => r.address_id);
+    }
+
+    const placeholders = addressIds.map(() => '?').join(',');
+    const params = [...addressIds, start, end];
+
+    const [sumOverall] = await db.promise().query(
+      `SELECT wr.waste_type, SUM(wr.weight_kg) AS total_kg
+         FROM waste_records wr
+        WHERE wr.address_id IN (${placeholders})
+          AND wr.recorded_date >= ?
+          AND wr.recorded_date <  ?
+        GROUP BY wr.waste_type`,
+      params
+    );
+
+    const [sumByAddr] = await db.promise().query(
+      `SELECT wr.address_id, wr.waste_type, SUM(wr.weight_kg) AS total_kg
+         FROM waste_records wr
+        WHERE wr.address_id IN (${placeholders})
+          AND wr.recorded_date >= ?
+          AND wr.recorded_date <  ?
+        GROUP BY wr.address_id, wr.waste_type`,
+      params
+    );
+
+    const [dailyOverall] = await db.promise().query(
+      `SELECT DATE(wr.recorded_date) AS day, wr.waste_type, SUM(wr.weight_kg) AS total_kg
+         FROM waste_records wr
+        WHERE wr.address_id IN (${placeholders})
+          AND wr.recorded_date >= ?
+          AND wr.recorded_date <  ?
+        GROUP BY DATE(wr.recorded_date), wr.waste_type
+        ORDER BY DATE(wr.recorded_date)`,
+      params
+    );
+
+    const [dailyByAddrRows] = await db.promise().query(
+      `SELECT wr.address_id, DATE(wr.recorded_date) AS day, wr.waste_type, SUM(wr.weight_kg) AS total_kg
+         FROM waste_records wr
+        WHERE wr.address_id IN (${placeholders})
+          AND wr.recorded_date >= ?
+          AND wr.recorded_date <  ?
+        GROUP BY wr.address_id, DATE(wr.recorded_date), wr.waste_type
+        ORDER BY DATE(wr.recorded_date)`,
+      params
+    );
+
+    const typeTH = { general:'ขยะทั่วไป', hazardous:'ขยะอันตราย', recyclable:'ขยะรีไซเคิล', organic:'ขยะอินทรีย์' };
+
+    const overall = {};
+    sumOverall.forEach(r => { overall[typeTH[r.waste_type] || r.waste_type] = Number(r.total_kg); });
+
+    const byAddress = {};
+    sumByAddr.forEach(r => {
+      if (!byAddress[r.address_id]) byAddress[r.address_id] = { 'ขยะทั่วไป':0,'ขยะอันตราย':0,'ขยะรีไซเคิล':0,'ขยะอินทรีย์':0 };
+      byAddress[r.address_id][typeTH[r.waste_type] || r.waste_type] = Number(r.total_kg);
+    });
+
+    const dailyMap = {};
+    dailyOverall.forEach(r => {
+      const d = (r.day instanceof Date) ? r.day.toISOString().slice(0,10) : r.day;
+      if (!dailyMap[d]) dailyMap[d] = { day: d, 'ขยะทั่วไป':0,'ขยะอันตราย':0,'ขยะรีไซเคิล':0,'ขยะอินทรีย์':0 };
+      dailyMap[d][typeTH[r.waste_type] || r.waste_type] = Number(r.total_kg);
+    });
+
+    const dailyByAddress = {};
+    const tmp = {};
+    dailyByAddrRows.forEach(r => {
+      const d = (r.day instanceof Date) ? r.day.toISOString().slice(0,10) : r.day;
+      if (!tmp[r.address_id]) tmp[r.address_id] = {};
+      if (!tmp[r.address_id][d]) tmp[r.address_id][d] = { day: d, 'ขยะทั่วไป':0,'ขยะอันตราย':0,'ขยะรีไซเคิล':0,'ขยะอินทรีย์':0 };
+      tmp[r.address_id][d][typeTH[r.waste_type] || r.waste_type] = Number(r.total_kg);
+    });
+    Object.keys(tmp).forEach(addr => { dailyByAddress[addr] = Object.values(tmp[addr]); });
+
+    return res.json({
+      range: { from: start, to: end },
+      addresses: addressIds,
+      overall,
+      byAddress,
+      daily: Object.values(dailyMap),
+      dailyByAddress
+    });
+  } catch (err) {
+    console.error('getWasteSummary error:', err);
+    return res.status(500).json({ message: 'ดึงสรุปขยะไม่สำเร็จ', error: err.message });
+  }
+};

@@ -17,10 +17,10 @@ router.post('/users/:lineUserId/add-address', adminController.adduserAddress);
 // Protected routes
 
 //Admin Main
-router.get('/stats', adminController.getUserCount);
-router.get('/waste-stats', adminController.getWasteStats);
-router.get('/pending-counts', adminController.getPendingCounts);
-router.get('/waste-months', adminController.getWasteMonths);
+router.get('/stats', verifyToken,adminController.getUserCount);
+router.get('/waste-stats',  verifyToken,adminController.getWasteStats);
+router.get('/pending-counts',  verifyToken,adminController.getPendingCounts);
+router.get('/waste-months',  verifyToken,adminController.getWasteMonths);
 
 
 // Admin Service
