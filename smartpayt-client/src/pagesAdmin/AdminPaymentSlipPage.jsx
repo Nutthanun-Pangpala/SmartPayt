@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
 import axios from "axios";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import nanglaeIcon from "../assets/img/nanglaeicon.png";
 
@@ -18,7 +18,7 @@ const AdminSlipList = () => {
 
   const fetchSlips = async () => {
     try {
-      const res = await axios.get("/api/admin/payment-slips", {
+      const res = await axios.get("http://localhost:3000/api/admin/payment-slips", {
         headers: { Authorization: `Bearer ${localStorage.getItem("Admin_token")}` },
       });
       setSlips(res.data);
@@ -33,7 +33,7 @@ const AdminSlipList = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.patch(`/api/admin/payment-slips/${id}`, { status }, {
+      await axios.patch(`http://localhost:3000/api/admin/payment-slips/${id}`, { status }, {
         headers: { Authorization: `Bearer ${localStorage.getItem("Admin_token")}` },
       });
       fetchSlips();

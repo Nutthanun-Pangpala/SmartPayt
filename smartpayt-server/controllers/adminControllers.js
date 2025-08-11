@@ -72,10 +72,10 @@ exports.getUserCount = (req, res) => {
     SELECT 
       (SELECT COUNT(*) FROM users) AS totalUsers,
       (SELECT COUNT(*) FROM addresses) AS totalAddress,
-      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'general') AS generalWaste,
-      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'hazardous') AS hazardousWaste,
-      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'recyclable') AS recycleWaste
-      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'organic') AS organicWaste
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'general')    AS generalWaste,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'hazardous')  AS hazardousWaste,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'recyclable') AS recycleWaste,
+      (SELECT IFNULL(SUM(weight_kg),0) FROM waste_records WHERE waste_type = 'organic')    AS organicWaste
   `;
   db.query(sql, (err, results) => {
     if (err) {
@@ -108,54 +108,39 @@ exports.getUserCount = (req, res) => {
 };
 
 
-exports.getWasteStats = (req, res) => {
-  const { month } = req.query; // เช่น "2025-05"
-
-  let sql = `
-    SELECT waste_type, SUM(weight_kg) as total_weight
-    FROM waste_records
-  `;
-  const params = [];
-
-  if (month) {
-    sql += ` WHERE DATE_FORMAT(recorded_date, '%Y-%m') = ? `;
-    params.push(month);
-  }
-
-  sql += ` GROUP BY waste_type `;
-
-  db.query(sql, params, (err, results) => {
-    if (err) {
-      console.error('Error getting waste stats:', err);
-      return res.status(500).json({
-        message: 'Failed to get waste statistics',
-        error: err.message,
-      });
+exports.getWasteStats = async (req, res) => {
+  try {
+    const { month } = req.query;
+    let sql = `
+      SELECT waste_type, SUM(weight_kg) as total_weight
+      FROM waste_records
+    `;
+    const params = [];
+    if (month) {
+      sql += ` WHERE DATE_FORMAT(recorded_date, '%Y-%m') = ? `;
+      params.push(month);
     }
+    sql += ` GROUP BY waste_type `;
+    const [results] = await db.promise().query(sql, params);
 
-    // เตรียมโครงสร้างข้อมูลสำหรับ frontend
     const wasteData = [
       { name: 'ขยะทั่วไป', value: 0 },
       { name: 'ขยะอันตราย', value: 0 },
       { name: 'ขยะรีไซเคิล', value: 0 },
       { name: 'ขยะอินทรีย์', value: 0 },
-
     ];
-
     results.forEach(item => {
-      if (item.waste_type === 'general') {
-        wasteData[0].value = Number(item.total_weight);
-      } else if (item.waste_type === 'hazardous') {
-        wasteData[1].value = Number(item.total_weight);
-      } else if (item.waste_type === 'recyclable') {
-        wasteData[2].value = Number(item.total_weight);
-      } else if (item.waste_type === 'organic') {
-        wasteData[3].value = Number(item.total_weight);
-      }
+      if (item.waste_type === 'general')    wasteData[0].value = Number(item.total_weight);
+      if (item.waste_type === 'hazardous')  wasteData[1].value = Number(item.total_weight);
+      if (item.waste_type === 'recyclable') wasteData[2].value = Number(item.total_weight);
+      if (item.waste_type === 'organic')    wasteData[3].value = Number(item.total_weight);
     });
 
     res.json(wasteData);
-  });
+  } catch (err) {
+    console.error('Error getting waste stats:', err);
+    res.status(500).json({ message: 'Failed to get waste statistics', error: err.message });
+  }
 };
 
 exports.getPendingCounts = (req, res) => {
@@ -950,37 +935,29 @@ exports.exportWasteReport = async (req, res) => {
 exports.getDailyWasteStats = async (req, res) => {
   try {
     const sql = `
-      SELECT DATE(created_at) AS date, waste_type, SUM(weight_kg) AS total_weight
+      SELECT DATE(recorded_date) AS date, waste_type, SUM(weight_kg) AS total_weight
       FROM waste_records
-      GROUP BY DATE(created_at), waste_type
-      ORDER BY DATE(created_at) DESC
+      GROUP BY DATE(recorded_date), waste_type
+      ORDER BY DATE(recorded_date) DESC
     `;
-
     const [rows] = await db.promise().query(sql);
-    const grouped = {};
 
-    rows.forEach(row => {
-      const { date, waste_type, total_weight } = row;
+    const types = ['general','hazardous','recyclable','organic'];
+    const grouped = {}; // date -> { date, general, hazardous, recyclable, organic }
+
+    rows.forEach(({ date, waste_type, total_weight }) => {
       if (!grouped[date]) {
-        // เตรียมให้ครบทุกประเภท
-        grouped[date] = {
-          date,
-          general: 0,
-          hazardous: 0,
-          recyclable: 0,
-        };
+        grouped[date] = { date, general:0, hazardous:0, recyclable:0, organic:0 };
       }
-      grouped[date][waste_type] = total_weight;
+      grouped[date][waste_type] = Number(total_weight);
     });
 
-    const result = Object.values(grouped);
-    res.json(result);
+    res.json(Object.values(grouped));
   } catch (err) {
     console.error("❌ Error fetching daily waste stats:", err);
     res.status(500).json({ message: "ไม่สามารถดึงสถิติขยะรายวันได้" });
   }
 };
-
 
 //FinanceReport
 exports.exportFinanceReport = async (req, res) => {
@@ -1007,13 +984,13 @@ exports.exportFinanceReport = async (req, res) => {
     const worksheet = workbook.addWorksheet('Finance Report');
 
     worksheet.columns = [
-      { header: 'Bill ID', key: 'bill_id', width: 10 },
-      { header: 'Address ID', key: 'address_id', width: 15 },
-      { header: 'Name', key: 'name', width: 20 },
+      { header: 'Bill ID',     key: 'bill_id',   width: 10 },
+      { header: 'Address ID',  key: 'address_id', width: 15 },
+      { header: 'Name',        key: 'name',       width: 20 },
       { header: 'ID Card No.', key: 'ID_card_No', width: 20 },
-      { header: 'Amount Due', key: 'amount_due', width: 15 },
-      { header: 'Due Date', key: 'due_date', width: 20 },
-      { header: 'Paid At', key: 'updated_at', width: 20 },
+      { header: 'Amount Due',  key: 'amount_due', width: 15 },
+      { header: 'Due Date',    key: 'due_date',   width: 20 },
+      { header: 'Paid At',     key: 'paid_at',    width: 20 }, // ✅ แก้เป็น paid_at
     ];
 
     rows.forEach(row => worksheet.addRow(row));
@@ -1081,29 +1058,33 @@ exports.createWasteRecord = async (req, res) => {
 // สร้างบิลอัตโนมัติจาก waste_record ทั้งเดือน
 
 
+// controllers/adm;                  // ensure: npm i axios
+
+// ใช้ db และ axios เดิมที่ประกาศไว้ข้างบนไฟล์อยู่แล้ว
 exports.generateBillsFromWasteToday = async (req, res) => {
   try {
+    // วันนี้ 00:00 → พรุ่งนี้ 00:00
     const today = new Date();
     const start = today.toISOString().split('T')[0]; // YYYY-MM-DD
-
     const next = new Date(today);
     next.setDate(today.getDate() + 1);
     const nextStr = next.toISOString().split('T')[0];
 
-    const due_date = nextStr; // กำหนดครบกำหนด = พรุ่งนี้
+    // กำหนดครบกำหนด = พรุ่งนี้
+    const due_date = nextStr;
 
-    const sql = `
+    const upsertSql = `
       INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status)
       SELECT
         wr.address_id,
         ROUND(SUM(wr.weight_kg * wp.price_per_kg), 2) AS amount_due,
         ? AS due_date,
         NOW(), NOW(), 0
-      FROM waste_records wr   -- ← ถ้าตารางคุณสะกด waste_reccord ให้แก้ตรงนี้
+      FROM waste_records wr                       -- ถ้าตารางจริงคือ waste_reccord ให้แก้ชื่อนี้
       JOIN addresses a ON a.address_id = wr.address_id
       JOIN waste_pricing wp
         ON wp.type = wr.waste_type
-       AND wp.waste_type = a.address_type  -- ถ้าไม่มี address_type ให้แทนเป็น 'household'
+       AND wp.waste_type = a.address_type         -- ถ้าไม่มี address_type ให้แทนเป็น 'household'
       WHERE wr.recorded_date >= ?
         AND wr.recorded_date <  ?
       GROUP BY wr.address_id
@@ -1111,11 +1092,50 @@ exports.generateBillsFromWasteToday = async (req, res) => {
         amount_due = VALUES(amount_due),
         updated_at = NOW();
     `;
-    const [result] = await db.promise().query(sql, [due_date, start, nextStr]);
 
-    return res?.status
-      ? res.status(201).json({ message: 'สร้าง/อัปเดตบิลของวันนี้สำเร็จ', affectedRows: result.affectedRows })
-      : console.log('[CRON] generateBillsFromWasteToday =>', result.affectedRows);
+    const [result] = await db.promise().query(upsertSql, [due_date, start, nextStr]);
+
+    // ----- ส่ง LINE (ออปชั่น) -----
+    const token = process.env.LINE_ACCESS_TOKEN;
+    if (token) {
+      const [rows] = await db.promise().query(
+        `SELECT DISTINCT a.address_id, a.lineUserId, a.house_no, a.sub_district, a.district, a.province
+           FROM waste_records wr
+           JOIN addresses a ON a.address_id = wr.address_id
+          WHERE wr.recorded_date >= ? AND wr.recorded_date < ?`,
+        [start, nextStr]
+      );
+
+      for (const r of rows) {
+        if (!r.lineUserId) continue;
+        const text =
+          `🧾 มีการคำนวณบิลค่าเก็บขยะประจำวันนี้แล้ว\n` +
+          `🏠 บ้านเลขที่: ${r.house_no || '-'}, ${r.sub_district || ''}, ${r.district || ''}, ${r.province || ''}\n` +
+          `📅 กำหนดชำระ: ${due_date}`;
+
+        try {
+          await axios.post(
+            'https://api.line.me/v2/bot/message/push',
+            { to: r.lineUserId, messages: [{ type: 'text', text }] },
+            { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }
+          );
+        } catch (e) {
+          console.error(`[LINE push error] address_id=${r.address_id}`, e?.response?.data || e.message);
+        }
+      }
+    } else {
+      console.warn('LINE_CHANNEL_ACCESS_TOKEN not set; skip LINE push.');
+    }
+    // -------------------------------
+
+    if (res?.status) {
+      return res.status(201).json({
+        message: 'สร้าง/อัปเดตบิลของวันนี้สำเร็จ',
+        affectedRows: result.affectedRows
+      });
+    } else {
+      console.log('[CRON] generateBillsFromWasteToday =>', result.affectedRows);
+    }
   } catch (err) {
     console.error('generateBillsFromWasteToday error:', err);
     if (res?.status) return res.status(500).json({ message: 'คำนวณ/สร้างบิลล้มเหลว' });

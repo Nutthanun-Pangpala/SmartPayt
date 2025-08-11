@@ -31,6 +31,8 @@ router.get('/generate-barcode/:addressId', apiController.generateBarcode);
 
 router.get('/checkUser/:lineUserId',userController.checkUser);
 
+router.get('/user-waste-summary/:lineUserId', apiController.getWasteSummary);
+
 
 
 

@@ -20,6 +20,7 @@ import WastePricehousehold from "./pagesAdmin/WastePricehousehold";
 
 //User
 import AccountManagement from "./pagesUser/UserAccountManagement";
+import WasteChartsMulti from "./pagesUser/UserChart";
 import UserDashboard from "./pagesUser/UserDashboard";
 import Login from "./pagesUser/UserLoginPage";
 import PaymentHistory from "./pagesUser/UserPaymentHistory";
@@ -60,6 +61,10 @@ const router = createBrowserRouter([
   { path: "/payment/qr", element: <QRPaymentPage/> },
   { path: "/accountmanagement/:lineUserId", element: <AccountManagement/> },
   { path: "/paymenthistory/:lineUserId", element: <PaymentHistory/> },
+  { path: "/wastedata/:lineUserId", element: <WasteChartsMulti/> }
+
+  
+  
 
 ], {
   future: {
