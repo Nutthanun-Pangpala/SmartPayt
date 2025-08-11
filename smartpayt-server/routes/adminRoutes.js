@@ -63,6 +63,8 @@ router.get('/stats-waste-daily', adminController.getDailyWasteStats);
 router.get('/report/export-finance', adminController.exportFinanceReport);
 
 router.post('/waste-records', verifyToken,adminController.createWasteRecord);
+router.post('/generate-bills-today', adminController.generateBillsFromWasteToday);
+
 
 router.use(verifyToken);
 

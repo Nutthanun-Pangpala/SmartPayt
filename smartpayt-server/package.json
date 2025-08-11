@@ -28,6 +28,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "mysql2": "^3.11.4",
+    "node-cron": "^4.2.1",
     "pdfkit": "^0.17.1",
     "querystring": "^0.2.1",
     "smartpayt-server": "file:",

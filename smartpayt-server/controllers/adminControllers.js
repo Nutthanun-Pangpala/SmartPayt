@@ -1077,3 +1077,47 @@ exports.createWasteRecord = async (req, res) => {
     return res.status(500).json({ message: 'บันทึกไม่สำเร็จ' });
   }
 };
+
+// สร้างบิลอัตโนมัติจาก waste_record ทั้งเดือน
+
+
+exports.generateBillsFromWasteToday = async (req, res) => {
+  try {
+    const today = new Date();
+    const start = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    const next = new Date(today);
+    next.setDate(today.getDate() + 1);
+    const nextStr = next.toISOString().split('T')[0];
+
+    const due_date = nextStr; // กำหนดครบกำหนด = พรุ่งนี้
+
+    const sql = `
+      INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status)
+      SELECT
+        wr.address_id,
+        ROUND(SUM(wr.weight_kg * wp.price_per_kg), 2) AS amount_due,
+        ? AS due_date,
+        NOW(), NOW(), 0
+      FROM waste_records wr   -- ← ถ้าตารางคุณสะกด waste_reccord ให้แก้ตรงนี้
+      JOIN addresses a ON a.address_id = wr.address_id
+      JOIN waste_pricing wp
+        ON wp.type = wr.waste_type
+       AND wp.waste_type = a.address_type  -- ถ้าไม่มี address_type ให้แทนเป็น 'household'
+      WHERE wr.recorded_date >= ?
+        AND wr.recorded_date <  ?
+      GROUP BY wr.address_id
+      ON DUPLICATE KEY UPDATE
+        amount_due = VALUES(amount_due),
+        updated_at = NOW();
+    `;
+    const [result] = await db.promise().query(sql, [due_date, start, nextStr]);
+
+    return res?.status
+      ? res.status(201).json({ message: 'สร้าง/อัปเดตบิลของวันนี้สำเร็จ', affectedRows: result.affectedRows })
+      : console.log('[CRON] generateBillsFromWasteToday =>', result.affectedRows);
+  } catch (err) {
+    console.error('generateBillsFromWasteToday error:', err);
+    if (res?.status) return res.status(500).json({ message: 'คำนวณ/สร้างบิลล้มเหลว' });
+  }
+};
