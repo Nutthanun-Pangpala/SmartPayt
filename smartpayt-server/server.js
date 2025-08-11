@@ -5,6 +5,8 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
 
+
+
 const apiRoutes = require("./routes/apiRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -26,6 +28,9 @@ app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes); // ไว้ใช้สำหรับ front ของ admin บางตัวเพราะถ้าไม่มีบางอันมันรันไม่ได้
 app.use("/api/user", userRoutes);
 app.use("/api/admin", adminRoutes);
+
+require('./services/billCron'); // <-- สำคัญ
+
 
 
 
