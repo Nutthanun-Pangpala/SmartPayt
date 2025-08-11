@@ -3,6 +3,8 @@ const adminController = require('../controllers/adminControllers');
 const verifyToken = require('../middleware/adminMiddleware');
 
 
+
+
 const router = express.Router();
 
 // Public routes
@@ -13,7 +15,6 @@ router.post('/users/:lineUserId/add-address', adminController.adduserAddress);
 
 
 // Protected routes
-router.use(verifyToken);
 
 //Admin Main
 router.get('/stats', adminController.getUserCount);
@@ -60,5 +61,12 @@ router.post('/waste-pricing', verifyToken, adminController.updateWastePricing);
 router.get('/report/export-waste', adminController.exportWasteReport);
 router.get('/stats-waste-daily', adminController.getDailyWasteStats);
 router.get('/report/export-finance', adminController.exportFinanceReport);
+
+router.post('/waste-records', verifyToken,adminController.createWasteRecord);
+
+router.use(verifyToken);
+
+  
+
 
 module.exports = router;

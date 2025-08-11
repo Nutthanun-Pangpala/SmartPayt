@@ -1027,3 +1027,53 @@ exports.exportFinanceReport = async (req, res) => {
     res.status(500).json({ message: 'Export failed' });
   }
 };
+
+// === Minimal: Create waste record (no token) ===
+exports.createWasteRecord = async (req, res) => {
+  try {
+    const { address_id, waste_type, weight_kg, recorded_date } = req.body || {};
+
+    if (!address_id || !waste_type || weight_kg === undefined) {
+      return res.status(400).json({ message: 'ต้องมี address_id, waste_type, weight_kg' });
+    }
+
+    const allowed = ['general', 'hazardous', 'recyclable', 'organic'];
+    if (!allowed.includes(waste_type)) {
+      return res.status(400).json({ message: `waste_type ต้องเป็นหนึ่งใน: ${allowed.join(', ')}` });
+    }
+
+    const weight = Number(weight_kg);
+    if (Number.isNaN(weight) || weight <= 0) {
+      return res.status(400).json({ message: 'weight_kg ต้องเป็นตัวเลขมากกว่า 0' });
+    }
+
+    // ⚠️ โค้ดทั้งไฟล์ของคุณใช้อยู่กับตารางชื่อ waste_records (มี s)
+    // ถ้าฐานข้อมูลจริงของคุณใช้ชื่อ waste_reccord ให้เปลี่ยนเป็นชื่อนั้น
+    const table = 'waste_records';
+
+    // ถ้ามี recorded_date ใช้ค่าที่ส่งมา, ถ้าไม่มีก็ใช้ CURDATE() ของ MySQL
+    let sql, params;
+    if (recorded_date) {
+      sql = `INSERT INTO ${table} (address_id, waste_type, weight_kg, recorded_date)
+             VALUES (?, ?, ?, ?)`;
+      params = [address_id, waste_type, weight, recorded_date];
+    } else {
+      sql = `INSERT INTO ${table} (address_id, waste_type, weight_kg, recorded_date)
+             VALUES (?, ?, ?, CURDATE())`;
+      params = [address_id, waste_type, weight];
+    }
+
+    const [result] = await db.promise().query(sql, params);
+
+    return res.status(201).json({
+      id: result.insertId,
+      address_id,
+      waste_type,
+      weight_kg: weight,
+      recorded_date: recorded_date || new Date().toISOString().slice(0, 10)
+    });
+  } catch (err) {
+    console.error('❌ createWasteRecord error:', err);
+    return res.status(500).json({ message: 'บันทึกไม่สำเร็จ' });
+  }
+};

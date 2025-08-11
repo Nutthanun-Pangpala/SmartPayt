@@ -25,6 +25,7 @@ router.delete("/removeuser/:id",userController.removeUserByID);
 
 router.post("/report-issue", apiController.reportiIssue);
 
+router.get("/payment-history/:lineUserId", apiController.getPaymentHistory);
 
 router.get('/generate-barcode/:addressId', apiController.generateBarcode);
 

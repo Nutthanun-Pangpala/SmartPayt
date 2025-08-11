@@ -33,15 +33,22 @@ const UserAddressesCard = () => {
             }
             try {
               const res = await axios.get(
-                `${import.meta.env.VITE_API_BASE_URL}/api/bills/${address.address_id}`
+                `${import.meta.env.VITE_API_BASE_URL}/api/bills/${
+                  address.address_id
+                }`
               );
               // กรองบิลที่ยังไม่ชำระและรอตรวจสอบ (status != "1")
               const unpaidBills = res.data.bills.filter(
-                (bill) => String(bill.status) === "0" || String(bill.status) === "2"
+                (bill) =>
+                  String(bill.status) === "0" || String(bill.status) === "2"
               );
-              
-              console.log("unpaidBills for address", address.address_id, unpaidBills);
-              
+
+              console.log(
+                "unpaidBills for address",
+                address.address_id,
+                unpaidBills
+              );
+
               return { address_id: address.address_id, bills: unpaidBills };
             } catch (error) {
               console.error(
@@ -119,14 +126,17 @@ const UserAddressesCard = () => {
                 <i className="fi fi-ss-road"></i> ถนน/ซอย: {address.Alley}
               </p>
               <p>
-                <i className="fi fi-sr-marker"></i> อำเภอ/เขต: {address.district}
+                <i className="fi fi-sr-marker"></i> อำเภอ/เขต:{" "}
+                {address.district}
               </p>
               <p>ตำบล/แขวง: {address.sub_district}</p>
               <p>หมู่ที่: {address.village_no}</p> {/* แสดงหมู่ที่ */}
               <div className="flex">
                 <p
                   className={
-                    address.address_verified ? "text-green-500 " : "text-red-500"
+                    address.address_verified
+                      ? "text-green-500 "
+                      : "text-red-500"
                   }
                 >
                   {address.address_id && !address.address_verified && (
@@ -141,18 +151,18 @@ const UserAddressesCard = () => {
                     : "กรุณาติดต่อที่เทศบาล "}
                 </p>
               </div>
-
               {/* แสดงยอดรวมค่าบิลเฉพาะที่อยู่ที่ยืนยันแล้ว */}
               {address.address_verified ? (
                 <div className="flex justify-between">
                   <p className="font-bold text-red-600">
-                    <i className="fi fi-sr-baht-sign"></i> ยอดรวมค่าบิล: {formattedTotal} บาท
+                    <i className="fi fi-sr-baht-sign"></i> ยอดรวมค่าบิล:{" "}
+                    {formattedTotal} บาท
                   </p>
                   <GenerateBarcode
-  addressId={String(address.address_id)}
-  status={address.address_verified}
-  addressInfo={address}  // ต้องไม่เป็น undefined
-/>
+                    addressId={String(address.address_id)}
+                    status={address.address_verified}
+                    addressInfo={address} // ต้องไม่เป็น undefined
+                  />
                 </div>
               ) : null}
             </div>
@@ -163,7 +173,9 @@ const UserAddressesCard = () => {
                 {billsMap[address.address_id]?.length > 0 ? (
                   <>
                     {billsMap[address.address_id]
-                      .sort((a, b) => new Date(b.due_date) - new Date(a.due_date))
+                      .sort(
+                        (a, b) => new Date(b.due_date) - new Date(a.due_date)
+                      )
                       .map((bill, index) => (
                         <div
                           key={index}
@@ -173,35 +185,39 @@ const UserAddressesCard = () => {
                           <p>
                             ⏳ วันที่ครบกำหนด:{" "}
                             {bill.due_date
-                              ? new Date(bill.due_date).toLocaleDateString("th-TH", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                })
+                              ? new Date(bill.due_date).toLocaleDateString(
+                                  "th-TH",
+                                  {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                  }
+                                )
                               : "ไม่ระบุ"}
                           </p>
                           <p
-  className={
-    bill.status === "2" || bill.status === 2
-      ? "text-yellow-500"
-      : "text-red-500"
-  }
->
-  สถานะ :{" "}
-  {bill.status === "2" || bill.status === 2 ? "รอตรวจสอบ" : "ยังไม่ชำระ"}
-</p>
-
+                            className={
+                              bill.status === "2" || bill.status === 2
+                                ? "text-yellow-500"
+                                : "text-red-500"
+                            }
+                          >
+                            สถานะ :{" "}
+                            {bill.status === "2" || bill.status === 2
+                              ? "รอตรวจสอบ"
+                              : "ยังไม่ชำระ"}
+                          </p>
                         </div>
                       ))}
 
                     {/* แสดงปุ่มชำระเงินเฉพาะเมื่อมีบิลที่ยังไม่ชำระ (status === "0") */}
                     {billsMap[address.address_id].some(
-                     (bill) => String(bill.status) === "0"
+                      (bill) => String(bill.status) === "0"
                     ) && (
                       <div className="flex justify-center my-3">
                         <button
                           onClick={() =>
-                            navigate("/payment", {
+                            navigate("/payment/", {
                               state: {
                                 bills: billsMap[address.address_id],
                                 addressId: address.address_id,

@@ -12,6 +12,7 @@ import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
 import Report from "./pagesAdmin/Report";
+import ScanAndCreateBill from "./pagesAdmin/ScanAndCreateBill";
 import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
 import VerifiedUser from "./pagesAdmin/VerifiedUser";
 import WastePriceEstablishment from "./pagesAdmin/WastePriceEstablishment";
@@ -21,6 +22,7 @@ import WastePricehousehold from "./pagesAdmin/WastePricehousehold";
 import AccountManagement from "./pagesUser/UserAccountManagement";
 import UserDashboard from "./pagesUser/UserDashboard";
 import Login from "./pagesUser/UserLoginPage";
+import PaymentHistory from "./pagesUser/UserPaymentHistory";
 import PaymentPage from "./pagesUser/UserPaymentPage";
 import QRPaymentPage from "./pagesUser/UserQrPaymentPage";
 import RegisterAccount from "./pagesUser/UserRegisterAccounts";
@@ -44,6 +46,7 @@ const router = createBrowserRouter([
   { path:"/admin/verified-user",element:<VerifiedUser />},
   { path:"/admin/payment-slips",element:<AdminPaymentSlipPage />},
   { path:"/admin/report",element:<Report />},
+  { path:"/admin/scan",element:<ScanAndCreateBill />},
 
 
   
@@ -56,6 +59,7 @@ const router = createBrowserRouter([
   { path: "/payment", element: <PaymentPage/> },
   { path: "/payment/qr", element: <QRPaymentPage/> },
   { path: "/accountmanagement/:lineUserId", element: <AccountManagement/> },
+  { path: "/paymenthistory/:lineUserId", element: <PaymentHistory/> },
 
 ], {
   future: {
