@@ -12,6 +12,7 @@ import AdminRegister from "./pagesAdmin/AdminRegister";
 import AdminService from "./pagesAdmin/AdminService";
 import UserDetails from "./pagesAdmin/AdminUserDetails";
 import Report from "./pagesAdmin/Report";
+import ScanAndCreateBill from "./pagesAdmin/ScanAndCreateBill";
 import VerifiedAddress from "./pagesAdmin/VerifiedAddress";
 import VerifiedUser from "./pagesAdmin/VerifiedUser";
 import WastePriceEstablishment from "./pagesAdmin/WastePriceEstablishment";
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
   { path:"/admin/verified-user",element:<VerifiedUser />},
   { path:"/admin/payment-slips",element:<AdminPaymentSlipPage />},
   { path:"/admin/report",element:<Report />},
+  { path:"/admin/scan",element:<ScanAndCreateBill />},
 
 
   
