@@ -11,8 +11,10 @@ const verifyToken = (req, res, next) => {
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(401).json({ message: 'Unauthorized' });
+    if (err) return res.status(401).json({ message: 'Unauthorized' });
+    // ให้แน่ใจว่ามี id หรือ adminId
+    if (!decoded.id && !decoded.adminId) {
+      return res.status(401).json({ message: 'Unauthorized: missing admin id in token' });
     }
     req.user = decoded;
     next();

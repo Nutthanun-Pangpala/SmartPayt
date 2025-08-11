@@ -1,3 +1,4 @@
+import api from '../api'; // ปรับพาธให้ถูกกับโครงสร้างโปรเจกต์
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +27,7 @@ const AdminMain = () => {
     hazardousWaste: 0,
     recycleWaste: 0,
     organicWaste: 0,
-    pendingUsers: 0,           
+    pendingUsers: 0,
     pendingAddresses: 0,
   });
 
@@ -52,11 +53,11 @@ const AdminMain = () => {
 
   const fetchPendingCounts = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/admin/pending-user'); // เปลี่ยน URL ให้ตรงกับ backend route จริง
-      setPendingUsers(res.data.pendingUsers);
-      setPendingAddresses(res.data.pendingAddresses);
-    } catch (error) {
-      console.error('Error fetching pending counts:', error);
+      const res = await api.get('/admin/pending-user');
+      setPendingUsers(res.data?.pendingUsers ?? 0);
+      setPendingAddresses(res.data?.pendingAddresses ?? 0);
+    } catch (e) {
+      console.error('Error fetching pending counts:', e.response?.status, e.response?.data || e.message);
     }
   };
 
@@ -142,7 +143,7 @@ const AdminMain = () => {
         setStats(statsRes.data);
         setPendingUsers(pendingRes.data.pendingUsers);
         setPendingAddresses(pendingRes.data.pendingAddresses);
-        
+
       } catch (error) {
         console.error("Error fetching stats:", error);
         if (error.response && error.response.status === 401) {

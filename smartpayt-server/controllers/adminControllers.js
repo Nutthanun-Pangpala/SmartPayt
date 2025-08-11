@@ -130,10 +130,10 @@ exports.getWasteStats = async (req, res) => {
       { name: 'ขยะอินทรีย์', value: 0 },
     ];
     results.forEach(item => {
-      if (item.waste_type === 'general')    wasteData[0].value = Number(item.total_weight);
-      if (item.waste_type === 'hazardous')  wasteData[1].value = Number(item.total_weight);
+      if (item.waste_type === 'general') wasteData[0].value = Number(item.total_weight);
+      if (item.waste_type === 'hazardous') wasteData[1].value = Number(item.total_weight);
       if (item.waste_type === 'recyclable') wasteData[2].value = Number(item.total_weight);
-      if (item.waste_type === 'organic')    wasteData[3].value = Number(item.total_weight);
+      if (item.waste_type === 'organic') wasteData[3].value = Number(item.total_weight);
     });
 
     res.json(wasteData);
@@ -612,24 +612,17 @@ exports.getUsersForUserVerification = (req, res) => {
 
 
 // Verify Address
-// อัปเดตสถานะ address_verified เป็น 1
-exports.verifyAddress = async (req, res) => {
+exports.verifyAddress = (req, res) => {
   const { addressId } = req.params;
-  const adminId = req.user?.id; // 🔑 ได้จาก JWT token
+  const adminId = req.user?.id ?? req.user?.adminId; // รองรับทั้ง id และ adminId
 
-  if (!addressId || !adminId) {
-    return res.status(400).json({ success: false, message: 'Missing addressId or adminId' });
-  }
+  if (!addressId) return res.status(400).json({ success: false, message: 'Missing addressId' });
+  if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized: missing adminId' });
 
   const sql = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ?';
-
   db.query(sql, [adminId, addressId], (err, result) => {
     if (err) return res.status(500).json({ success: false, message: 'Failed to update verification status' });
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'Address not found' });
-    }
-
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Address not found' });
     res.json({ success: true, message: 'Address verified successfully' });
   });
 };
@@ -672,10 +665,10 @@ exports.createBill = async (req, res) => {
 
   try {
     // ดึงข้อมูลที่อยู่
-   const [[addressRow]] = await db.promise().query(
-  `SELECT house_no, lineUserId, address_type FROM addresses WHERE address_id = ?`,
-  [address_id]
-);
+    const [[addressRow]] = await db.promise().query(
+      `SELECT house_no, lineUserId, address_type FROM addresses WHERE address_id = ?`,
+      [address_id]
+    );
 
 
     if (!addressRow) {
@@ -718,11 +711,11 @@ exports.createBill = async (req, res) => {
       await sendMessageToUser(addressRow.lineUserId, message);
     }
 
-    res.status(201).json({ 
-  message: "สร้างบิลสำเร็จ", 
-  billId: result.insertId,
-  amount_due
-});
+    res.status(201).json({
+      message: "สร้างบิลสำเร็จ",
+      billId: result.insertId,
+      amount_due
+    });
 
   } catch (err) {
     console.error("❌ createBill error:", err);
@@ -731,39 +724,28 @@ exports.createBill = async (req, res) => {
 };
 
 
-//คำณวนราคาขยะ
+//กำหนดราคาขยะ
 exports.getWastePricing = async (req, res) => {
+  const group = (req.query.group || 'household').toLowerCase();
   try {
-    const type = req.query.type || 'household';
     const [rows] = await db.promise().query(
-      'SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?',
-      [type]
+      `SELECT type, price_per_kg, waste_type
+       FROM waste_pricing
+       WHERE waste_type = ?`,
+      [group]
     );
-
-    const pricing = {
-      general: 0,
-      hazardous: 0,
-      recyclable: 0,
-      organic: 0,
-    };
-
-    rows.forEach(row => {
-      if (pricing.hasOwnProperty(row.type)) {
-        pricing[row.type] = parseFloat(row.price_per_kg);
-      }
-    });
-
-    res.status(200).json(pricing);
-  } catch (err) {
-    console.error("❌ Error fetching waste pricing:", err);
-    res.status(500).json({ message: "โหลดราคาขยะล้มเหลว" });
+    res.json(rows); // คืนเฉพาะชุดของ group นั้น
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Failed to fetch pricing' });
   }
 };
 
 
-//EditWaste
+
+//EditWastePricing  ปรับเปลี่ยนราคาขยะหลังจากบันทึก
 exports.updateWastePricing = async (req, res) => {
-  const { general, hazardous, recyclable, organic, waste_type } = req.body; 
+  const { general, hazardous, recyclable, organic, waste_type } = req.body;
   const adminId = req.user?.id;
 
   if (
@@ -904,7 +886,7 @@ exports.exportWasteReport = async (req, res) => {
       general: 'ขยะทั่วไป',
       hazardous: 'ขยะอันตราย',
       recyclable: 'ขยะรีไซเคิล',
-      organic :'ขยะอินทรีย์'
+      organic: 'ขยะอินทรีย์'
     };
 
     results.forEach(row => {
@@ -942,12 +924,12 @@ exports.getDailyWasteStats = async (req, res) => {
     `;
     const [rows] = await db.promise().query(sql);
 
-    const types = ['general','hazardous','recyclable','organic'];
+    const types = ['general', 'hazardous', 'recyclable', 'organic'];
     const grouped = {}; // date -> { date, general, hazardous, recyclable, organic }
 
     rows.forEach(({ date, waste_type, total_weight }) => {
       if (!grouped[date]) {
-        grouped[date] = { date, general:0, hazardous:0, recyclable:0, organic:0 };
+        grouped[date] = { date, general: 0, hazardous: 0, recyclable: 0, organic: 0 };
       }
       grouped[date][waste_type] = Number(total_weight);
     });
@@ -984,13 +966,13 @@ exports.exportFinanceReport = async (req, res) => {
     const worksheet = workbook.addWorksheet('Finance Report');
 
     worksheet.columns = [
-      { header: 'Bill ID',     key: 'bill_id',   width: 10 },
-      { header: 'Address ID',  key: 'address_id', width: 15 },
-      { header: 'Name',        key: 'name',       width: 20 },
+      { header: 'Bill ID', key: 'bill_id', width: 10 },
+      { header: 'Address ID', key: 'address_id', width: 15 },
+      { header: 'Name', key: 'name', width: 20 },
       { header: 'ID Card No.', key: 'ID_card_No', width: 20 },
-      { header: 'Amount Due',  key: 'amount_due', width: 15 },
-      { header: 'Due Date',    key: 'due_date',   width: 20 },
-      { header: 'Paid At',     key: 'paid_at',    width: 20 }, // ✅ แก้เป็น paid_at
+      { header: 'Amount Due', key: 'amount_due', width: 15 },
+      { header: 'Due Date', key: 'due_date', width: 20 },
+      { header: 'Paid At', key: 'paid_at', width: 20 }, // ✅ แก้เป็น paid_at
     ];
 
     rows.forEach(row => worksheet.addRow(row));

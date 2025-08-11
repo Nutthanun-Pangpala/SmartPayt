@@ -1,7 +1,7 @@
-import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import nanglaeIcon from "../assets/img/nanglaeicon.png";
 import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../api';
 
 const VerifiedAddress = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -16,19 +16,14 @@ const VerifiedAddress = () => {
     const [isVerifyDropdownOpen, setIsVerifyDropdownOpen] = useState(true);
     const [isWasteDropdownOpen, setIsWasteDropdownOpen] = useState(false);
 
-
     const location = useLocation();
     const isInVerifyGroup = location.pathname.includes('/admin/verified-address') || location.pathname.includes('/admin/verified-user');
 
     useEffect(() => {
-        if (isInVerifyGroup) {
-            setIsVerifyDropdownOpen(true);
-        }
-    }, [location.pathname]);
+        if (isInVerifyGroup) setIsVerifyDropdownOpen(true);
+    }, [isInVerifyGroup]);
 
-    const toggleSidebar = () => {
-        setIsSidebarOpen(!isSidebarOpen);
-    };
+    const toggleSidebar = () => setIsSidebarOpen((v) => !v);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -37,27 +32,40 @@ const VerifiedAddress = () => {
             const token = localStorage.getItem('Admin_token');
             if (!token) {
                 navigate('/adminlogin');
-                setLoading(false);
                 return;
             }
 
-            const response = await axios.get('http://localhost:3000/admin/users-verify-address', {
-                headers: { Authorization: `Bearer ${token}` },
+            const response = await api.get('/admin/users-verify-address', {
                 params: { page: currentPage, search: searchTerm },
             });
 
-            setUsers(response.data.users || []);
-            setTotalPages(response.data.totalPages || 1);
+            setUsers(response?.data?.users || []);
+            setTotalPages(response?.data?.totalPages || 1);
         } catch (err) {
-            setError('ไม่สามารถโหลดข้อมูลได้');
             console.error(err);
+            setError('ไม่สามารถโหลดข้อมูลได้');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
         fetchUsers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname, currentPage, searchTerm]);
+
+    // ---------- Helpers for stable, unique keys & de-dup ----------
+    const rowKey = (u) => `addr-${u?.address_id ?? 'na'}|line-${u?.lineUserId ?? 'na'}`;
+
+    const dedupedUsers = useMemo(() => {
+        const seen = new Set();
+        return (users || []).filter((u) => {
+            const k = rowKey(u);
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+        });
+    }, [users]);
 
     const handleVerify = async (addressId) => {
         try {
@@ -67,29 +75,26 @@ const VerifiedAddress = () => {
                 return;
             }
 
-            await axios.post(`http://localhost:3000/admin/verify-address/${addressId}`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // ถ้า api มี interceptor ใส่ token ให้อยู่แล้ว ก็ไม่ต้องแนบ headers ตรงนี้
+            await api.post(`/admin/verify-address/${addressId}`);
 
-            setUsers((prevUsers) =>
-                prevUsers.map(user =>
-                    user.address_id === addressId
-                        ? { ...user, address_verified: 1 }
-                        : user
-                )
+            setUsers(prev =>
+                (prev || []).map(u => u.address_id === addressId ? { ...u, address_verified: 1 } : u)
             );
-
-
         } catch (err) {
-            setError('ไม่สามารถยืนยันที่อยู่ได้');
+            // แสดงข้อความตามสถานะให้เดาง่ายขึ้น
+            const status = err?.response?.status;
+            if (status === 401) setError('ไม่ได้รับอนุญาต โปรดเข้าสู่ระบบใหม่');
+            else if (status === 404) setError('ไม่พบที่อยู่นี้');
+            else setError('ไม่สามารถยืนยันที่อยู่ได้');
             console.error(err);
         }
     };
 
+
     const handleSearchSubmit = (e) => {
         e.preventDefault();
-        setCurrentPage(1);
-        fetchUsers();
+        setCurrentPage(1); // useEffect will refetch
     };
 
     return (
@@ -117,41 +122,34 @@ const VerifiedAddress = () => {
                         <ul>
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin')}>หน้าหลัก</li>
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
-                             <li
-                            className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
-                            onClick={() => setIsBillDropdownOpen(!isBillDropdownOpen)}
-                        >
-                            <div className="flex justify-between items-center">
-                                <span>ตรวจสอบบิลชำระ</span>
-                                <svg
-                                    className={`h-4 w-4 transform transition-transform ${isBillDropdownOpen ? "rotate-90" : ""
-                                        }`}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </div>
-                        </li>
+                            <li
+                                className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
+                                onClick={() => setIsBillDropdownOpen(!isBillDropdownOpen)}
+                            >
+                                <div className="flex justify-between items-center">
+                                    <span>ตรวจสอบบิลชำระ</span>
+                                    <svg
+                                        className={`h-4 w-4 transform transition-transform ${isBillDropdownOpen ? "rotate-90" : ""}`}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </li>
 
-                        {isBillDropdownOpen && (
-                            <ul className="ml-4">
-                                <li
-                                    className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
-                                    onClick={() => navigate("/admin/debt")}
-                                >
-                                    ข้อมูลผู้ค้างชำระค่าบริการ
-                                </li>
-                                <li
-                                    className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded"
-                                    onClick={() => navigate("/admin/payment-slips")}
-                                >
-                                    ตรวจสอบสลิป
-                                </li>
-                            </ul>
-                        )}
+                            {isBillDropdownOpen && (
+                                <ul className="ml-4">
+                                    <li className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded" onClick={() => navigate("/admin/debt")}>
+                                        ข้อมูลผู้ค้างชำระค่าบริการ
+                                    </li>
+                                    <li className="mb-2 px-4 py-3 hover:bg-green-900 cursor-pointer rounded" onClick={() => navigate("/admin/payment-slips")}>
+                                        ตรวจสอบสลิป
+                                    </li>
+                                </ul>
+                            )}
 
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsVerifyDropdownOpen(!isVerifyDropdownOpen)}>
                                 <div className="flex justify-between items-center">
@@ -169,45 +167,41 @@ const VerifiedAddress = () => {
 
                             {isVerifyDropdownOpen && (
                                 <ul className="ml-4">
-                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                        onClick={() => navigate('/admin/verified-user')} > ยืนยันข้อมูลผู้ใช้บริการ </li>
-                                    <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded px-4 py-3 w-full"> ยืนยันข้อมูลครัวเรือน </li>
+                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/verified-user')}>
+                                        ยืนยันข้อมูลผู้ใช้บริการ
+                                    </li>
+                                    <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded px-4 py-3 w-full">
+                                        ยืนยันข้อมูลครัวเรือน
+                                    </li>
                                 </ul>
                             )}
-                            <li
-                            className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                            onClick={() => setIsWasteDropdownOpen(!isWasteDropdownOpen)}
-                        >
-                            <div className="flex justify-between items-center">
-                                <span>การจัดการบิลและขยะ</span>
-                                <svg
-                                    className={`h-4 w-4 transform transition-transform ${isWasteDropdownOpen ? 'rotate-90' : ''}`}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </div>
-                        </li>
 
-                        {isWasteDropdownOpen && (
-                            <ul className="ml-4">
-                                <li
-                                    className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                    onClick={() => navigate('/admin/bills')}
-                                >
-                                    สร้างใบแจ้งหนี้
-                                </li>
-                                <li
-                                    className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                    onClick={() => navigate('/admin/household')}
-                                >
-                                    กำหนดราคาประเภทขยะ
-                                </li>
-                            </ul>
-                        )}
+                            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsWasteDropdownOpen(!isWasteDropdownOpen)}>
+                                <div className="flex justify-between items-center">
+                                    <span>การจัดการบิลและขยะ</span>
+                                    <svg
+                                        className={`h-4 w-4 transform transition-transform ${isWasteDropdownOpen ? 'rotate-90' : ''}`}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </li>
+
+                            {isWasteDropdownOpen && (
+                                <ul className="ml-4">
+                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/bills')}>
+                                        สร้างใบแจ้งหนี้
+                                    </li>
+                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/household')}>
+                                        กำหนดราคาประเภทขยะ
+                                    </li>
+                                </ul>
+                            )}
+
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/report')}>รายงาน</li>
                         </ul>
                         <div className="absolute bottom-5 left-0 right-0 flex justify-center">
@@ -253,48 +247,49 @@ const VerifiedAddress = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {users.length === 0 ? (
+                                    {dedupedUsers.length === 0 ? (
                                         <tr>
-                                            <td colSpan="4" className="text-center py-4">ไม่พบข้อมูลผู้ใช้</td>
+                                            <td colSpan={3} className="text-center py-4">ไม่พบข้อมูลผู้ใช้</td>
                                         </tr>
                                     ) : (
-                                        users.map((user) => (
-                                            <tr key={user.lineUserId || user.address_id} className="border-b hover:bg-gray-50">
+                                        dedupedUsers.map((user) => (
+                                            <tr key={rowKey(user)} className="border-b hover:bg-gray-50">
                                                 <td className="border px-4 py-2">{user.name}</td>
+
                                                 <td className="border px-4 py-2">
                                                     {[
                                                         user.house_no,
                                                         user.Alley,
-                                                        `หมู่ที่: ${user.village_no}`,
-                                                        `ต.${user.sub_district}`,
-                                                        `อ.${user.district}`,
-                                                        `จ.${user.province}`,
-                                                        user.postal_code
-                                                    ].filter(Boolean).join(' ')}
+                                                        user.village_no ? `หมู่ที่: ${user.village_no}` : null,
+                                                        user.sub_district ? `ต.${user.sub_district}` : null,
+                                                        user.district ? `อ.${user.district}` : null,
+                                                        user.province ? `จ.${user.province}` : null,
+                                                        user.postal_code,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' ')}
                                                 </td>
+
                                                 <td className="border px-4 py-2 text-center">
                                                     {user.address_verified === 1 ? (
-                                                    <span className="inline-block px-3 py-1 rounded bg-green-200 text-green-800 font-semibold">
-                                                    ยืนยันแล้ว
-                                                </span>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleVerify(user.address_id)}
-                                                    disabled={user.verify_status !== 1}
-                                                    className={`px-3 py-1 rounded font-semibold ${
-                                                        user.verify_status !== 1
-                                                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                                                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                                                    }`}
-                                                > 
-                                                    ยืนยัน
-                                                </button>
-                                            )}
-
+                                                        <span className="inline-block px-3 py-1 rounded bg-green-200 text-green-800 font-semibold">
+                                                            ยืนยันแล้ว
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleVerify(user.address_id)}
+                                                            disabled={user.verify_status !== 1}
+                                                            className={`px-3 py-1 rounded font-semibold ${user.verify_status !== 1
+                                                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                                }`}
+                                                        >
+                                                            ยืนยัน
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))
-
                                     )}
                                 </tbody>
                             </table>
@@ -327,4 +322,3 @@ const VerifiedAddress = () => {
 };
 
 export default VerifiedAddress;
-
