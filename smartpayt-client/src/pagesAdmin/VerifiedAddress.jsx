@@ -176,32 +176,6 @@ const VerifiedAddress = () => {
                                 </ul>
                             )}
 
-                            <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => setIsWasteDropdownOpen(!isWasteDropdownOpen)}>
-                                <div className="flex justify-between items-center">
-                                    <span>การจัดการบิลและขยะ</span>
-                                    <svg
-                                        className={`h-4 w-4 transform transition-transform ${isWasteDropdownOpen ? 'rotate-90' : ''}`}
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
-                            </li>
-
-                            {isWasteDropdownOpen && (
-                                <ul className="ml-4">
-                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/bills')}>
-                                        สร้างใบแจ้งหนี้
-                                    </li>
-                                    <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/household')}>
-                                        กำหนดราคาประเภทขยะ
-                                    </li>
-                                </ul>
-                            )}
-
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/report')}>รายงาน</li>
                         </ul>
                         <div className="absolute bottom-5 left-0 right-0 flex justify-center">
