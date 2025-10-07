@@ -4,7 +4,6 @@ import logo from "../user/img/LogoNav.png";
 
 function getInitials(name) {
   if (!name || typeof name !== "string") return "U";
-  // ตัดช่องว่างหลายตัว, เอาตัวแรกของคำ 1–2 คำ
   const parts = name.trim().split(/\s+/);
   const first = parts[0]?.[0] || "";
   const second = parts[1]?.[0] || "";
@@ -13,10 +12,11 @@ function getInitials(name) {
 
 const NavbarComponent = () => {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false); // ⬅️ โมดัลคอนเฟิร์ม
   const dropdownRef = useRef(null);
+  const cancelBtnRef = useRef(null); // โฟกัสปุ่มยกเลิกตอนเปิดโมดัล
   const navigate = useNavigate();
 
-  // ดึงชื่อผู้ใช้จาก localStorage (ลองสองรูปแบบ: userName หรือ user เป็น JSON)
   const displayName = useMemo(() => {
     const n1 = localStorage.getItem("userName");
     if (n1) return n1;
@@ -35,7 +35,12 @@ const NavbarComponent = () => {
     const onClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
     };
-    const onEsc = (e) => e.key === "Escape" && setOpen(false);
+    const onEsc = (e) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setConfirmOpen(false);
+      }
+    };
     document.addEventListener("mousedown", onClickOutside);
     window.addEventListener("keydown", onEsc);
     return () => {
@@ -43,6 +48,25 @@ const NavbarComponent = () => {
       window.removeEventListener("keydown", onEsc);
     };
   }, []);
+
+  // ล็อคสกรีนเมื่อเปิดโมดัล
+  useEffect(() => {
+    document.body.style.overflow = confirmOpen ? "hidden" : "auto";
+    if (confirmOpen) {
+      setTimeout(() => cancelBtnRef.current?.focus(), 0);
+    }
+    return () => (document.body.style.overflow = "auto");
+  }, [confirmOpen]);
+
+  const doLogout = () => {
+    localStorage.removeItem("lineUserId");
+    localStorage.removeItem("token");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("user");
+    setConfirmOpen(false);
+    setOpen(false);
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur bg-gradient-to-r from-emerald-700 to-green-600 text-white shadow-md">
@@ -57,7 +81,7 @@ const NavbarComponent = () => {
             <span className="text-lg md:text-2xl font-semibold tracking-wide">SmartPayt</span>
           </button>
 
-          {/* ปุ่มโปรไฟล์ = ตัวย่อชื่อ */}
+          {/* ปุ่มโปรไฟล์ */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setOpen((v) => !v)}
@@ -77,7 +101,10 @@ const NavbarComponent = () => {
             </button>
 
             {open && (
-              <div role="menu" className="absolute right-0 mt-2 w-56 rounded-xl bg-white text-gray-800 shadow-xl ring-1 ring-black/5 overflow-hidden">
+              <div
+                role="menu"
+                className="absolute right-0 mt-2 w-56 rounded-xl bg-white text-gray-800 shadow-xl ring-1 ring-black/5 overflow-hidden"
+              >
                 <div className="px-4 py-3 border-b">
                   <p className="text-sm text-gray-500">เข้าสู่ระบบด้วย</p>
                   <p className="truncate font-medium">{displayName || "ผู้ใช้งาน"}</p>
@@ -101,14 +128,7 @@ const NavbarComponent = () => {
                 <div className="border-t">
                   <button
                     className="flex w-full items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50"
-                    onClick={() => {
-                      localStorage.removeItem("lineUserId");
-                      localStorage.removeItem("token");
-                      localStorage.removeItem("userName");
-                      localStorage.removeItem("user");
-                      setOpen(false);
-                      navigate("/");
-                    }}
+                    onClick={() => setConfirmOpen(true)} // ⬅️ เปิดโมดัลคอนเฟิร์ม
                   >
                     <i className="fi fi-rr-exit" />
                     ออกจากระบบ
@@ -119,6 +139,50 @@ const NavbarComponent = () => {
           </div>
         </div>
       </nav>
+
+      {/* Modal ยืนยันออกจากระบบ */}
+      {confirmOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setConfirmOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="relative mx-4 w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
+                <i className="fi fi-rr-exit text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold">ยืนยันการออกจากระบบ</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  คุณต้องการออกจากระบบ{displayName ? `ของ ${displayName}` : ""} ใช่หรือไม่?
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col sm:flex-row sm:justify-end gap-2">
+              <button
+                ref={cancelBtnRef}
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-lg border  bg-green-600  px-4 py-2 text-sm hover:bg-green-700 "
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={doLogout}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+              >
+                ออกจากระบบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

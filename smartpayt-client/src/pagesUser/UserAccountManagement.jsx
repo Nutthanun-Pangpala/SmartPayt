@@ -8,6 +8,7 @@ export default function AccountManagement() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     lineUserId: "",
@@ -18,6 +19,14 @@ export default function AccountManagement() {
   });
 
   const lineUserIdLS = useMemo(() => localStorage.getItem("lineUserId") || "", []);
+
+  // ฟิลด์ที่ติดตามความเปลี่ยน
+  const FIELDS = [
+    { key: "name",       label: "ชื่อ" },
+    { key: "ID_card_No", label: "เลขบัตรประชาชน" },
+    { key: "Phone_No",   label: "เบอร์โทรศัพท์" },
+    { key: "Email",      label: "อีเมล" },
+  ];
 
   useEffect(() => {
     if (!lineUserIdLS) return;
@@ -41,6 +50,18 @@ export default function AccountManagement() {
     })();
   }, [lineUserIdLS]);
 
+  // เตือนออกหน้า/รีเฟรชเมื่อมีการแก้ไขแต่ยังไม่บันทึก
+  useEffect(() => {
+    const handler = (e) => {
+      if (editing && isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [editing, /* eslint-disable-line react-hooks/exhaustive-deps */]); // isDirty ใช้ผ่าน getter ข้างล่าง
+
   const startEdit = () => setEditing(true);
   const cancelEdit = () => {
     setEditing(false);
@@ -55,6 +76,20 @@ export default function AccountManagement() {
     }
   };
 
+  // diff ความเปลี่ยน
+  const getChanges = () => {
+    if (!account) return [];
+    return FIELDS.reduce((acc, f) => {
+      const oldVal = account?.[f.key] ?? "";
+      const newVal = formData?.[f.key] ?? "";
+      if (String(oldVal) !== String(newVal)) {
+        acc.push({ ...f, oldVal, newVal });
+      }
+      return acc;
+    }, []);
+  };
+  const isDirty = getChanges().length > 0;
+
   // ตรวจความถูกต้องแบบง่าย
   const validate = () => {
     const errs = [];
@@ -66,11 +101,6 @@ export default function AccountManagement() {
   };
 
   const saveEdit = async () => {
-    const errs = validate();
-    if (errs.length) {
-      alert(errs[0]);
-      return;
-    }
     try {
       setSaving(true);
       await axios.put(
@@ -79,10 +109,13 @@ export default function AccountManagement() {
       );
       setAccount(formData);
       setEditing(false);
-      alert("บันทึกข้อมูลสำเร็จ");
+      setConfirmOpen(false);
+      // แจ้งสำเร็จแบบนุ่ม ๆ
+      window?.scrollTo?.({ top: 0, behavior: "smooth" });
+      setError("");
     } catch (err) {
       console.error("Error updating account:", err);
-      alert("แก้ไขข้อมูลไม่สำเร็จ");
+      setError("แก้ไขข้อมูลไม่สำเร็จ");
     } finally {
       setSaving(false);
     }
@@ -153,9 +186,7 @@ export default function AccountManagement() {
                 readOnly={!editing}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="ชื่อ-นามสกุล"
-                className={`w-full rounded-lg border px-3 py-2 ${
-                  editing ? "bg-white" : "bg-gray-50"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
               />
             </div>
 
@@ -172,9 +203,7 @@ export default function AccountManagement() {
                   setFormData({ ...formData, ID_card_No: e.target.value.replace(/\D/g, "") })
                 }
                 placeholder="กรอก 13 หลัก"
-                className={`w-full rounded-lg border px-3 py-2 ${
-                  editing ? "bg-white" : "bg-gray-50"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
               />
             </div>
 
@@ -191,9 +220,7 @@ export default function AccountManagement() {
                   setFormData({ ...formData, Phone_No: e.target.value.replace(/\D/g, "") })
                 }
                 placeholder="กรอก 10 หลัก"
-                className={`w-full rounded-lg border px-3 py-2 ${
-                  editing ? "bg-white" : "bg-gray-50"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
               />
             </div>
 
@@ -206,9 +233,7 @@ export default function AccountManagement() {
                 readOnly={!editing}
                 onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
                 placeholder="name@example.com"
-                className={`w-full rounded-lg border px-3 py-2 ${
-                  editing ? "bg-white" : "bg-gray-50"
-                }`}
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
               />
             </div>
           </div>
@@ -227,12 +252,21 @@ export default function AccountManagement() {
                 >
                   ยกเลิก
                 </button>
+
+                {/* ปุ่มบันทึก -> เปิด modal ยืนยัน */}
                 <button
-                  onClick={saveEdit}
+                  onClick={() => {
+                    const errs = validate();
+                    if (errs.length) { alert(errs[0]); return; }
+                    if (!isDirty) { alert("ยังไม่มีการเปลี่ยนแปลง"); return; }
+                    setConfirmOpen(true);
+                  }}
+                  disabled={!isDirty || saving}
                   className={`rounded-lg px-4 py-2 text-white ${
-                    saving ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+                    !isDirty || saving
+                      ? "bg-green-400 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700"
                   }`}
-                  disabled={saving}
                 >
                   {saving ? "กำลังบันทึก..." : "บันทึก"}
                 </button>
@@ -241,6 +275,44 @@ export default function AccountManagement() {
           </div>
         </div>
       </div>
+
+      {/* Modal ยืนยันบันทึก */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[70]">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
+          <div className="absolute inset-x-4 top-20 md:inset-x-0 md:mx-auto md:max-w-lg bg-white rounded-2xl shadow-xl p-4 md:p-6">
+            <h3 className="text-lg md:text-xl font-semibold">ยืนยันการบันทึก</h3>
+            <p className="text-sm text-gray-600 mt-1">คุณได้แก้ไขข้อมูลดังต่อไปนี้:</p>
+
+            <div className="mt-3 max-h-60 overflow-auto border rounded-lg">
+              {getChanges().map((c) => (
+                <div key={c.key} className="px-3 py-2 border-b last:border-b-0 text-sm">
+                  <div className="font-medium">{c.label}</div>
+                  <div className="text-gray-500 line-through">{c.oldVal || "—"}</div>
+                  <div className="text-emerald-700 font-medium">{c.newVal || "—"}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-lg border px-4 py-2 hover:bg-gray-50"
+                disabled={saving}
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={saveEdit}
+                className={`rounded-lg px-4 py-2 text-white ${saving ? "bg-green-400" : "bg-green-600 hover:bg-green-700"}`}
+                disabled={saving}
+              >
+                {saving ? "กำลังบันทึก..." : "ยืนยันบันทึก"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
