@@ -115,68 +115,34 @@ const VerifiedUser = () => {
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin')}>หน้าหลัก</li>
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate('/admin/service')}>ข้อมูลผู้ใช้บริการ</li>
                             {/* ตรวจสอบบิลชำระ */}
-            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => setIsBillDropdownOpen(!isBillDropdownOpen)}>
-              <div className="flex justify-between items-center">
-                <span>ตรวจสอบบิลชำระ</span>
-                <svg className={`h-4 w-4 transform transition-transform ${isBillDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-              </div>
-            </li>
-            {isBillDropdownOpen && (
-              <ul className="ml-4">
-                <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/debt")}>ข้อมูลผู้ค้างชำระ</li>
-                <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/payment-slips")}>ตรวจสอบสลิป</li>
-              </ul>
-            )}
-
-            {/* ยืนยันสถานะผู้ใช้บริการ */}
-            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => setIsVerifyDropdownOpen(!isVerifyDropdownOpen)}>
-              <div className="flex justify-between items-center">
-                <span>ยืนยันสถานะผู้ใช้บริการ</span>
-                <svg className={`h-4 w-4 transform transition-transform ${isVerifyDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-              </div>
-            </li>
-            {isVerifyDropdownOpen && (
-              <ul className="ml-4">
-                <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate("/admin/verified-user")}>ยืนยันข้อมูลผู้ใช้</li>
-                <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/verified-address")}>ยืนยันข้อมูลครัวเรือน</li>
-              </ul>
-            )}
-                            <li
-                                className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                onClick={() => setIsWasteDropdownOpen(!isWasteDropdownOpen)}
-                            >
+                            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => setIsBillDropdownOpen(!isBillDropdownOpen)}>
                                 <div className="flex justify-between items-center">
-                                    <span>การจัดการบิลและขยะ</span>
-                                    <svg
-                                        className={`h-4 w-4 transform transition-transform ${isWasteDropdownOpen ? 'rotate-90' : ''}`}
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        viewBox="0 0 24 24"
-                                    >
+                                    <span>ตรวจสอบบิลชำระ</span>
+                                    <svg className={`h-4 w-4 transform transition-transform ${isBillDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </li>
-
-                            {isWasteDropdownOpen && (
+                            {isBillDropdownOpen && (
                                 <ul className="ml-4">
-                                    <li
-                                        className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                        onClick={() => navigate('/admin/bills')}
-                                    >
-                                        สร้างใบแจ้งหนี้
-                                    </li>
-                                    <li
-                                        className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                                        onClick={() => navigate('/admin/household')}
-                                    >
-                                        กำหนดราคาประเภทขยะ
-                                    </li>
+                                    <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/debt")}>ข้อมูลผู้ค้างชำระ</li>
+                                    <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/payment-slips")}>ตรวจสอบสลิป</li>
+                                </ul>
+                            )}
+
+                            {/* ยืนยันสถานะผู้ใช้บริการ */}
+                            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => setIsVerifyDropdownOpen(!isVerifyDropdownOpen)}>
+                                <div className="flex justify-between items-center">
+                                    <span>ยืนยันสถานะผู้ใช้บริการ</span>
+                                    <svg className={`h-4 w-4 transform transition-transform ${isVerifyDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </li>
+                            {isVerifyDropdownOpen && (
+                                <ul className="ml-4">
+                                    <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate("/admin/verified-user")}>ยืนยันข้อมูลผู้ใช้</li>
+                                    <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/verified-address")}>ยืนยันข้อมูลครัวเรือน</li>
                                 </ul>
                             )}
                             <li className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3" onClick={() => navigate('/admin/report')}>รายงาน</li>

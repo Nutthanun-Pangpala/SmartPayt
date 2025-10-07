@@ -1,95 +1,172 @@
 import "@flaticon/flaticon-uicons/css/all/all.css";
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+const maskIdCard = (val) => {
+  if (!val) return "-";
+  const digits = String(val).replace(/\D/g, "");
+  if (digits.length < 6) return digits; // ถ้าน้อยมากไม่ต้อง mask
+  // โชว์ 3 ตัวหน้า + **** + 4 ตัวท้าย
+  return `${digits.slice(0, 3)}-****-****-${digits.slice(-3)}`;
+};
+
+const maskPhone = (val) => {
+  if (!val) return "-";
+  const digits = String(val).replace(/\D/g, "");
+  if (digits.length !== 10) return digits;
+  // รูปแบบ 0X-XXX-XXXX และ mask ตรงกลางเล็กน้อย
+  return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-****`;
+};
+
+const initialsFromName = (name) => {
+  if (!name) return "U";
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] || "U").toUpperCase() + (parts[1]?.[0] || "").toUpperCase();
+};
 
 const UserDatacard = () => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // ✅ เรียกใช้ useNavigate ก่อน
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // ดึง lineUserId จาก localStorage
-  const lineUserId = localStorage.getItem("lineUserId");
+  const lineUserId = useMemo(() => localStorage.getItem("lineUserId"), []);
 
-  useEffect(() => {
+  const fetchUser = async () => {
     if (!lineUserId) {
-      navigate("/userLogin"); // ✅ แก้ไข: เรียก navigate ใน useEffect
+      navigate("/userLogin");
       return;
     }
+    try {
+      setLoading(true);
+      setError("");
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL}/api/user/${lineUserId}`
+      );
+      setUserData(res.data?.user || null);
+    } catch (e) {
+      console.error("เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้:", e);
+      setError("ไม่สามารถดึงข้อมูลผู้ใช้ได้");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchUserData = async () => {
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL}/api/user/${lineUserId}`
-        );
-        setUserData(response.data.user);
-      } catch (error) {
-        console.error("เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้:", error);
-        setError("ไม่สามารถดึงข้อมูลผู้ใช้ได้");
-      }
-    };
+  useEffect(() => {
+    fetchUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineUserId]);
 
-    fetchUserData();
-  }, [lineUserId, navigate]); // ✅ แก้ไข: รวม dependencies ใน useEffect
-
-  if (error) {
-    return <div className="text-red-500">{error}</div>;
-  }
-
-  if (!userData) {
+  if (loading) {
     return (
-      <div className="text-center mt-20">
-        <div role="status">
-          <svg
-            aria-hidden="true"
-            className="inline w-8 h-8 text-gray-200 animate-spin fill-green-600"
-            viewBox="0 0 100 101"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-              fill="currentColor"
-            />
-            <path
-              d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-              fill="currentFill"
-            />
-          </svg>
-          <span className="sr-only">Loading...</span>
+      <div className="mx-3 mt-3 mb-4 rounded-2xl border shadow-sm bg-white overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-green-600 to-emerald-400" />
+        <div className="p-4 animate-pulse">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-gray-200" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-1/2" />
+              <div className="h-3 bg-gray-200 rounded w-1/3" />
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="h-3 bg-gray-200 rounded w-2/3" />
+            <div className="h-3 bg-gray-200 rounded w-3/5" />
+            <div className="h-3 bg-gray-200 rounded w-1/2" />
+          </div>
         </div>
       </div>
     );
   }
 
+  if (error || !userData) {
+    return (
+      <div className="mx-3 mt-3 mb-4 rounded-2xl border shadow-sm bg-white overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-red-600 to-rose-400" />
+        <div className="p-4">
+          <div className="text-red-600 mb-3">{error || "ไม่พบข้อมูลผู้ใช้"}</div>
+          <button
+            onClick={fetchUser}
+            className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-gray-50"
+          >
+            <i className="fi fi-rr-rotate-right" />
+            ลองใหม่
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const avatar = initialsFromName(userData.name);
+
   return (
-    <div className="dashboard bg-white shadow mx-3 rounded-lg mb-4 mt-3 flex">
-      <div className="b bg-green-700 w-3 max-h-full rounded-l-lg"></div>
-      <div className="my-3 mx-2">
-        <div className="flex">
-          <p>
-            <i className="fi fi-sr-user m-2 text-xl font-bold"></i>ชื่อ-นามสกุล :{" "}
-            {userData.name}
-          </p>
+    <div className="mx-3 mt-3 mb-4 rounded-2xl border shadow-sm bg-white overflow-hidden">
+      {/* แถบสีบน */}
+      <div className="h-1.5 bg-gradient-to-r from-green-600 to-emerald-400" />
+
+      <div className="p-4">
+        {/* ส่วนหัว: อวาตาร์ + ชื่อ */}
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-green-600 text-white flex items-center justify-center text-lg font-bold">
+            {avatar}
+          </div>
+          <div className="min-w-0">
+            <div className="text-base md:text-lg font-semibold truncate">
+              {userData.name || "-"}
+            </div>
+            <div className="text-gray-500 text-xs md:text-sm break-all">
+              ID: {userData.lineUserId || "-"}
+            </div>
+          </div>
         </div>
-        <div className="flex">
-          <p>
-            <i className="fi fi-sr-credit-card mx-2 my-1"></i>เลขบัตรประชาชน :{" "}
-            {userData.ID_card_No}
-          </p>
+
+        {/* รายละเอียด */}
+        <div className="mt-3 space-y-2 text-sm md:text-base">
+          <div className="flex items-start gap-2">
+            <i className="fi fi-sr-credit-card mt-0.5 text-gray-500" />
+            <div className="text-gray-600">
+              <span className="text-gray-500 mr-1">เลขบัตรประชาชน:</span>
+              <span className="font-medium">{maskIdCard(userData.ID_card_No)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <i className="fi fi-ss-phone-call mt-0.5 text-gray-500" />
+            <div className="text-gray-600">
+              <span className="text-gray-500 mr-1">เบอร์โทรศัพท์:</span>
+              <span className="font-medium">{maskPhone(userData.Phone_No)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <i className="fi fi-sr-envelope mt-0.5 text-gray-500" />
+            <div className="text-gray-600">
+              <span className="text-gray-500 mr-1">อีเมล:</span>
+              {userData.Email ? (
+                <a
+                  href={`mailto:${userData.Email}`}
+                  className="font-medium text-blue-600 hover:underline break-all"
+                >
+                  {userData.Email}
+                </a>
+              ) : (
+                <span className="font-medium">-</span>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex">
-          <p>
-            <i className="fi fi-ss-phone-call mx-2 my-1"></i>เบอร์โทรศัพท์ :{" "}
-            {userData.Phone_No}
-          </p>
-        </div>
-        <div className="flex">
-          <p className="text-blue-600">
-            <i className="fi fi-sr-envelope mx-2 my-1 text-blue-600"></i>อีเมล์ :{" "}
-            {userData.Email}
-          </p>
-        </div>
+
+        {/* ปุ่มไปจัดการบัญชี (ถ้ามีหน้า) */}
+        {/* <div className="mt-4">
+          <button
+            onClick={() => navigate("/account")}
+            className="inline-flex items-center gap-2 rounded-lg bg-green-600 hover:bg-green-700 text-white px-4 py-2 text-sm font-medium"
+          >
+            <i className="fi fi-rr-pencil" />
+            แก้ไขข้อมูล
+          </button>
+        </div> */}
       </div>
     </div>
   );

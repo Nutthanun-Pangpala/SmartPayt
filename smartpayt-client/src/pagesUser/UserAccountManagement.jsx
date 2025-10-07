@@ -1,169 +1,320 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import NavbarComponent from "../assets/component/user/userNavbar";
 import BottomNav from "../assets/component/user/userNavigate";
 
 export default function AccountManagement() {
-  const [account, setAccount] = useState(null); // สมมติได้ข้อมูลแค่ user เดียว
+  const [account, setAccount] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   const [formData, setFormData] = useState({
+    lineUserId: "",
     name: "",
     ID_card_No: "",
     Phone_No: "",
     Email: "",
   });
 
+  const lineUserIdLS = useMemo(() => localStorage.getItem("lineUserId") || "", []);
+
+  // ฟิลด์ที่ติดตามความเปลี่ยน
+  const FIELDS = [
+    { key: "name",       label: "ชื่อ" },
+    { key: "ID_card_No", label: "เลขบัตรประชาชน" },
+    { key: "Phone_No",   label: "เบอร์โทรศัพท์" },
+    { key: "Email",      label: "อีเมล" },
+  ];
+
   useEffect(() => {
-    const lineUserId = localStorage.getItem("lineUserId");
-    if (!lineUserId) return;
-
-    axios
-      .get(`http://localhost:3000/api/user/${lineUserId}`)
-      .then((res) => {
-        // สมมติ API ส่งกลับข้อมูล user ตรง ๆ
-        setAccount(res.data.user || res.data);
-        setFormData(res.data.user || res.data);
-      })
-      .catch((err) => {
+    if (!lineUserIdLS) return;
+    (async () => {
+      try {
+        const res = await axios.get(`http://localhost:3000/api/user/${lineUserIdLS}`);
+        const user = res.data?.user || res.data || {};
+        setAccount(user);
+        setFormData({
+          lineUserId: user.lineUserId || lineUserIdLS,
+          name: user.name || "",
+          ID_card_No: user.ID_card_No || "",
+          Phone_No: user.Phone_No || "",
+          Email: user.Email || "",
+        });
+        setError("");
+      } catch (err) {
         console.error("Error fetching user:", err);
-      });
-  }, []);
+        setError("โหลดข้อมูลผู้ใช้ไม่สำเร็จ");
+      }
+    })();
+  }, [lineUserIdLS]);
 
-  const startEdit = () => {
-    setEditing(true);
-  };
+  // เตือนออกหน้า/รีเฟรชเมื่อมีการแก้ไขแต่ยังไม่บันทึก
+  useEffect(() => {
+    const handler = (e) => {
+      if (editing && isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [editing, /* eslint-disable-line react-hooks/exhaustive-deps */]); // isDirty ใช้ผ่าน getter ข้างล่าง
 
+  const startEdit = () => setEditing(true);
   const cancelEdit = () => {
     setEditing(false);
-    setFormData(account);
+    if (account) {
+      setFormData({
+        lineUserId: account.lineUserId || lineUserIdLS,
+        name: account.name || "",
+        ID_card_No: account.ID_card_No || "",
+        Phone_No: account.Phone_No || "",
+        Email: account.Email || "",
+      });
+    }
   };
 
-  const saveEdit = () => {
-    axios
-      .put(
+  // diff ความเปลี่ยน
+  const getChanges = () => {
+    if (!account) return [];
+    return FIELDS.reduce((acc, f) => {
+      const oldVal = account?.[f.key] ?? "";
+      const newVal = formData?.[f.key] ?? "";
+      if (String(oldVal) !== String(newVal)) {
+        acc.push({ ...f, oldVal, newVal });
+      }
+      return acc;
+    }, []);
+  };
+  const isDirty = getChanges().length > 0;
+
+  // ตรวจความถูกต้องแบบง่าย
+  const validate = () => {
+    const errs = [];
+    if (!formData.name.trim()) errs.push("กรุณากรอกชื่อ");
+    if (formData.ID_card_No && !/^\d{13}$/.test(formData.ID_card_No)) errs.push("เลขบัตรประชาชนต้องมี 13 หลัก");
+    if (formData.Phone_No && !/^\d{10}$/.test(formData.Phone_No)) errs.push("เบอร์โทรศัพท์ต้องมี 10 หลัก");
+    if (formData.Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.Email)) errs.push("อีเมลไม่ถูกต้อง");
+    return errs;
+  };
+
+  const saveEdit = async () => {
+    try {
+      setSaving(true);
+      await axios.put(
         `http://localhost:3000/api/userupdateAccout/${formData.lineUserId}`,
         formData
-      )
-      .then(() => {
-        setAccount(formData);
-        setEditing(false);
-        alert("แก้ไขข้อมูลสำเร็จ");
-      })
-      .catch((err) => {
-        console.error("Error updating account:", err);
-        alert("แก้ไขข้อมูลไม่สำเร็จ");
-      });
+      );
+      setAccount(formData);
+      setEditing(false);
+      setConfirmOpen(false);
+      // แจ้งสำเร็จแบบนุ่ม ๆ
+      window?.scrollTo?.({ top: 0, behavior: "smooth" });
+      setError("");
+    } catch (err) {
+      console.error("Error updating account:", err);
+      setError("แก้ไขข้อมูลไม่สำเร็จ");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (!account) return <div>กำลังโหลดข้อมูล...</div>;
+  const initials = useMemo(() => {
+    const n = (formData.name || "").trim();
+    if (!n) return "U";
+    const parts = n.split(/\s+/);
+    const first = parts[0]?.[0] || "";
+    const second = parts[1]?.[0] || "";
+    return (first + second).toUpperCase() || first.toUpperCase() || "U";
+  }, [formData.name]);
+
+  if (!account) {
+    return (
+      <div className="min-h-screen bg-white">
+        <NavbarComponent />
+        <div className="max-w-screen-sm mx-auto px-4 md:px-6 pt-8 pb-24 text-center text-gray-600">
+          กำลังโหลดข้อมูล...
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
-    <div>
+    <div className="min-h-screen bg-white">
       <NavbarComponent />
-      <div>
-        <div className="font-bold w-full h-20 text-center p-10">
+
+      <div
+        className="mx-auto w-full max-w-screen-sm md:max-w-2xl px-4 md:px-6 pt-6 pb-24"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }}
+      >
+        <h1 className="text-center text-2xl md:text-3xl font-bold tracking-tight">
           จัดการบัญชีผู้ใช้
-        </div>
-        <div className="h-auto border-b bg-slate-100 flex justify-center ">
-          <div className="w-auto px-20 py-10 border bg-white my-5 rounded-lg">
+        </h1>
+
+        {/* โปรไฟล์การ์ด */}
+        <div className="mt-6 rounded-2xl border shadow-sm p-4 md:p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xl md:text-2xl font-bold">
+              {initials}
+            </div>
+            <div className="flex-1">
+              <div className="text-lg md:text-xl font-semibold">{account?.name || "-"}</div>
+              <div className="text-gray-500 text-sm break-all">ID: {account?.lineUserId || "-"}</div>
+            </div>
+            {!editing ? (
+              <button
+                onClick={startEdit}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 active:scale-[.98]"
+              >
+                <i className="fi fi-rr-pencil" />
+                แก้ไข
+              </button>
+            ) : null}
+          </div>
+
+          {/* ฟอร์ม */}
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* ชื่อ */}
-            <h1 className="mr-5">ชื่อ</h1>
-            <div className="w-fit h-10 m-2 p-2  ">
-              {editing ? (
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="bg-slate-100 w-fit h-10 border rounded-md p-2"
-                />
-              ) : (
-                account.name
-              )}
+            <div className="col-span-1">
+              <label className="block text-sm text-gray-600 mb-1">ชื่อ</label>
+              <input
+                type="text"
+                value={formData.name}
+                readOnly={!editing}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="ชื่อ-นามสกุล"
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
+              />
             </div>
 
             {/* เลขบัตรประชาชน */}
-            <h1 className="mr-5">รหัสประจำตัวประชาชน</h1>
-            <div className="w-fit h-10 m-2 p-2 ">
-              {editing ? (
-                <input
-                  type="text"
-                  value={formData.ID_card_No}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ID_card_No: e.target.value })
-                  }
-                  className="bg-slate-100 w-fit h-10 border rounded-md p-2 "
-                />
-              ) : (
-                account.ID_card_No
-              )}
+            <div className="col-span-1">
+              <label className="block text-sm text-gray-600 mb-1">รหัสประจำตัวประชาชน</label>
+              <input
+                type="text"
+                value={formData.ID_card_No}
+                readOnly={!editing}
+                inputMode="numeric"
+                maxLength={13}
+                onChange={(e) =>
+                  setFormData({ ...formData, ID_card_No: e.target.value.replace(/\D/g, "") })
+                }
+                placeholder="กรอก 13 หลัก"
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
+              />
             </div>
 
             {/* เบอร์โทรศัพท์ */}
-            <h1 className="mr-5">เบอร์โทรศัพท์</h1>
-            <div className="w-fit h-10 m-2 p-2 ">
-              {editing ? (
-                <input
-                  type="text"
-                  value={formData.Phone_No}
-                  onChange={(e) =>
-                    setFormData({ ...formData, Phone_No: e.target.value })
-                  }
-                  className="bg-slate-100 w-fit h-10 border rounded-md p-2 "
-                />
-              ) : (
-                account.Phone_No
-              )}
+            <div className="col-span-1">
+              <label className="block text-sm text-gray-600 mb-1">เบอร์โทรศัพท์</label>
+              <input
+                type="text"
+                value={formData.Phone_No}
+                readOnly={!editing}
+                inputMode="numeric"
+                maxLength={10}
+                onChange={(e) =>
+                  setFormData({ ...formData, Phone_No: e.target.value.replace(/\D/g, "") })
+                }
+                placeholder="กรอก 10 หลัก"
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
+              />
             </div>
 
             {/* อีเมล */}
-            <h1 className="mr-5">อีเมล</h1>
-            <div className="w-fit h-10 m-2 p-2 ">
-              {editing ? (
-                <input
-                  type="email"
-                  value={formData.Email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, Email: e.target.value })
-                  }
-                  className="bg-slate-100 w-fit h-10 border rounded-md p-2 "
-                />
-              ) : (
-                account.Email
-              )}
+            <div className="col-span-1">
+              <label className="block text-sm text-gray-600 mb-1">อีเมล</label>
+              <input
+                type="email"
+                value={formData.Email}
+                readOnly={!editing}
+                onChange={(e) => setFormData({ ...formData, Email: e.target.value })}
+                placeholder="name@example.com"
+                className={`w-full rounded-lg border px-3 py-2 ${editing ? "bg-white" : "bg-gray-50"}`}
+              />
             </div>
+          </div>
 
-            {/* จัดการ */}
-            <div className="w-1/5 px-2 flex space-x-2">
-              {editing ? (
-                <>
-                  <button
-                    onClick={saveEdit}
-                    className="bg-green-500 text-white px-3 py-1 rounded m-2"
-                  >
-                    <i className="mr-2 fi fi-br-check"></i>บันทึก
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="bg-gray-300 px-3 py-1 rounded m-2"
-                  >
-                    ยกเลิก
-                  </button>
-                </>
-              ) : (
+          {/* ข้อความผิดพลาด */}
+          {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+
+          {/* ปุ่มจัดการ */}
+          <div className="mt-6 flex flex-col sm:flex-row sm:justify-end gap-3">
+            {editing ? (
+              <>
                 <button
-                  onClick={startEdit}
-                  className="bg-blue-500 text-white px-3 py-1 m-2 rounded flex"
+                  onClick={cancelEdit}
+                  className="rounded-lg border px-4 py-2 hover:bg-gray-50"
+                  disabled={saving}
                 >
-                  <i className="fi fi-rr-pencil mr-2"></i>แก้ไข
+                  ยกเลิก
                 </button>
-              )}
-            </div>
+
+                {/* ปุ่มบันทึก -> เปิด modal ยืนยัน */}
+                <button
+                  onClick={() => {
+                    const errs = validate();
+                    if (errs.length) { alert(errs[0]); return; }
+                    if (!isDirty) { alert("ยังไม่มีการเปลี่ยนแปลง"); return; }
+                    setConfirmOpen(true);
+                  }}
+                  disabled={!isDirty || saving}
+                  className={`rounded-lg px-4 py-2 text-white ${
+                    !isDirty || saving
+                      ? "bg-green-400 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  {saving ? "กำลังบันทึก..." : "บันทึก"}
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       </div>
-      <BottomNav/>
+
+      {/* Modal ยืนยันบันทึก */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[70]">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmOpen(false)} />
+          <div className="absolute inset-x-4 top-20 md:inset-x-0 md:mx-auto md:max-w-lg bg-white rounded-2xl shadow-xl p-4 md:p-6">
+            <h3 className="text-lg md:text-xl font-semibold">ยืนยันการบันทึก</h3>
+            <p className="text-sm text-gray-600 mt-1">คุณได้แก้ไขข้อมูลดังต่อไปนี้:</p>
+
+            <div className="mt-3 max-h-60 overflow-auto border rounded-lg">
+              {getChanges().map((c) => (
+                <div key={c.key} className="px-3 py-2 border-b last:border-b-0 text-sm">
+                  <div className="font-medium">{c.label}</div>
+                  <div className="text-gray-500 line-through">{c.oldVal || "—"}</div>
+                  <div className="text-emerald-700 font-medium">{c.newVal || "—"}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-lg border px-4 py-2 hover:bg-gray-50"
+                disabled={saving}
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={saveEdit}
+                className={`rounded-lg px-4 py-2 text-white ${saving ? "bg-green-400" : "bg-green-600 hover:bg-green-700"}`}
+                disabled={saving}
+              >
+                {saving ? "กำลังบันทึก..." : "ยืนยันบันทึก"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BottomNav />
     </div>
   );
 }
