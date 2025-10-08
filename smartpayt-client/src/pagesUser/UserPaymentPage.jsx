@@ -2,11 +2,26 @@ import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import NavbarComponent from "../assets/component/user/userNavbar";
 
+/**
+ * Utility: format currency (THB) and date (th-TH)
+ */
 const formatTHB = (n) =>
   isNaN(Number(n))
     ? "0.00"
     : Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
+const formatTHDate = (d) =>
+  d
+    ? new Date(d).toLocaleDateString("th-TH", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "-";
+
+/**
+ * Badge for bill status
+ */
 const StatusBadge = ({ status }) => {
   const s = String(status);
   if (s === "1")
@@ -28,6 +43,179 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+/**
+ * Compute available payment methods from business rules
+ */
+function computeAvailableMethods(totalAmount, lineUserId) {
+  const t = Number(totalAmount) || 0;
+
+  return [
+    {
+      key: "promptpay",
+      label: "QR PromptPay",
+      desc: "สแกนจ่ายด้วยแอปธนาคาร",
+      icon: "fi fi-rr-qr-code",
+      available: t > 0 && t <= 50000,
+      reason:
+        t <= 0 ? "ยังไม่ได้เลือกบิล" : t > 50000 ? "จำกัดยอดต่อรายการ ≤ 50,000" : "",
+      next: "/payment/qr",
+    },
+    {
+      key: "card",
+      label: "บัตรเดบิต/เครดิต",
+      desc: "Visa / MasterCard",
+      icon: "fi fi-rr-credit-card",
+      available: t >= 100 && t <= 200000,
+      reason:
+        t <= 0
+          ? "ยังไม่ได้เลือกบิล"
+          : t < 100
+          ? "ขั้นต่ำ 100 บาท"
+          : t > 200000
+          ? "เกินวงเงินสูงสุด"
+          : "",
+      next: "/payment/card",
+    },
+    {
+      key: "bank",
+      label: "โอนผ่านธนาคาร",
+      desc: "อัปโหลดสลิปภายหลัง",
+      icon: "fi fi-rr-building",
+      available: t > 0,
+      reason: t <= 0 ? "ยังไม่ได้เลือกบิล" : "",
+      next: "/payment/transfer",
+    },
+    {
+      key: "linepay",
+      label: "LINE Pay",
+      desc: "จ่ายด้วยบัญชี LINE",
+      icon: "fi fi-brands-line",
+      available: t > 0 && !!lineUserId,
+      reason: t <= 0 ? "ยังไม่ได้เลือกบิล" : !lineUserId ? "ต้องเข้าสู่ระบบด้วย LINE" : "",
+      next: "/payment/linepay",
+    },
+    {
+      key: "truemoney",
+      label: "TrueMoney Wallet",
+      desc: "วอลเล็ทยอดนิยม",
+      icon: "fi fi-rr-wallet",
+      available: t > 0 && t <= 30000,
+      reason: t <= 0 ? "ยังไม่ได้เลือกบิล" : t > 30000 ? "จำกัดยอดต่อรายการ ≤ 30,000" : "",
+      next: "/payment/truemoney",
+    },
+  ];
+}
+
+/**
+ * Reusable: Section header
+ */
+const SectionTitle = ({ icon, children, sub }) => (
+  <div className="mb-3">
+    <div className="flex items-center gap-2">
+      {icon ? (
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+          <i className={icon} />
+        </span>
+      ) : null}
+      <h2 className="text-lg md:text-xl font-semibold text-emerald-700">{children}</h2>
+    </div>
+    {sub ? <p className="mt-1 text-sm text-gray-500">{sub}</p> : null}
+  </div>
+);
+
+/**
+ * Payment method option card (radio)
+ */
+const MethodCard = ({ m, selected, onSelect }) => {
+  const disabled = !m.available;
+  return (
+    <label
+      className={`relative rounded-2xl border p-4 transition focus-within:ring-2 focus-within:ring-emerald-200 outline-none block
+        ${selected ? "border-emerald-500 ring-2 ring-emerald-200" : "border-gray-200"}
+        ${disabled ? "opacity-60 bg-gray-50 cursor-not-allowed" : "hover:shadow-sm cursor-pointer"}
+      `}
+      aria-disabled={disabled}
+    >
+      <input
+        type="radio"
+        name="paymethod"
+        className="sr-only"
+        disabled={disabled}
+        checked={selected}
+        onChange={() => !disabled && onSelect(m.key)}
+        aria-label={m.label}
+      />
+      <div className="flex items-start gap-3">
+        <div
+          className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl
+            ${disabled ? "bg-gray-200 text-gray-500" : "bg-emerald-100 text-emerald-700"}
+          `}
+          aria-hidden
+        >
+          <i className={m.icon} />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-gray-900">{m.label}</p>
+            {selected && (
+              <span className="text-xs text-emerald-600 font-semibold">เลือกแล้ว</span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">{m.desc}</p>
+          {disabled && m.reason ? (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700">
+              <i className="fi fi-rr-lock" />
+              <span>{m.reason}</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </label>
+  );
+};
+
+/**
+ * Bill list item
+ */
+const BillItem = ({ bill, checked, selectable, toggle }) => {
+  const s = String(bill.status);
+  return (
+    <li className="rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className="text-xs text-gray-500">ครบกำหนด</div>
+          <div className="text-lg font-semibold">{formatTHDate(bill.due_date)}</div>
+        </div>
+        <StatusBadge status={s} />
+      </div>
+
+      <div className="mt-3 flex items-center justify-between">
+        <div className="text-sm text-gray-500">จำนวนเงิน</div>
+        <div className="text-2xl font-bold text-emerald-700">฿{formatTHB(bill.amount_due)}</div>
+      </div>
+
+      {s !== "1" && (
+        <div className="mt-3 flex items-center">
+          <input
+            id={`checkbox-${bill.id}`}
+            type="checkbox"
+            className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500"
+            checked={checked}
+            disabled={!selectable}
+            onChange={() => toggle(bill.id)}
+          />
+          <label
+            htmlFor={`checkbox-${bill.id}`}
+            className={`ms-2 text-sm ${selectable ? "text-gray-900" : "text-gray-400"}`}
+          >
+            {selectable ? "เลือกชำระบิลนี้" : "ไม่สามารถเลือกได้"}
+          </label>
+        </div>
+      )}
+    </li>
+  );
+};
+
 export default function PaymentPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -36,29 +224,38 @@ export default function PaymentPage() {
   const [allBills] = useState(bills || []);
   const [selectedBills, setSelectedBills] = useState([]);
   const [isPaying, setIsPaying] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState(null);
 
+  // Safe to call once: reading from localStorage (no deps)
+  const lineUserId = useMemo(() => localStorage.getItem("lineUserId"), []);
+
+  // Empty state: no bills available
   if (!allBills || allBills.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavbarComponent />
-        <div className="max-w-lg mx-auto px-4 pt-10">
-          <div className="rounded-2xl border bg-white p-6 text-center">
-            <div className="text-red-500 font-semibold">ไม่พบข้อมูลบิลสำหรับชำระ</div>
+        <main className="max-w-lg mx-auto px-4 pt-10">
+          <div className="rounded-2xl border bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+              <i className="fi fi-rr-file-times text-lg" />
+            </div>
+            <h1 className="text-lg font-semibold text-gray-900">ไม่พบข้อมูลบิลสำหรับชำระ</h1>
+            <p className="mt-1 text-sm text-gray-500">กรุณากลับไปเลือกที่อยู่หรือช่วงเวลาใหม่อีกครั้ง</p>
+            <button
+              onClick={() => navigate(-1)}
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              <i className="fi fi-rr-arrow-small-left mr-2" /> ย้อนกลับ
+            </button>
           </div>
-        </div>
+        </main>
       </div>
     );
   }
 
-  // เรียงตามวันครบกำหนด (ล่าสุดอยู่ล่างสุด)
+  // Sort bills by due date ASC (latest at the bottom)
   const sortedBills = useMemo(
-    () =>
-      allBills
-        .slice()
-        .sort(
-          (a, b) =>
-            new Date(a.due_date || 0) - new Date(b.due_date || 0)
-        ),
+    () => allBills.slice().sort((a, b) => new Date(a.due_date || 0) - new Date(b.due_date || 0)),
     [allBills]
   );
 
@@ -73,19 +270,15 @@ export default function PaymentPage() {
   );
 
   const totalAmount = useMemo(
-    () =>
-      selectedBillDetails.reduce(
-        (sum, bill) => sum + (parseFloat(bill.amount_due) || 0),
-        0
-      ),
+    () => selectedBillDetails.reduce((sum, bill) => sum + (parseFloat(bill.amount_due) || 0), 0),
     [selectedBillDetails]
   );
 
+  const methods = useMemo(() => computeAvailableMethods(totalAmount, lineUserId), [totalAmount, lineUserId]);
+
   const toggleBillSelection = (billId) => {
     const strId = String(billId);
-    setSelectedBills((prev) =>
-      prev.includes(strId) ? prev.filter((id) => id !== strId) : [...prev, strId]
-    );
+    setSelectedBills((prev) => (prev.includes(strId) ? prev.filter((id) => id !== strId) : [...prev, strId]));
   };
 
   const toggleSelectAll = () => {
@@ -99,39 +292,48 @@ export default function PaymentPage() {
       alert("กรุณาเลือกบิลที่ต้องการชำระก่อน");
       return;
     }
+    if (!selectedMethod) {
+      alert("กรุณาเลือกวิธีการชำระเงิน");
+      return;
+    }
+    const method = methods.find((m) => m.key === selectedMethod);
+    if (!method || !method.available) {
+      alert(method?.reason || "วิธีชำระนี้ไม่พร้อมใช้งาน");
+      return;
+    }
+
     setIsPaying(true);
-    navigate("/payment/qr", {
+    navigate(method.next, {
       state: {
         selectedBills,
         totalAmount,
+        method: selectedMethod,
       },
     });
   };
 
-  const allSelected =
-    selectableBills.length > 0 &&
-    selectableBills.every((b) => selectedBills.includes(String(b.id)));
+  const allSelected = selectableBills.length > 0 && selectableBills.every((b) => selectedBills.includes(String(b.id)));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white">
       <NavbarComponent />
 
+      {/* Page container */}
       <main
         className="mx-auto w-full max-w-screen-sm md:max-w-lg px-4 md:px-6 pt-5 pb-36"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 9rem)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 11rem)" }}
+        aria-live="polite"
       >
-        {/* หัวเรื่อง + ชิปที่อยู่ */}
+        {/* Title & address chip */}
         <div className="mb-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-emerald-700">
-            หน้าชำระค่าบริการ
-          </h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-emerald-700">หน้าชำระค่าบริการ</h1>
           <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-100 text-emerald-800 text-xs px-3 py-1 border border-emerald-200">
             <i className="fi fi-ss-marker" />
             ที่อยู่ ID : <span className="font-semibold">{addressId}</span>
           </div>
         </div>
 
-        {/* แถบเลือกทั้งหมด + จำนวนเลือก */}
+        {/* Select all toolbar */}
         <div className="rounded-2xl border bg-white p-4 shadow-sm mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <input
@@ -141,97 +343,88 @@ export default function PaymentPage() {
               checked={allSelected}
               disabled={selectableBills.length === 0}
               onChange={toggleSelectAll}
+              aria-label="เลือกบิลทั้งหมด"
             />
             <label htmlFor="select-all" className="text-sm md:text-base">
               เลือกทั้งหมด ({selectedBills.length}/{selectableBills.length})
             </label>
           </div>
-          <div className="text-sm text-gray-500">
-            บิลทั้งหมด: {sortedBills.length}
-          </div>
+          <div className="text-sm text-gray-500">บิลทั้งหมด: {sortedBills.length}</div>
         </div>
 
-        {/* รายการบิล */}
+        {/* Bills list */}
+        <SectionTitle icon="fi fi-rr-clipboards" sub="เลือกบิลที่ต้องการชำระ">
+          รายการบิลของคุณ
+        </SectionTitle>
         <ul className="space-y-3">
           {sortedBills.map((bill) => {
             const s = String(bill.status);
-            const selectable = s === "0"; // ยังไม่ชำระ → เลือกได้
+            const selectable = s === "0"; // unpaid
             const checked = selectedBills.includes(String(bill.id));
             return (
-              <li
+              <BillItem
                 key={bill.id}
-                className={`rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500">ครบกำหนด</div>
-                    <div className="text-lg font-semibold">
-                      {new Date(bill.due_date).toLocaleDateString("th-TH", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
-                    </div>
-                  </div>
-                  <StatusBadge status={bill.status} />
-                </div>
-
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="text-sm text-gray-500">จำนวนเงิน</div>
-                  <div className="text-2xl font-bold text-emerald-700">
-                    ฿{formatTHB(bill.amount_due)}
-                  </div>
-                </div>
-
-                {/* เลือกชำระ */}
-                {s !== "1" && (
-                  <div className="mt-3 flex items-center">
-                    <input
-                      id={`checkbox-${bill.id}`}
-                      type="checkbox"
-                      className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500"
-                      checked={checked}
-                      disabled={!selectable}
-                      onChange={() => toggleBillSelection(bill.id)}
-                    />
-                    <label
-                      htmlFor={`checkbox-${bill.id}`}
-                      className={`ms-2 text-sm ${
-                        selectable ? "text-gray-900" : "text-gray-400"
-                      }`}
-                    >
-                      {selectable ? "เลือกชำระบิลนี้" : "ไม่สามารถเลือกได้"}
-                    </label>
-                  </div>
-                )}
-              </li>
+                bill={bill}
+                selectable={selectable}
+                checked={checked}
+                toggle={toggleBillSelection}
+              />
             );
           })}
         </ul>
+
+        {/* Payment methods */}
+        <div className="mt-8">
+          <SectionTitle icon="fi fi-sr-credit-card" sub="เลือกวิธีที่สะดวกและเหมาะกับยอดชำระ">
+            เลือกวิธีการชำระเงิน
+          </SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {methods.map((m) => (
+              <MethodCard key={m.key} m={m} selected={selectedMethod === m.key && m.available} onSelect={setSelectedMethod} />
+            ))}
+          </div>
+        </div>
+
+        {/* Tips / helper */}
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <div className="flex items-start gap-2">
+            <i className="fi fi-rr-bulb mt-0.5" />
+            <p>
+              เคล็ดลับ: สามารถเลือกได้หลายบิลในครั้งเดียว ระบบจะแสดงวิธีชำระที่รองรับตามยอดรวมโดยอัตโนมัติ
+            </p>
+          </div>
+        </div>
       </main>
 
-      {/* แถบสรุปยอดติดล่าง */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-      >
+      {/* Sticky bottom summary bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
         <div className="mx-auto w-full max-w-screen-sm md:max-w-lg px-4 md:px-6 py-3">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs text-gray-500">ยอดรวมที่เลือก</div>
-              <div className="text-2xl font-bold text-emerald-700">
-                ฿{formatTHB(totalAmount)}
-              </div>
+              <div className="text-2xl font-bold text-emerald-700">฿{formatTHB(totalAmount)}</div>
+              {selectedBills.length > 0 ? (
+                <div className="mt-0.5 text-xs text-gray-500">เลือก {selectedBills.length} บิล</div>
+              ) : null}
             </div>
             <button
               onClick={handleConfirmPayment}
-              disabled={selectedBills.length === 0 || isPaying}
+              disabled={
+                selectedBills.length === 0 ||
+                isPaying ||
+                !selectedMethod ||
+                !methods.find((m) => m.key === selectedMethod)?.available
+              }
               className={`inline-flex items-center justify-center px-5 py-3 rounded-xl font-semibold text-white transition
                 ${
-                  selectedBills.length === 0 || isPaying
+                  selectedBills.length === 0 ||
+                  isPaying ||
+                  !selectedMethod ||
+                  !methods.find((m) => m.key === selectedMethod)?.available
                     ? "bg-emerald-300 cursor-not-allowed"
                     : "bg-emerald-600 hover:bg-emerald-700"
                 }`}
+              aria-busy={isPaying}
             >
               <i className="fi fi-sr-credit-card mr-2" />
               {isPaying ? "กำลังไปหน้าชำระ..." : "ยืนยันการชำระเงิน"}
