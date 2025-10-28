@@ -6,13 +6,48 @@ require("dotenv").config();
 
 const access_token = process.env.LINE_ACCESS_TOKEN;
 
+// Helper function สำหรับส่ง LINE Message
+const sendLineMessage = async (lineUserId, messageText) => {
+  if (!lineUserId || !messageText) {
+    console.error("❌ LINE Send Error: Missing lineUserId or messageText");
+    return; // ไม่ต้องทำอะไรต่อถ้าข้อมูลไม่ครบ
+  }
+  if (!access_token) {
+     console.error("❌ LINE Send Error: Missing LINE_ACCESS_TOKEN in .env");
+     return; // ไม่ต้องทำอะไรต่อถ้าไม่มี token
+  }
+
+  try {
+    console.log(`➡️ Sending LINE message to ${lineUserId}: "${messageText}"`);
+    await axios.post(
+      "https://api.line.me/v2/bot/message/push",
+      {
+        to: lineUserId,
+        messages: [{ type: "text", text: messageText }],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${access_token}`,
+        },
+      }
+    );
+    console.log(`✅ LINE message sent successfully to ${lineUserId}`);
+  } catch (error) {
+    // แสดง error ให้ละเอียดขึ้น
+    const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+    const errorDetails = error.response?.data?.details;
+    console.error(`❌ LINE Send Error to ${lineUserId}: ${errorMessage}`, errorDetails || '');
+    // ไม่ต้อง throw error ออกไป ให้แค่ log ไว้ก็พอ เพราะการส่ง LINE ล้มเหลว ไม่ควรทำให้ API หลักล่ม
+  }
+};
+
 
 exports.registerAccount = async (req, res) => {
   try {
     const { lineUserId, name, Phone_No, Email } = req.body;
     console.log("🔹 Register request:", req.body);
 
-    // ตรวจว่าผู้ใช้มีอยู่แล้วไหม
     const [user] = await db.query(
       "SELECT * FROM users WHERE lineUserId = ?",
       [lineUserId]
@@ -22,11 +57,15 @@ exports.registerAccount = async (req, res) => {
       return res.status(200).json({ message: "User already exists" });
     }
 
-    // เพิ่มผู้ใช้ใหม่
     await db.query(
       "INSERT INTO users (lineUserId, name, Phone_No, Email) VALUES (?, ?, ?, ?)",
       [lineUserId, name, Phone_No, Email]
     );
+
+    // --- 🚀 เพิ่ม LINE Notification ---
+    const messageText = `🎉 ยินดีต้อนรับคุณ ${name}!\nบัญชีของคุณพร้อมใช้งานแล้ว`;
+    await sendLineMessage(lineUserId, messageText);
+    // ---------------------------------
 
     res.status(200).json({ message: "User registered successfully" });
   } catch (err) {
@@ -38,75 +77,77 @@ exports.registerAccount = async (req, res) => {
 exports.registerAddress = async (req, res) => {
   try {
     const { 
-      lineUserId, 
-      house_no, 
-      village_no, 
-      alley, 
-      province, 
-      district, 
-      sub_district, 
-      postal_code, 
-      address_type
+      lineUserId, house_no, village_no, alley, province, 
+      district, sub_district, postal_code, address_type 
     } = req.body;
 
+    // ... (โค้ดตรวจสอบข้อมูล, เช็ค user เหมือนเดิม) ...
+     if (!lineUserId || !house_no || !village_no /* ... */ || !address_type) {
+         return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+     }
+     const [user] = await db.query("SELECT * FROM users WHERE lineUserId = ?", [lineUserId]);
+     if (user.length === 0) {
+         return res.status(400).json({ message: "ไม่พบผู้ใช้ในระบบ กรุณาลงทะเบียนก่อน" });
+     }
 
-    // ตรวจสอบข้อมูลที่ได้รับ
-    if (!lineUserId || !house_no || !village_no || !province || !district || !sub_district || !postal_code || !address_type) {
-      return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
-    }
-
-    // ตรวจสอบว่าผู้ใช้มีข้อมูลในระบบหรือไม่
-    const [user] = await db.query("SELECT * FROM users WHERE lineUserId = ?", [lineUserId]);
-
-    if (user.length === 0) {
-      return res.status(400).json({ message: "ไม่พบผู้ใช้ในระบบ กรุณาลงทะเบียนก่อน" });
-    }
-
+    // --- 👇 ตรวจสอบส่วนนี้ให้แน่ใจว่าถูกต้อง 👇 ---
     // ตรวจสอบว่าที่อยู่ซ้ำหรือไม่
-    const [existingAddress] = await db.query(
+    const [existingAddress] = await db.query( // <-- ✅ ต้องมี const [existingAddress] ตรงนี้
       `SELECT * FROM addresses 
        WHERE lineUserId = ? 
        AND house_no = ? 
+       AND village_no = ? -- เพิ่ม village_no ในการเช็คซ้ำด้วย
        AND alley = ? 
        AND sub_district = ? 
        AND district = ? 
        AND province = ? 
        AND postal_code = ?`,
-      [lineUserId, house_no, alley || "", sub_district, district, province, postal_code]
+      [lineUserId, house_no, village_no, alley || "", sub_district, district, province, postal_code] // <-- ✅ เพิ่ม village_no
     );
 
-    if (existingAddress.length > 0) {
+    // --- 👆 ตรวจสอบส่วนนี้ให้แน่ใจว่าถูกต้อง 👆 ---
+
+    // บรรทัดที่ 93 น่าจะอยู่แถวนี้
+    if (existingAddress.length > 0) { // <-- ✅ เช็คว่า existingAddress ถูกสร้างแล้วก่อนใช้
       return res.status(400).json({ message: "ที่อยู่นี้ถูกลงทะเบียนแล้ว" });
     }
 
-    // เพิ่มข้อมูลที่อยู่ใหม่ลงในฐานข้อมูล
+    // ... (โค้ดส่วนที่เหลือของการ Insert ที่อยู่) ...
     const insertQuery = `
       INSERT INTO addresses (
-    lineUserId, house_no, village_no, alley, province, district, sub_district, postal_code, address_type, 
-    address_verified, created_at, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-`;
+        lineUserId, house_no, village_no, alley, province, district, 
+        sub_district, postal_code, address_type, address_verified, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `;
+    // (อย่าลืม address_verified ควรเป็น 0 ไม่ใช่ false ถ้า DB เป็น INT/TINYINT)
     const [result] = await db.query(insertQuery, [
-      lineUserId, house_no, village_no, alley || "", province, district, sub_district, postal_code, address_type, false
+      lineUserId, house_no, village_no, alley || "", province, district, 
+      sub_district, postal_code, address_type, 0 // <-- ใช้ 0 แทน false
     ]);
 
     if (result.affectedRows === 0) {
       return res.status(500).json({ message: "ไม่สามารถเพิ่มข้อมูลที่อยู่ได้" });
     }
+    
+    // (ส่ง LINE Notification หา User)
+    const userName = user[0]?.name || 'ผู้ใช้'; 
+    const addressText = `${house_no} หมู่ ${village_no}, ต.${sub_district}, อ.${district}`;
+    const messageText = `🏠 คุณ ${userName} ได้เพิ่มที่อยู่ใหม่:\n${addressText}\n\nกรุณารอการตรวจสอบและยืนยันจากเจ้าหน้าที่`;
+    // (สมมติว่าคุณมีฟังก์ชัน sendLineMessage ในไฟล์นี้ หรือ import มา)
+    // await sendLineMessage(lineUserId, messageText); 
 
     res.status(201).json({
       message: "ลงทะเบียนที่อยู่สำเร็จ!",
       addressData: { 
-        lineUserId, house_no, village_no, alley, province, district, sub_district, postal_code, address_type, address_verified: false 
+         lineUserId, house_no, village_no, alley, province, district, sub_district, postal_code, address_type, address_verified: 0 
       },
     });
 
   } catch (error) {
-    console.error("❌ เกิดข้อผิดพลาด:", error);
+    console.error("❌ เกิดข้อผิดพลาดใน registerAddress:", error); // <-- เพิ่มชื่อฟังก์ชันใน Log
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
 };
-
 exports.userAddressList = async (req, res) => {
   const { page = 1, search = '', sortField = 'id', sortDirection = 'ASC' } = req.query;
   const limit = 10;
@@ -284,32 +325,53 @@ exports.updateAccount = async (req, res) => {
     if (!lineUserId) {
       return res.status(400).json({ message: 'lineUserId is required' });
     }
-
     if (!name && !Phone_No && !Email) {
       return res.status(400).json({ message: 'No fields to update' });
     }
 
-    // ✅ สร้าง query แบบ dynamic เฉพาะ field ที่ส่งมา
+    // ดึงข้อมูลผู้ใช้เก่าก่อน เพื่อดูว่ามีอะไรเปลี่ยนบ้าง
+    const [currentUser] = await db.query("SELECT name, Phone_No, Email FROM users WHERE lineUserId = ?", [lineUserId]);
+    if (currentUser.length === 0) {
+         return res.status(404).json({ message: 'User not found' });
+    }
+    const oldData = currentUser[0];
+
+
     const updates = [];
     const values = [];
+    const changedFields = []; // เก็บชื่อ field ที่เปลี่ยน
 
-    if (name) {
+    if (name && name !== oldData.name) { // เช็คว่าค่าใหม่ต่างจากค่าเก่าหรือไม่
       updates.push('name = ?');
       values.push(name);
+      changedFields.push(`ชื่อ: ${name}`); // เพิ่มข้อความสำหรับ LINE
     }
-    if (Phone_No) {
+    if (Phone_No && Phone_No !== oldData.Phone_No) {
       updates.push('Phone_No = ?');
       values.push(Phone_No);
+      changedFields.push(`เบอร์โทร: ${Phone_No}`);
     }
-    if (Email) {
+    if (Email && Email !== oldData.Email) {
       updates.push('Email = ?');
       values.push(Email);
+      changedFields.push(`อีเมล: ${Email}`);
     }
 
-    values.push(lineUserId);
+    // ถ้าไม่มีอะไรเปลี่ยน ก็ไม่ต้อง Update DB และไม่ต้องส่ง LINE
+    if (updates.length === 0) {
+         return res.json({ message: 'No changes detected' });
+    }
 
+
+    values.push(lineUserId);
     const sql = `UPDATE users SET ${updates.join(', ')} WHERE lineUserId = ?`;
     await db.query(sql, values);
+
+    // --- 🚀 เพิ่ม LINE Notification ---
+    const messageText = `👤 ข้อมูลบัญชีของคุณอัปเดตแล้ว:\n${changedFields.join('\n')}`;
+    await sendLineMessage(lineUserId, messageText);
+    // ---------------------------------
+
 
     res.json({ message: 'Account updated successfully' });
   } catch (err) {

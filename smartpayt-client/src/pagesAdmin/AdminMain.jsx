@@ -9,8 +9,9 @@ import {
   Tooltip,
 } from "recharts";
 import AdminLayout from '../pagesAdmin/component/AdminLayout'; // 1. Import AdminLayout
+import api from '../api'; // 2. Import api (ลบ axios ออก)
 
-// 2. Import ไอคอนมาเพิ่ม
+// 3. Import ไอคอนมาเพิ่ม
 import {
   FaBiohazard,
   FaClock,
@@ -21,7 +22,7 @@ import {
   FaUsers
 } from "react-icons/fa";
 
-// 3. สร้าง Component การ์ดสถิติที่ใช้ซ้ำได้
+// ... (Component StatCard เหมือนเดิม) ...
 const StatCard = ({ icon, label, value, iconBgColor, iconTextColor, onClick }) => (
   <div 
     className={`bg-white p-5 rounded-lg shadow-md flex items-center space-x-4 ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200' : ''}`}
@@ -39,34 +40,88 @@ const StatCard = ({ icon, label, value, iconBgColor, iconTextColor, onClick }) =
 
 
 const AdminMain = () => {
-  // ... (State ทั้งหมดของคุณเหมือนเดิม) ...
   const [stats, setStats] = useState({ /* ... */ });
   const [wasteData, setWasteData] = useState([ /* ... */ ]);
   const [pendingUsers, setPendingUsers] = useState(0);
   const [pendingAddresses, setPendingAddresses] = useState(0);
   const [availableMonths, setAvailableMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState("");
-
   const navigate = useNavigate();
-
-  // 4. (ปรับปรุง) อัปเดตสี Pie Chart ให้ตรงกับธีมใหม่
-  // ["ขยะทั่วไป (ฟ้า)", "ขยะอันตราย (แดง)", "ขยะรีไซเคิล (เขียว)", "ขยะอินทรีย์ (น้ำตาล)"]
   const COLORS = ["#3B82F6", "#EF4444", "#22C55E", "#854D0E"];
 
-  // ... (Functions และ useEffects ทั้งหมดของคุณเหมือนเดิม) ...
-  const fetchPendingCounts = async () => { /* ... */ };
-  useEffect(() => { fetchPendingCounts(); }, []);
-  const formatMonthLabel = (monthStr) => { /* ... */ };
-  useEffect(() => { /* ... fetchAvailableMonths ... */ }, [navigate]);
-  useEffect(() => { /* ... fetchWasteByMonth ... */ }, [selectedMonth, navigate]);
-  useEffect(() => { /* ... fetchStats ... */ }, [navigate]);
+  // 4. [ลบออก] ลบฟังก์ชันที่ซ้ำซ้อนทิ้งไป
+  // const fetchPendingCounts = async () => { ... };
+  // useEffect(() => { fetchPendingCounts(); }, []);
+
+  // 5. [แก้ไข] เพิ่ม formatMonthLabel (ที่หายไป)
+  const formatMonthLabel = (monthStr) => {
+    if (!monthStr) return "";
+    const [year, month] = monthStr.split("-");
+    const date = new Date(year, Number(month) - 1);
+    return date.toLocaleString("th-TH", { year: "numeric", month: "short" });
+  };
+
+  useEffect(() => {
+    const fetchAvailableMonths = async () => {
+      try {
+        // 6. [แก้ไข] เปลี่ยนมาใช้ api.get และลบ token/headers
+        const response = await api.get("/admin/waste-months");
+        setAvailableMonths(response.data);
+        if (response.data.length > 0) {
+          setSelectedMonth(response.data[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching available months:", error);
+        if (error.response?.status === 401) navigate("/adminlogin");
+      }
+    };
+    fetchAvailableMonths();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!selectedMonth) return;
+
+    const fetchWasteByMonth = async (month) => {
+      try {
+        // 7. [แก้ไข] เปลี่ยนมาใช้ api.get และลบ token/headers
+        const response = await api.get(`/admin/waste-stats?month=${month}`);
+        setWasteData(response.data);
+      } catch (error) {
+        console.error("Error fetching waste by month:", error);
+        if (error.response?.status === 401) navigate("/adminlogin");
+      }
+    };
+    fetchWasteByMonth(selectedMonth);
+  }, [selectedMonth, navigate]);
 
 
-  // 5. (ปรับปรุง) นี่คือ JSX ที่ออกแบบใหม่ทั้งหมด
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // 8. [แก้ไข] เปลี่ยนมาใช้ api.get และลบ token/headers
+        const [statsRes, pendingRes] = await Promise.all([
+          api.get("/admin/stats"),
+          api.get("/admin/pending-counts"), 
+        ]);
+
+        setStats(statsRes.data);
+        setPendingUsers(pendingRes.data.pendingUsers ?? 0); // 9. (แก้ไข) เพิ่ม ?? 0
+        setPendingAddresses(pendingRes.data.pendingAddresses ?? 0); // 9. (แก้ไข) เพิ่ม ?? 0
+
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+        if (error.response?.status === 401) {
+          navigate("/adminlogin");
+        }
+      }
+    };
+    fetchStats();
+  }, [navigate]);
+
+  // ... (ส่วน JSX ที่แสดงผล เหมือนเดิม) ...
   return (
     <AdminLayout>
-      <div className="space-y-8"> {/* ใช้ space-y-8 เพื่อจัดระยะห่างระหว่างแถว */}
-        
+      <div className="space-y-8">
         {/* แถวที่ 1: ข้อมูลสำคัญ (Actionable) */}
         <div>
           <h2 className="text-2xl font-semibold text-gray-700 mb-4">รายการที่ต้องดำเนินการ</h2>
@@ -77,7 +132,7 @@ const AdminMain = () => {
               value={pendingUsers}
               iconBgColor="bg-yellow-100"
               iconTextColor="text-yellow-600"
-              onClick={() => navigate('/admin/verified-user')} // <-- ทำให้คลิกได้
+              onClick={() => navigate('/admin/verified-user')}
             />
             <StatCard 
               icon={<FaClock />}
@@ -85,7 +140,7 @@ const AdminMain = () => {
               value={pendingAddresses}
               iconBgColor="bg-yellow-100"
               iconTextColor="text-yellow-600"
-              onClick={() => navigate('/admin/verified-address')} // <-- ทำให้คลิกได้
+              onClick={() => navigate('/admin/verified-address')}
             />
             <StatCard 
               icon={<FaUsers />}
@@ -107,7 +162,6 @@ const AdminMain = () => {
         {/* แถวที่ 2: สถิติขยะรายเดือน (Monthly Stats) */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
             {/* ส่วนเลือกเดือน */}
             <div className="lg:col-span-1">
               <h2 className="text-xl font-semibold mb-4 text-gray-800">เลือกเดือน</h2>
@@ -138,7 +192,7 @@ const AdminMain = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie 
-                    data={wasteData.filter(d => d.value > 0)} // กรองข้อมูลที่เป็น 0 ออก
+                    data={wasteData.filter(d => d.value > 0)} 
                     dataKey="value" 
                     nameKey="name"
                     cx="50%" 
@@ -188,12 +242,11 @@ const AdminMain = () => {
               icon={<FaLeaf />}
               label="ขยะอินทรีย์"
               value={stats.organicWaste}
-              iconBgColor="bg-yellow-800" // (Tailwind 'brown' ไม่มี, 'yellow-800' ใกล้เคียง)
+              iconBgColor="bg-yellow-800"
               iconTextColor="text-yellow-100"
             />
           </div>
         </div>
-
       </div>
     </AdminLayout>
   );
