@@ -53,9 +53,9 @@ const router = createBrowserRouter([
   
 //user
   { path: "/userLogin", element: <Login /> },
-  { path: "/", element: <RegisterAddress />,},
+  { path: "/registerAddress", element: <RegisterAddress />,},
   { path: "/registerAccount", element: <RegisterAccount/>,},
-  { path: "/userDashboard" ,element: <UserDashboard/>},
+  { path: "/" ,element: <UserDashboard/>},
   { path: "/issues", element: <Issues/>},
   { path: "/payment", element: <PaymentPage/> },
   { path: "/payment/qr", element: <QRPaymentPage/> },

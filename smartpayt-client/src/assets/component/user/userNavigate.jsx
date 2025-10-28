@@ -10,7 +10,7 @@ const BottomNav = () => {
     {
       label: "หน้าหลัก",
       iconClass: "fi fi-sr-home",
-      to: "/UserDashboard",
+      to: "/",
     },
     {
       label: "ประวัติการชำระ",
