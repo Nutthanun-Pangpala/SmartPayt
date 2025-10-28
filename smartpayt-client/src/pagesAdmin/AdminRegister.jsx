@@ -11,7 +11,7 @@ const AdminRegister = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://localhost:3000/admin/register", {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ admin_username, admin_password }),

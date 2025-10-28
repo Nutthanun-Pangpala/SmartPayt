@@ -1,24 +1,27 @@
-// Load environment variables from .env file
-require('dotenv').config();
-const mysql = require('mysql2');
+// db/dbConnection.js
+require("dotenv").config();
+const mysql = require("mysql2/promise");
 
-// Set up MySQL connection using environment variables
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
+// ✅ ใช้ mysql2/promise โดยตรง (ไม่ต้อง .promise() อีก)
+const db = mysql.createPool({
+  host: process.env.DB_HOST || "127.0.0.1",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "smartpaytdb",
   port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,  // This ensures the database is selected
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
-
-// Connect to MySQL
-db.connect((err) => {
-  if (err) {
-    console.error('Error connecting to the database:', err);
-    return;
+(async () => {
+  try {
+    const conn = await db.getConnection();
+    console.log("✅ Connected to MySQL database.");
+    conn.release();
+  } catch (err) {
+    console.error("❌ Database connection error:", err.message);
   }
-  console.log('Connected to the MySQL database.');
-});
+})();
 
 module.exports = db;

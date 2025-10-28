@@ -37,4 +37,4 @@ require('./services/billCron'); // <-- สำคัญ
 
 
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(3000, () => console.log(`🚀 Server running on port ${PORT}`));

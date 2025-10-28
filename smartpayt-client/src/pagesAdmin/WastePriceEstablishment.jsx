@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import nanglaeIcon2 from "../assets/img/nanglaeicon.png";
 import axios2 from 'axios';
 
-const API_BASE2 = 'http://localhost:3000';
+const API_BASE2 = `${import.meta.env.VITE_API_BASE_URL}`;
 
 const toNumberOrNull2 = (v) => {
     if (v === '' || v === null || v === undefined) return null;

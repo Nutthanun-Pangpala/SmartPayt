@@ -44,7 +44,7 @@ export default function ScanAndSaveWasteRecordSingleType() {
   useEffect(() => {
     const token = localStorage.getItem('Admin_token');
     if (!token) return;
-    axios.get('http://localhost:3000/api/admin/waste-pricing', {
+    axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/admin/waste-pricing`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => {
@@ -138,7 +138,7 @@ export default function ScanAndSaveWasteRecordSingleType() {
     };
 
     try {
-      await axios.post('http://localhost:3000/api/admin/waste-records', payload, {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/admin/waste-records`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

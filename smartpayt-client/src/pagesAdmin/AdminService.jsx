@@ -31,7 +31,7 @@ const AdminService = () => {
                 return;
             }
 
-            const response = await axios.get('http://localhost:3000/admin/users', {
+            const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/users`, {
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Authorization': `Bearer ${token}`,

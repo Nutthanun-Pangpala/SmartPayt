@@ -24,7 +24,7 @@ export default function PaymentHistory() {
     if (!lineUserId) return;
     setLoading(true);
     axios
-      .get(`http://localhost:3000/api/payment-history/${lineUserId}`)
+      .get(`${import.meta.env.VITE_API_BASE_URL}/api/payment-history/${lineUserId}`)
       .then((res) => {
         setHistory(res.data || []);
         setError("");

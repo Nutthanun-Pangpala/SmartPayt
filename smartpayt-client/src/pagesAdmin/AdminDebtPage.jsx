@@ -34,7 +34,7 @@ const AdminDebtPage = () => {
         return;
       }
 
-      const res = await axios.get('http://localhost:3000/api/admin/debt', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/admin/debt`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -48,7 +48,7 @@ const AdminDebtPage = () => {
   const fetchBills = async (lineUserId) => {
     try {
       const token = localStorage.getItem('Admin_token');
-      const res = await axios.get(`http://localhost:3000/api/admin/users/${lineUserId}/bills`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${lineUserId}/bills`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setBillsByUser((prev) => ({ ...prev, [lineUserId]: res.data.bills }));

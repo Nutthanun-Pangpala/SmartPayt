@@ -9,53 +9,29 @@ const access_token = process.env.LINE_ACCESS_TOKEN;
 
 exports.registerAccount = async (req, res) => {
   try {
-    console.log("🔹 รับข้อมูลจาก Frontend:", req.body);
+    const { lineUserId, name, Phone_No, Email } = req.body;
+    console.log("🔹 Register request:", req.body);
 
-    const { lineUserId, name, house_id, Phone_No, Email } = req.body;
+    // ตรวจว่าผู้ใช้มีอยู่แล้วไหม
+    const [user] = await db.query(
+      "SELECT * FROM users WHERE lineUserId = ?",
+      [lineUserId]
+    );
 
-    if (!house_id || !Phone_No || !Email) {
-      console.log("❌ ข้อมูลไม่ครบ:", { house_id, Phone_No, Email });
-      return res.status(400).json({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+    if (user.length > 0) {
+      return res.status(200).json({ message: "User already exists" });
     }
 
-    if (Phone_No.length !== 10) {
-      console.log("❌ เบอร์โทรศัพท์ไม่ถูกต้อง:", Phone_No);
-      return res.status(400).json({ message: "เบอร์โทรศัพท์ต้องมีความยาว 10 หลัก" });
-    }
+    // เพิ่มผู้ใช้ใหม่
+    await db.query(
+      "INSERT INTO users (lineUserId, name, Phone_No, Email) VALUES (?, ?, ?, ?)",
+      [lineUserId, name, Phone_No, Email]
+    );
 
-    console.log("🔎 ตรวจสอบข้อมูลในฐานข้อมูล...");
-    const checkQuery = "SELECT * FROM users WHERE lineUserId = ? OR house_id = ?";
-    const [existingUser] = await db.promise().query(checkQuery, [lineUserId, house_id]);
-
-    if (existingUser.length > 0) {
-      console.log("❌ พบข้อมูลซ้ำในระบบ:", existingUser);
-      return res.status(400).json({ message: "บัญชีนี้ถูกลงทะเบียนแล้ว" });
-    }
-
-    console.log("📝 กำลังเพิ่มข้อมูลลงฐานข้อมูล...");
-    const insertQuery = `
-      INSERT INTO users (lineUserId, name, house_id, Phone_No, Email)
-      VALUES (?, ?, ?, ?, ?)
-    `;
-    const [result] = await db.promise().query(insertQuery, [
-      lineUserId, name, house_id, Phone_No, Email
-    ]);
-
-    if (result.affectedRows === 0) {
-      console.log("❌ INSERT ไม่สำเร็จ");
-      return res.status(500).json({ message: "ไม่สามารถเพิ่มข้อมูลผู้ใช้ได้" });
-    }
-
-    console.log("✅ ลงทะเบียนสำเร็จ!");
-
-    res.status(201).json({
-      message: "ลงทะเบียนสำเร็จ!",
-      userData: { lineUserId, name, house_id, Phone_No, Email },
-    });
-
-  } catch (error) {
-    console.error("❌ เกิดข้อผิดพลาด:", error);
-    res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ", error: error.message });
+    res.status(200).json({ message: "User registered successfully" });
+  } catch (err) {
+    console.error("❌ Register error:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -80,14 +56,14 @@ exports.registerAddress = async (req, res) => {
     }
 
     // ตรวจสอบว่าผู้ใช้มีข้อมูลในระบบหรือไม่
-    const [user] = await db.promise().query("SELECT * FROM users WHERE lineUserId = ?", [lineUserId]);
+    const [user] = await db.query("SELECT * FROM users WHERE lineUserId = ?", [lineUserId]);
 
     if (user.length === 0) {
       return res.status(400).json({ message: "ไม่พบผู้ใช้ในระบบ กรุณาลงทะเบียนก่อน" });
     }
 
     // ตรวจสอบว่าที่อยู่ซ้ำหรือไม่
-    const [existingAddress] = await db.promise().query(
+    const [existingAddress] = await db.query(
       `SELECT * FROM addresses 
        WHERE lineUserId = ? 
        AND house_no = ? 
@@ -110,7 +86,7 @@ exports.registerAddress = async (req, res) => {
     address_verified, created_at, updated_at
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
 `;
-    const [result] = await db.promise().query(insertQuery, [
+    const [result] = await db.query(insertQuery, [
       lineUserId, house_no, village_no, alley || "", province, district, sub_district, postal_code, address_type, false
     ]);
 
@@ -242,7 +218,7 @@ exports.userAddress = async (req, res) => {
 
     // Query ดึงที่อยู่ทั้งหมดของผู้ใช้
     const query = "SELECT * FROM addresses WHERE lineUserId = ?";
-    const [addresses] = await db.promise().query(query, [lineUserId]);
+    const [addresses] = await db.query(query, [lineUserId]);
 
     if (addresses.length === 0) {
       return res.status(404).json({ message: "ไม่พบข้อมูลที่อยู่" });
@@ -267,7 +243,7 @@ exports.userAddressBill = async (req, res) => {
 
     // ดึงบิลที่ยังไม่ชำระ (0) และรอตรวจสอบ (2)
     const query = "SELECT * FROM bills WHERE address_id = ? AND status IN (0, 2)";
-    const [bills] = await db.promise().query(query, [address_id]);
+    const [bills] = await db.query(query, [address_id]);
 
     if (bills.length === 0) {
       return res.status(200).json({ bills: [] }); // คืนค่าบิลเป็น array ว่าง
@@ -303,20 +279,41 @@ exports.generateBarcode = (req, res) => {
 exports.updateAccount = async (req, res) => {
   try {
     const lineUserId = req.params.lineUserId || req.body.lineUserId;
-    const { name, ID_card_No, Phone_No, Email } = req.body;
+    const { name, Phone_No, Email } = req.body;
 
     if (!lineUserId) {
       return res.status(400).json({ message: 'lineUserId is required' });
     }
 
-    await db.promise().query(
-      'UPDATE users SET name = ?, ID_card_No = ?, Phone_No = ?, Email = ? WHERE lineUserId = ?',
-      [name, ID_card_No, Phone_No, Email, lineUserId]
-    );
+    if (!name && !Phone_No && !Email) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    // ✅ สร้าง query แบบ dynamic เฉพาะ field ที่ส่งมา
+    const updates = [];
+    const values = [];
+
+    if (name) {
+      updates.push('name = ?');
+      values.push(name);
+    }
+    if (Phone_No) {
+      updates.push('Phone_No = ?');
+      values.push(Phone_No);
+    }
+    if (Email) {
+      updates.push('Email = ?');
+      values.push(Email);
+    }
+
+    values.push(lineUserId);
+
+    const sql = `UPDATE users SET ${updates.join(', ')} WHERE lineUserId = ?`;
+    await db.query(sql, values);
 
     res.json({ message: 'Account updated successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('❌ updateAccount error:', err);
     res.status(500).json({ message: 'Server Error' });
   }
 };
@@ -325,7 +322,7 @@ exports.getPaymentHistory = async (req, res) => {
     const { lineUserId } = req.params;
   
     try {
-      const [rows] = await db.promise().query(
+      const [rows] = await db.query(
         `SELECT bills.*
          FROM bills
          JOIN addresses ON bills.address_id = addresses.address_id
@@ -364,7 +361,7 @@ exports.getWasteSummary = async (req, res) => {
     if (address_id) {
       addressIds = [address_id];
     } else {
-      const [rows] = await db.promise().query(
+      const [rows] = await db.query(
         `SELECT address_id FROM addresses WHERE lineUserId = ?`,
         [lineUserId]
       );
@@ -384,7 +381,7 @@ exports.getWasteSummary = async (req, res) => {
     const placeholders = addressIds.map(() => '?').join(',');
     const params = [...addressIds, start, end];
 
-    const [sumOverall] = await db.promise().query(
+    const [sumOverall] = await db.query(
       `SELECT wr.waste_type, SUM(wr.weight_kg) AS total_kg
          FROM waste_records wr
         WHERE wr.address_id IN (${placeholders})
@@ -394,7 +391,7 @@ exports.getWasteSummary = async (req, res) => {
       params
     );
 
-    const [sumByAddr] = await db.promise().query(
+    const [sumByAddr] = await db.query(
       `SELECT wr.address_id, wr.waste_type, SUM(wr.weight_kg) AS total_kg
          FROM waste_records wr
         WHERE wr.address_id IN (${placeholders})
@@ -404,7 +401,7 @@ exports.getWasteSummary = async (req, res) => {
       params
     );
 
-    const [dailyOverall] = await db.promise().query(
+    const [dailyOverall] = await db.query(
       `SELECT DATE(wr.recorded_date) AS day, wr.waste_type, SUM(wr.weight_kg) AS total_kg
          FROM waste_records wr
         WHERE wr.address_id IN (${placeholders})
@@ -415,7 +412,7 @@ exports.getWasteSummary = async (req, res) => {
       params
     );
 
-    const [dailyByAddrRows] = await db.promise().query(
+    const [dailyByAddrRows] = await db.query(
       `SELECT wr.address_id, DATE(wr.recorded_date) AS day, wr.waste_type, SUM(wr.weight_kg) AS total_kg
          FROM waste_records wr
         WHERE wr.address_id IN (${placeholders})

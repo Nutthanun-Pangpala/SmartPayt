@@ -40,7 +40,7 @@ const VerifiedUser = () => {
                 return;
             }
 
-            const response = await axios.get('http://localhost:3000/admin/users-verify-user', {
+            const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/users-verify-user`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { page: currentPage, search: searchTerm },
             });
@@ -67,7 +67,7 @@ const VerifiedUser = () => {
                 return;
             }
 
-            await axios.patch(`http://localhost:3000/admin/users/${user.lineUserId}/verify`, {}, {
+            await axios.patch(`${import.meta.env.VITE_API_BASE_URL}/admin/users/${user.lineUserId}/verify`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
