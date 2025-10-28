@@ -1,178 +1,221 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import nanglaeIcon from "../assets/img/nanglaeicon.png";
+import AdminLayout from '../pagesAdmin/component/AdminLayout'; // 1. Import AdminLayout
+
+// 2. Import ไอคอนมาเพิ่ม
+import {
+  FaCheck,
+  FaCheckCircle,
+  FaClock,
+  FaExclamationCircle,
+  FaEye,
+  FaTimes,
+  FaTimesCircle
+} from "react-icons/fa";
+
+// 3. (เพิ่ม) Component "Pill" สำหรับแสดงสถานะ
+const StatusPill = ({ status }) => {
+  if (status === "approved") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <FaCheckCircle />
+        ผ่าน
+      </span>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        <FaTimesCircle />
+        ไม่ผ่าน
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+      <FaClock />
+      รอตรวจสอบ
+    </span>
+  );
+};
+
 
 const AdminSlipList = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isBillDropdownOpen, setIsBillDropdownOpen] = useState(true);
-  const [isVerifyDropdownOpen, setIsVerifyDropdownOpen] = useState(false);
-  const [isWasteDropdownOpen, setIsWasteDropdownOpen] = useState(false);
+  // 4. (เพิ่ม) State สำหรับ Loading และ Error
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
   const [slips, setSlips] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
   const navigate = useNavigate();
 
-
-
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-
+  // 5. (ปรับปรุง) fetchSlips ให้มี Loading/Error
   const fetchSlips = async () => {
+    setLoading(true);
+    setError('');
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/admin/payment-slips`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("Admin_token")}` },
       });
       setSlips(res.data);
     } catch (err) {
-      console.error("ดึงข้อมูลสลปล้มเหลว:", err);
+      console.error("ดึงข้อมูลสลิปล้มเหลว:", err);
+      setError("ไม่สามารถดึงข้อมูลสลิปได้");
       if (err.response?.status === 401) {
         alert("กรุณาเข้าสู่ระบบใหม่");
         navigate("/adminlogin");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   const updateStatus = async (id, status) => {
+    // (เพิ่ม UX) ถามยืนยันก่อน
+    const confirmMessage = status === 'approved' ? 'คุณต้องการยืนยันสลิปนี้ใช่หรือไม่?' : 'คุณต้องการปฏิเสธสลิปนี้ใช่หรือไม่?';
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
     try {
       await axios.patch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/payment-slips/${id}`, { status }, {
         headers: { Authorization: `Bearer ${localStorage.getItem("Admin_token")}` },
       });
-      fetchSlips();
+      fetchSlips(); // โหลดข้อมูลใหม่
     } catch (err) {
       console.error("❌ อัปเดตสถานะล้มเหลว:", err);
+      alert("อัปเดตสถานะล้มเหลว");
     }
   };
 
   useEffect(() => {
     fetchSlips();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 6. (ปรับปรุง) JSX ทั้งหมด
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDEFB2]">
-      <div className="flex items-center justify-between p-4 bg-white shadow">
-              <div className="flex items-center">
-                <button onClick={toggleSidebar} className="text-gray-800 p-2 mr-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="h-6 w-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
-                <div className="flex items-center space-x-3">
-                  <img src={nanglaeIcon} alt="icon" className="h-20" />
-                  <h2 className="text-2xl font-bold text-gray-800">เทศบาลตำบลนางแล</h2>
-                </div>
-              </div>
+    <AdminLayout>
+      <>
+        <h1 className="text-3xl font-bold mb-6 text-gray-800">รายการสลิปที่ส่งเข้ามา</h1>
+        
+        <div className="overflow-x-auto bg-white rounded-lg shadow">
+          {loading ? (
+            <div className="text-center p-10 text-gray-500">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+              <p className="mt-4">กำลังโหลดข้อมูล...</p>
             </div>
-
-      <div className="flex h-[calc(100vh-88px)]">
-        <div className={`relative ${isSidebarOpen ? "w-1/5" : "w-0"} bg-green-700 text-white p-5 transition-all overflow-hidden`}>
-          <h2 className="text-xl font-bold mb-4">Smart Payt</h2>
-          <ul>
-            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin")}>หน้าหลัก</li>
-            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/service")}>ข้อมูลผู้ใช้บริการ</li>
-           {/* ตรวจสอบบิลชำระ */}
-            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => setIsBillDropdownOpen(!isBillDropdownOpen)}>
-              <div className="flex justify-between items-center">
-                <span>ตรวจสอบบิลชำระ</span>
-                <svg className={`h-4 w-4 transform transition-transform ${isBillDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-              </div>
-            </li>
-            {isBillDropdownOpen && (
-              <ul className="ml-4">
-                <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/debt")}>ข้อมูลผู้ค้างชำระ</li>
-                <li className="mb-2 p-2 bg-green-900 cursor-pointer rounded px-4 py-3 w-full" onClick={() => navigate("/admin/payment-slips")}>ตรวจสอบสลิป</li>
-              </ul>
-            )}
-
-            {/* ยืนยันสถานะผู้ใช้บริการ */}
-            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => setIsVerifyDropdownOpen(!isVerifyDropdownOpen)}>
-              <div className="flex justify-between items-center">
-                <span>ยืนยันสถานะผู้ใช้บริการ</span>
-                <svg className={`h-4 w-4 transform transition-transform ${isVerifyDropdownOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-              </div>
-            </li>
-            {isVerifyDropdownOpen && (
-              <ul className="ml-4">
-                <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/verified-user")}>ยืนยันข้อมูลผู้ใช้</li>
-                <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/verified-address")}>ยืนยันข้อมูลครัวเรือน</li>
-              </ul>
-            )}
-
-            <li className="mb-2 hover:bg-green-900 p-3 rounded cursor-pointer rounded px-4 py-3" onClick={() => navigate("/admin/report")}>รายงาน</li>
-          </ul>
-          <div className="absolute bottom-5 left-0 right-0 flex justify-center">
-            <button className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md max-w-[90%]" onClick={() => {
-              localStorage.removeItem("Admin_token");
-              navigate("/adminlogin");
-            }}>
-              ออกจากระบบ
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 p-5 overflow-auto">
-          <h1 className="text-3xl font-bold mb-6">📤 รายการสลิปที่ส่งเข้ามา</h1>
-          <div className="overflow-x-auto bg-white rounded shadow">
-            <table className="w-full border text-sm">
-              <thead className="bg-[#F7D488] text-[#4B5320]">
+          ) : error ? (
+            <div className="text-center p-10 text-red-600 flex flex-col items-center gap-2">
+              <FaExclamationCircle className="h-8 w-8" />
+              <p>{error}</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              {/* 7. (ปรับปรุง) Table Header */}
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-2 text-left">ชื่อ</th>
-                  <th className="p-2 text-left">ที่อยู่</th>
-                  <th className="p-2 text-right">ยอด</th>
-                  <th className="p-2 text-left">เวลา</th>
-                  <th className="p-2 text-center">สลิป</th>
-                  <th className="p-2 text-center">สถานะ</th>
-                  <th className="p-2 text-center">ตรวจสอบ</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อ</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ที่อยู่</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ยอด</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">สลิป</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ตรวจสอบ</th>
                 </tr>
               </thead>
-              <tbody>
-                {slips.map((slip) => (
-                  <tr key={slip.id} className="border-t hover:bg-[#fffbe3]">
-                    <td className="p-2">{slip.name}</td>
-                    <td className="p-2">{`${slip.house_no}, ${slip.sub_district}, ${slip.district}`}</td>
-                    <td className="p-2 text-right">{slip.amount_due} ฿</td>
-                    <td className="p-2">{new Date(slip.uploaded_at).toLocaleString()}</td>
-                    <td className="p-2 text-center">
-                      <button className="text-blue-600 hover:underline" onClick={() => setPreviewImage(`http://localhost:3000/${slip.image_path.replace(/\\/g, "/")}`)}>ดูสลิป</button>
-                    </td>
-                    <td className="p-2 text-center font-semibold">
-                      {slip.status === "approved" ? (
-                        <span className="text-green-600">✅ ผ่าน</span>
-                      ) : slip.status === "rejected" ? (
-                        <span className="text-red-600">❌ ไม่ผ่าน</span>
-                      ) : (
-                        <span className="text-yellow-600">🕓 รอตรวจสอบ</span>
-                      )}
-                    </td>
-                    <td className="p-2 text-center">
-                      {slip.status === "pending" ? (
-                        <>
-                          <button onClick={() => updateStatus(slip.id, "approved")} className="text-green-600 hover:underline mr-2">ผ่าน</button>
-                          <button onClick={() => updateStatus(slip.id, "rejected")} className="text-red-600 hover:underline">ไม่ผ่าน</button>
-                        </>
-                      ) : (
-                        <span className="text-gray-400">ตรวจสอบแล้ว</span>
-                      )}
+              <tbody className="bg-white divide-y divide-gray-200">
+                {slips.length > 0 ? (
+                  slips.map((slip) => (
+                    <tr key={slip.id} className="hover:bg-gray-50">
+                      
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{slip.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{`${slip.house_no}, ${slip.sub_district}, ${slip.district}`}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="text-sm text-gray-900">{parseFloat(slip.amount_due).toFixed(2)} ฿</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{new Date(slip.uploaded_at).toLocaleString('th-TH')}</div>
+                      </td>
+                      
+                      {/* 8. (ปรับปรุง) ปุ่มดูสลิป */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <button 
+                          className="flex items-center gap-1 text-green-600 hover:text-green-800"
+                          onClick={() => setPreviewImage(`${import.meta.env.VITE_API_BASE_URL}/${slip.image_path.replace(/\\/g, "/")}`)}
+                        >
+                          <FaEye /> ดูสลิป
+                        </button>
+                      </td>
+                      
+                      {/* 9. (ปรับปรุง) สถานะ (Pill) */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <StatusPill status={slip.status} />
+                      </td>
+                      
+                      {/* 10. (ปรับปรุง) ปุ่มตรวจสอบ */}
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {slip.status === "pending" ? (
+                          <div className="flex justify-center gap-2">
+                            <button 
+                              onClick={() => updateStatus(slip.id, "approved")} 
+                              className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                            >
+                              <FaCheck /> ผ่าน
+                            </button>
+                            <button 
+                              onClick={() => updateStatus(slip.id, "rejected")} 
+                              className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                            >
+                              <FaTimes /> ไม่ผ่าน
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">ตรวจสอบแล้ว</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  // 11. (ปรับปรุง) Empty State
+                  <tr>
+                    <td colSpan="7" className="px-6 py-10 text-center text-gray-500">
+                      ยังไม่มีสลิปที่ต้องตรวจสอบ
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
-          </div>
-
-          {previewImage && (
-            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50" onClick={() => setPreviewImage(null)}>
-              <div className="relative bg-white p-4 rounded shadow-lg" onClick={(e) => e.stopPropagation()}>
-                <button className="absolute top-2 right-2 text-gray-600 text-xl hover:text-red-600" onClick={() => setPreviewImage(null)}>✕</button>
-                <img src={previewImage} alt="สลิป" className="max-w-[90vw] max-h-[80vh] rounded" />
-              </div>
-            </div>
           )}
         </div>
-      </div>
-    </div>
+
+        {/* 12. (ปรับปรุง) Modal สำหรับดูสลิป */}
+        {previewImage && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" 
+            onClick={() => setPreviewImage(null)}
+          >
+            <div 
+              className="relative bg-white p-4 rounded-lg shadow-2xl" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                className="absolute top-2 right-2 text-gray-400 hover:text-red-600 transition-colors" 
+                onClick={() => setPreviewImage(null)}
+              >
+                <FaTimesCircle className="h-7 w-7" />
+              </button>
+              <img src={previewImage} alt="สลิป" className="max-w-[90vw] max-h-[85vh] rounded" />
+            </div>
+          </div>
+        )}
+      </>
+    </AdminLayout>
   );
 };
 

@@ -1,294 +1,340 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+// 1. Import ไอคอน
+import {
+    FaCheckCircle,
+    FaChevronDown,
+    FaChevronLeft,
+    FaExclamationCircle,
+    FaHome,
+    FaPlus,
+    FaTimesCircle,
+    FaUserCircle
+} from "react-icons/fa";
+
+// (Helper function)
+const DetailItem = ({ label, value }) => (
+  <div className="sm:col-span-1">
+    <dt className="text-sm font-medium text-gray-500">{label}</dt>
+    <dd className="mt-1 text-sm text-gray-900">{value || '-'}</dd>
+  </div>
+);
+
 const UserDetails = () => {
-    const [user, setUser] = useState(null);
-    const [userAddresses, setUserAddresses] = useState([]);
-    const [billsMap, setBillsMap] = useState({});
-    const [error, setError] = useState("");
-    const { lineUserId } = useParams();
-    const navigate = useNavigate();
-    const [expanded, setExpanded] = useState({});
+  const [user, setUser] = useState(null);
+  const [userAddresses, setUserAddresses] = useState([]);
+  const [billsMap, setBillsMap] = useState({});
+  const [error, setError] = useState("");
+  const { lineUserId } = useParams();
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState({});
+  
+  // 2. (เพิ่ม) State สำหรับ Loading
+  const [loading, setLoading] = useState(true);
 
-    // Helper function to get token and set headers
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem("Admin_token");
-        if (!token) {
-            navigate("/adminlogin");
-            return null; // Return null to indicate missing token
-        }
-        return {
-            "Cache-Control": "no-cache",
-            // ✅ แก้ไข Header เป็น Authorization (A ใหญ่)
-            Authorization: `Bearer ${token}`,
-        };
+  // ... (getAuthHeaders function เหมือนเดิม) ...
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("Admin_token");
+    if (!token) {
+      navigate("/adminlogin");
+      return null;
+    }
+    return {
+      "Cache-Control": "no-cache",
+      Authorization: `Bearer ${token}`,
     };
+  };
 
+  useEffect(() => {
+    const fetchAllData = async () => {
+      setLoading(true);
+      setError("");
+      const headers = getAuthHeaders();
+      if (!headers) {
+        setLoading(false);
+        return;
+      }
 
-    useEffect(() => {
-        const fetchUserDetails = async () => {
-            const headers = getAuthHeaders();
-            if (!headers) return; // Stop if no token
+      try {
+        // 1. โหลดข้อมูลผู้ใช้
+        const userPromise = axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${lineUserId}`,
+          { headers }
+        );
+        
+        // 2. โหลดที่อยู่
+        const addressPromise = axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/api/admin/users/address/${lineUserId}`,
+          { headers }
+        );
 
-            try {
-                // ✅ แก้ไข URL ให้มี /api/admin/
-                const response = await axios.get(
-                    `${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${lineUserId}`,
-                    { headers }
-                );
+        const [userResponse, addressResponse] = await Promise.all([userPromise, addressPromise]);
 
-                if (response && response.data) {
-                    setUser(response.data.user || {});
-                } else {
-                    setError("ไม่สามารถดึงข้อมูลผู้ใช้ได้ (Response ไม่มีข้อมูล)");
-                }
-            } catch (error) {
-                console.error("Error fetching user details:", error.response?.data || error.message);
-                setError(`ไม่สามารถดึงข้อมูลผู้ใช้ได้ (${error.response?.status || 'Network Error'})`);
-                 if (error.response?.status === 401 || error.response?.status === 403) {
-                     navigate('/adminlogin');
-                 }
-            }
-        };
-
-        const fetchUserAddressesAndBills = async () => {
-             const headers = getAuthHeaders();
-             if (!headers) return;
-
-             try {
-                // ✅ แก้ไข URL ให้มี /api/admin/
-                const addressResponse = await axios.get(
-                    `${import.meta.env.VITE_API_BASE_URL}/api/admin/users/address/${lineUserId}`,
-                    { headers }
-                );
-                const addresses = addressResponse.data.addresses || [];
-                setUserAddresses(addresses);
-
-                if (addresses.length === 0) {
-                    setBillsMap({}); // ไม่มีที่อยู่ ก็ไม่มีบิล
-                    return;
-                }
-
-                // โหลดบิลของทุกบ้านพร้อมกัน
-                const billsPromises = addresses.map(address =>
-                    axios.get(
-                        // ✅ แก้ไข URL ให้มี /api/admin/
-                        `${import.meta.env.VITE_API_BASE_URL}/api/admin/users/address/bills/${address.address_id}`,
-                        { headers }
-                    ).then(res => ({
-                        address_id: address.address_id,
-                        // ✅ แก้ไขการกรอง Bill ให้ใช้ status === 0
-                        bills: (res.data.bills || [])
-                                .filter(bill => bill.status === 0) // กรองเฉพาะที่ยังไม่จ่าย (status=0)
-                                .sort((a, b) => new Date(b.due_date) - new Date(a.due_date)) // เรียงตาม due_date ล่าสุดก่อน
-                    }))
-                    .catch(err => {
-                        console.error(`เกิดข้อผิดพลาดในการดึงบิลของบ้าน ${address.address_id}:`, err.response?.data || err.message);
-                        return { address_id: address.address_id, bills: [] }; // คืนค่าว่างถ้าโหลดบิลไม่สำเร็จ
-                    })
-                );
-
-                const billsData = await Promise.all(billsPromises);
-
-                const newBillsMap = billsData.reduce((acc, { address_id, bills }) => {
-                    acc[address_id] = bills;
-                    return acc;
-                }, {});
-                setBillsMap(newBillsMap);
-
-            } catch (error) {
-                console.error("เกิดข้อผิดพลาดในการดึงข้อมูลที่อยู่หรือบิล:", error.response?.data || error.message);
-                setError(`ไม่สามารถดึงข้อมูลที่อยู่หรือบิลได้ (${error.response?.status || 'Network Error'})`);
-                 if (error.response?.status === 401 || error.response?.status === 403) {
-                     navigate('/adminlogin');
-                 }
-            }
-        };
-
-        fetchUserDetails();
-        fetchUserAddressesAndBills(); // รวมการโหลดที่อยู่และบิลไว้ด้วยกัน
-    }, [lineUserId, navigate]); // เอา navigate ออกถ้า useEffect ไม่ได้ใช้ navigate โดยตรง
-
-    const handleVerifyAddress = async (addressId) => {
-        const headers = getAuthHeaders();
-        if (!headers) {
-             alert("กรุณาล็อกอินเพื่อดำเนินการต่อ");
-             return;
+        // 3. ตั้งค่าข้อมูลผู้ใช้
+        if (userResponse && userResponse.data) {
+          setUser(userResponse.data.user || {});
+        } else {
+          setError("ไม่สามารถดึงข้อมูลผู้ใช้ได้");
         }
 
-        try {
-            // ✅ แก้ไข Method เป็น POST
-            // ✅ แก้ไข URL เป็น /api/admin/verify-address/:addressId (ไม่มี lineUserId)
-            const response = await axios.post(
-                `${import.meta.env.VITE_API_BASE_URL}/api/admin/verify-address/${addressId}`,
-                {}, // Body ของ POST (ไม่ต้องส่งข้อมูล)
-                { headers }
-            );
+        // 4. ตั้งค่าที่อยู่
+        const addresses = addressResponse.data.addresses || [];
+        setUserAddresses(addresses);
 
-            if (response.data && response.data.success) {
-                setUserAddresses((prevAddresses) =>
-                    prevAddresses.map((address) =>
-                        address.address_id === addressId
-                            // ✅ แก้ไข: อัปเดต state เป็น 1 (ไม่ใช่ true) ให้ตรงกับ DB
-                            ? { ...address, address_verified: 1 }
-                            : address
-                    )
-                );
-                 setError(''); // ล้าง error ถ้าสำเร็จ
-            } else {
-                setError(response.data.message || "เกิดข้อผิดพลาดในการยืนยันที่อยู่ (Response ไม่สำเร็จ)");
-            }
-        } catch (error) {
-            console.error("เกิดข้อผิดพลาดในการยืนยันที่อยู่:", error.response?.data || error.message);
-            setError(`ไม่สามารถยืนยันที่อยู่ได้ (${error.response?.status || 'Network Error'})`);
-             if (error.response?.status === 401 || error.response?.status === 403) {
-                 navigate('/adminlogin');
-             }
+        if (addresses.length === 0) {
+          setBillsMap({});
+          setLoading(false);
+          return; // จบการทำงานถ้าไม่มีที่อยู่
         }
+
+        // 5. โหลดบิลของทุกบ้าน (ถ้ามีที่อยู่)
+        const billsPromises = addresses.map(address =>
+          axios.get(
+            `${import.meta.env.VITE_API_BASE_URL}/api/admin/users/address/bills/${address.address_id}`,
+            { headers }
+          ).then(res => ({
+            address_id: address.address_id,
+            bills: (res.data.bills || [])
+              .filter(bill => bill.status === 0)
+              .sort((a, b) => new Date(b.due_date) - new Date(a.due_date))
+          }))
+          .catch(err => {
+            console.error(`เกิดข้อผิดพลาดในการดึงบิลของบ้าน ${address.address_id}:`, err.message);
+            return { address_id: address.address_id, bills: [] };
+          })
+        );
+
+        const billsData = await Promise.all(billsPromises);
+        const newBillsMap = billsData.reduce((acc, { address_id, bills }) => {
+          acc[address_id] = bills;
+          return acc;
+        }, {});
+        setBillsMap(newBillsMap);
+
+      } catch (error) {
+        console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error.response?.data || error.message);
+        setError(`ไม่สามารถดึงข้อมูลได้ (${error.response?.status || 'Network Error'})`);
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          navigate('/adminlogin');
+        }
+      } finally {
+        setLoading(false); // 6. โหลดเสร็จทั้งหมด
+      }
     };
 
-    const toggleExpand = (addressId) => {
-        setExpanded((prevExpanded) => ({
-            ...prevExpanded,
-            [addressId]: !prevExpanded[addressId],
-        }));
-    };
+    fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineUserId]); // navigate ไม่จำเป็นต้องอยู่ใน dependency array
 
-    const handleAddAddress = () => {
-        navigate(`/api/admin/users/${lineUserId}/add-address`);
-    };
+  // ... (handleVerifyAddress, toggleExpand, handleAddAddress functions เหมือนเดิม) ...
+  const handleVerifyAddress = async (addressId) => {
+    // ... (โค้ดเดิม) ...
+    const headers = getAuthHeaders();
+    if (!headers) { alert("กรุณาล็อกอินเพื่อดำเนินการต่อ"); return; }
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/api/admin/verify-address/${addressId}`,
+        {}, { headers }
+      );
+      if (response.data && response.data.success) {
+        setUserAddresses((prevAddresses) =>
+          prevAddresses.map((address) =>
+            address.address_id === addressId ? { ...address, address_verified: 1 } : address
+          )
+        );
+        setError('');
+      } else {
+        setError(response.data.message || "เกิดข้อผิดพลาดในการยืนยันที่อยู่");
+      }
+    } catch (error) {
+      // ... (โค้ดเดิม) ...
+      console.error("เกิดข้อผิดพลาดในการยืนยันที่อยู่:", error.response?.data || error.message);
+      setError(`ไม่สามารถยืนยันที่อยู่ได้ (${error.response?.status || 'Network Error'})`);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+          navigate('/adminlogin');
+      }
+    }
+  };
+  const toggleExpand = (addressId) => {
+    setExpanded((prev) => ({ ...prev, [addressId]: !prev[addressId] }));
+  };
+  const handleAddAddress = () => {
+    navigate(`/api/admin/users/${lineUserId}/add-address`);
+  };
 
-    // ... (ส่วน JSX ที่เหลือเหมือนเดิม) ...
-    // Note: ใน JSX ส่วนแสดง Bill status ให้ใช้ bill.status === 0 เช็คแทน boolean
-    // เช่น <td className={bill.status === 0 ? "text-red-500" : "text-green-500"}>
-    //         {bill.status === 0 ? "ยังไม่ชำระ" : "ชำระแล้ว"}
-    //      </td>
 
-    return (
-        <div className="flex flex-col min-h-screen bg-gray-100">
-           {/* ... Header ... */}
-           <div className="flex items-center justify-between p-4 bg-white shadow">
-                <button onClick={() => navigate("/admin/service")} className="text-gray-800 p-2"> {/* แก้ให้กลับไปหน้า Service */}
-                    กลับไปยังหน้ารายชื่อผู้ใช้
-                </button>
-                <h2 className="text-2xl font-bold text-gray-800">รายละเอียดผู้ใช้</h2>
-           </div>
+  // 7. (ปรับปรุง) JSX ทั้งหมด
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-100">
+      {/* 8. (ปรับปรุง) Header */}
+      <div className="flex items-center justify-between p-4 bg-white shadow-md">
+        <button
+          onClick={() => navigate("/admin/service")}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          <FaChevronLeft className="h-4 w-4" />
+          กลับ
+        </button>
+        <h2 className="text-xl font-bold text-gray-800">รายละเอียดผู้ใช้</h2>
+        <div className="w-20"></div> {/* Spacer รักษากึ่งกลาง */}
+      </div>
 
-            <div className="flex-1 p-5">
-                {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
-                {user === null ? (
-                    <p>กำลังโหลดข้อมูล...</p>
-                ) : (
-                    <div className="bg-white p-6 rounded-lg shadow-md">
-                        <h3 className="text-2xl font-semibold mb-4">ข้อมูลผู้ใช้</h3>
-                        {/* ... User Table ... */}
-                         <div className="overflow-x-auto">
-                            <table className="table-auto w-full border-collapse mb-6">
-                                {/* ... table head ... */}
-                                <thead>
-                                    <tr>
-                                        <th className="px-4 py-2 border-b text-left">ชื่อ-นามสกุล</th>
-                                        <th className="px-4 py-2 border-b text-left">ID Card No</th>
-                                        <th className="px-4 py-2 border-b text-left">Phone No</th>
-                                        <th className="px-4 py-2 border-b text-left">Email</th>
-                                        <th className="px-4 py-2 border-b text-left">Line User ID</th>
-                                        <th className="px-4 py-2 border-b text-left">วันที่สมัคร</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td className="px-4 py-2 border-b">{user.name || '-'}</td>
-                                        <td className="px-4 py-2 border-b">{user.ID_card_No || '-'}</td>
-                                        <td className="px-4 py-2 border-b">{user.Phone_No || '-'}</td>
-                                        <td className="px-4 py-2 border-b">{user.Email || '-'}</td>
-                                        <td className="px-4 py-2 border-b">{user.lineUserId || '-'}</td>
-                                        <td className="px-4 py-2 border-b">{user.created_at ? new Date(user.created_at).toLocaleDateString('th-TH') : '-'}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <h3 className="text-2xl font-semibold mt-6 mb-4">ที่อยู่ของผู้ใช้</h3>
-                        {userAddresses && userAddresses.length > 0 ? (
-                            userAddresses.map((address) => (
-                                <div key={address.address_id} className="border my-4 bg-gray-50 rounded-lg p-4 shadow-sm">
-                                    <div onClick={() => toggleExpand(address.address_id)} className="cursor-pointer mb-3">
-                                        {/* ... Address Details ... */}
-                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-                                            <p><span className="font-semibold">บ้านเลขที่:</span> {address.house_no || '-'}</p>
-                                            <p><span className="font-semibold">หมู่ที่:</span> {address.village_no || '-'}</p>
-                                            <p><span className="font-semibold">ถนน/ซอย:</span> {address.Alley || '-'}</p>
-                                            <p><span className="font-semibold">ตำบล/แขวง:</span> {address.sub_district || '-'}</p>
-                                            <p><span className="font-semibold">อำเภอ/เขต:</span> {address.district || '-'}</p>
-                                            <p><span className="font-semibold">จังหวัด:</span> {address.province || '-'}</p>
-                                            <p><span className="font-semibold">รหัสไปรษณีย์:</span> {address.postal_code || '-'}</p>
-                                        </div>
-                                        <div className="flex items-center mt-3">
-                                            <p className={`font-semibold mr-3 ${address.address_verified === 1 ? "text-green-600" : "text-red-600"}`}>
-                                                 สถานะ: {address.address_verified === 1 ? "ยืนยันแล้ว" : "ยังไม่ยืนยัน"}
-                                            </p>
-                                            {address.address_verified !== 1 && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleVerifyAddress(address.address_id); }} // Prevent expand/collapse when clicking button
-                                                    className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 text-sm"
-                                                >
-                                                    ยืนยันที่อยู่
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {expanded[address.address_id] && (
-                                        <div className="mt-3 pt-3 border-t">
-                                            <h4 className="text-lg font-semibold mb-2">📄 บิลที่ยังไม่ชำระ:</h4>
-                                            {billsMap[address.address_id] && billsMap[address.address_id].length > 0 ? (
-                                                <div className="overflow-x-auto">
-                                                <table className="table-auto w-full border-collapse text-sm">
-                                                    {/* ... Bills Table Head ... */}
-                                                    <thead>
-                                                        <tr className="bg-gray-200">
-                                                            <th className="px-3 py-2 border-b text-left">จำนวนเงิน (บาท)</th>
-                                                            <th className="px-3 py-2 border-b text-left">วันที่ครบกำหนด</th>
-                                                            <th className="px-3 py-2 border-b text-left">สถานะ</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {billsMap[address.address_id].map((bill, index) => (
-                                                            <tr key={index} className="hover:bg-gray-100">
-                                                                <td className="px-3 py-2 border-b">{parseFloat(bill.amount_due).toFixed(2)}</td>
-                                                                <td className="px-3 py-2 border-b">
-                                                                    {bill.due_date ? new Date(bill.due_date).toLocaleDateString('th-TH') : "ไม่ระบุ"}
-                                                                </td>
-                                                                {/* ✅ แก้ไข: ใช้ bill.status === 0 */}
-                                                                <td className={`px-3 py-2 border-b font-medium ${bill.status === 0 ? "text-red-600" : "text-green-600"}`}>
-                                                                    {bill.status === 0 ? "ยังไม่ชำระ" : "ชำระแล้ว"}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                                </div>
-                                            ) : (
-                                                <p className="text-gray-500 italic">ไม่มีบิลที่ต้องชำระสำหรับที่อยู่นี้</p>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            ))
-                        ) : (
-                             <p className="text-gray-500 italic">ไม่พบข้อมูลที่อยู่สำหรับผู้ใช้นี้</p>
-                        )}
-                        <div className="mt-6">
-                            <button onClick={handleAddAddress} className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
-                                เพิ่มที่อยู่ใหม่
-                            </button>
-                        </div>
-                    </div>
-                )}
+      {/* 9. (ปรับปรุง) Loading, Error, Content Wrapper */}
+      <div className="flex-1 p-5">
+        {error && (
+          <div className="text-center p-4 mb-4 text-red-700 bg-red-100 rounded-lg flex items-center justify-center gap-2">
+            <FaExclamationCircle /> {error}
+          </div>
+        )}
+        {loading ? (
+          <div className="text-center p-10 text-gray-500">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+            <p className="mt-4">กำลังโหลดข้อมูล...</p>
+          </div>
+        ) : user ? (
+          <div className="space-y-6">
+            {/* 10. (ปรับปรุง) การ์ดข้อมูลผู้ใช้ */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <div className="flex items-center gap-3 mb-4">
+                <FaUserCircle className="text-3xl text-gray-400" />
+                <h3 className="text-2xl font-semibold text-gray-800">ข้อมูลผู้ใช้</h3>
+              </div>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <DetailItem label="ชื่อ-นามสกุล" value={user.name} />
+                <DetailItem label="ID Card No" value={user.ID_card_No} />
+                <DetailItem label="Phone No" value={user.Phone_No} />
+                <DetailItem label="Email" value={user.Email} />
+                <DetailItem label="Line User ID" value={user.lineUserId} />
+                <DetailItem label="วันที่สมัคร" value={user.created_at ? new Date(user.created_at).toLocaleDateString('th-TH') : '-'} />
+              </dl>
             </div>
-        </div>
-    );
+
+            {/* 11. (ปรับปรุง) โซนที่อยู่ */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-semibold text-gray-800">ที่อยู่ของผู้ใช้</h3>
+                <button 
+                  onClick={handleAddAddress} 
+                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium"
+                >
+                  <FaPlus />
+                  เพิ่มที่อยู่ใหม่
+                </button>
+              </div>
+
+              {userAddresses.length > 0 ? (
+                <div className="space-y-4">
+                  {userAddresses.map((address) => (
+                    // 12. (ปรับปรุง) การ์ดที่อยู่
+                    <div key={address.address_id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                      {/* Header การ์ด (Clickable) */}
+                      <div
+                        className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-50"
+                        onClick={() => toggleExpand(address.address_id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <FaHome className="text-xl text-green-600" />
+                          <div>
+                            <span className="font-semibold text-gray-900">
+                              บ้านเลขที่: {address.house_no || '-'}
+                            </span>
+                            <span className="text-sm text-gray-500 ml-2">
+                              ({address.sub_district || '-'}, {address.district || '-'})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {address.address_verified === 1 ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <FaCheckCircle /> ยืนยันแล้ว
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              <FaTimesCircle /> ยังไม่ยืนยัน
+                            </span>
+                          )}
+                          <FaChevronDown className={`text-gray-400 transition-transform ${expanded[address.address_id] ? 'rotate-180' : 'rotate-0'}`} />
+                        </div>
+                      </div>
+
+                      {/* 13. (ปรับปรุง) ส่วนที่พับได้ */}
+                      {expanded[address.address_id] && (
+                        <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-4">
+                          {/* รายละเอียดที่อยู่ */}
+                          <div>
+                            <h4 className="font-semibold mb-2 text-gray-800">รายละเอียดที่อยู่:</h4>
+                            <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                              <DetailItem label="บ้านเลขที่" value={address.house_no} />
+                              <DetailItem label="หมู่ที่" value={address.village_no} />
+                              <DetailItem label="ถนน/ซอย" value={address.Alley} />
+                              <DetailItem label="ตำบล/แขวง" value={address.sub_district} />
+                              <DetailItem label="อำเภอ/เขต" value={address.district} />
+                              <DetailItem label="จังหวัด" value={address.province} />
+                              <DetailItem label="รหัสไปรษณีย์" value={address.postal_code} />
+                            </dl>
+                          </div>
+
+                          {/* ปุ่มยืนยัน (ถ้ายังไม่ยืนยัน) */}
+                          {address.address_verified !== 1 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleVerifyAddress(address.address_id); }}
+                              className="bg-green-600 text-white px-4 py-1.5 rounded-md hover:bg-green-700 text-sm font-semibold"
+                            >
+                              ยืนยันที่อยู่
+                            </button>
+                          )}
+
+                          {/* ตารางบิล */}
+                          <div>
+                            <h4 className="text-lg font-semibold mb-2 text-gray-800">📄 บิลที่ยังไม่ชำระ:</h4>
+                            {billsMap[address.address_id] && billsMap[address.address_id].length > 0 ? (
+                              <div className="overflow-x-auto rounded border">
+                                <table className="w-full text-sm">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      <th className="px-3 py-2 text-left font-medium text-gray-600">จำนวนเงิน (บาท)</th>
+                                      <th className="px-3 py-2 text-left font-medium text-gray-600">วันที่ครบกำหนด</th>
+                                      <th className="px-3 py-2 text-left font-medium text-gray-600">สถานะ</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-200">
+                                    {billsMap[address.address_id].map((bill, index) => (
+                                      <tr key={index} className="bg-white">
+                                        <td className="px-3 py-2">{parseFloat(bill.amount_due).toFixed(2)}</td>
+                                        <td className="px-3 py-2">
+                                          {bill.due_date ? new Date(bill.due_date).toLocaleDateString('th-TH') : "ไม่ระบุ"}
+                                        </td>
+                                        <td className="px-3 py-2 font-medium text-red-600">
+                                          ยังไม่ชำระ
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 italic">ไม่มีบิลที่ต้องชำระสำหรับที่อยู่นี้</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                // 14. (ปรับปรุง) Empty State
+                <div className="bg-white p-6 rounded-lg shadow-md text-center text-gray-500 italic">
+                  ไม่พบข้อมูลที่อยู่สำหรับผู้ใช้นี้
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 };
 
 export default UserDetails;
