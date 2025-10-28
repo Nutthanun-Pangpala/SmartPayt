@@ -3,7 +3,7 @@ const adminController = require('../controllers/adminControllers');
 require('dotenv').config();
 
 // 📌 CRON รันทุกวันตอน 14:00 Asia/Bangkok
-cron.schedule('*/1 * * * *', () => {
+cron.schedule('14 * * * *', () => {
   console.log('⏳ [CRON] เริ่มสร้างบิลอัตโนมัติ');
 
   adminController.generateBillsFromWasteToday({}, {});
