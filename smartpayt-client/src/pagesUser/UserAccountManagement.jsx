@@ -32,7 +32,7 @@ export default function AccountManagement() {
     if (!lineUserIdLS) return;
     (async () => {
       try {
-        const res = await axios.get(`http://localhost:3000/api/user/${lineUserIdLS}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/user/${lineUserIdLS}`);
         const user = res.data?.user || res.data || {};
         setAccount(user);
         setFormData({
@@ -104,7 +104,7 @@ export default function AccountManagement() {
     try {
       setSaving(true);
       await axios.put(
-        `http://localhost:3000/api/userupdateAccout/${formData.lineUserId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/userupdateAccout/${formData.lineUserId}`,
         formData
       );
       setAccount(formData);

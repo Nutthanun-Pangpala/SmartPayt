@@ -58,5 +58,6 @@ router.get('/report/export-finance', adminController.exportFinanceReport);
 // Waste records
 router.post('/waste-records', adminController.createWasteRecord);
 router.post('/generate-bills-today', adminController.generateBillsFromWasteToday);
+router.post('/users/:lineUserId/add-address', adminController.adduserAddress);
 
 module.exports = router;

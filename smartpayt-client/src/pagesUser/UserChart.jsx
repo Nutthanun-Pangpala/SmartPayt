@@ -42,7 +42,7 @@ export default function WastePieMulti() {
     setLoading(true);
     setError("");
     try {
-      const url = `http://localhost:3000/api/user-waste-summary/${encodeURIComponent(lineUserId)}`;
+      const url = `${import.meta.env.VITE_API_BASE_URL}/api/user-waste-summary/${encodeURIComponent(lineUserId)}`;
       const res = await axios.get(url, { params: { from, to } });
 
       const serverIds = (res.data?.addresses || []).map(String);

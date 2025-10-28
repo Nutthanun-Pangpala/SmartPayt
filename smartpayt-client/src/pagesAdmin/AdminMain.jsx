@@ -81,7 +81,7 @@ const AdminMain = () => {
           return;
         }
         const response = await axios.get(
-          "http://localhost:3000/admin/waste-months",
+          `${import.meta.env.VITE_API_BASE_URL}/admin/waste-months`,
           { headers: { authorization: `Bearer ${token}` } }
         );
         setAvailableMonths(response.data);
@@ -101,14 +101,14 @@ const AdminMain = () => {
 
     const fetchWasteByMonth = async (month) => {
       try {
-        const token = localStorage.getItem("Admin_token");
+        const token = localStorage.getItem("Admintoken");
         if (!token) {
           navigate("/adminlogin");
           return;
         }
 
         const response = await axios.get(
-          `http://localhost:3000/admin/waste-stats?month=${month}`,
+          `${import.meta.env.VITE_API_BASE_URL}/admin/waste-stats?month=${month}`,
           { headers: { authorization: `Bearer ${token}` } }
         );
 
@@ -132,10 +132,10 @@ const AdminMain = () => {
         }
 
         const [statsRes, pendingRes] = await Promise.all([
-          axios.get("http://localhost:3000/admin/stats", {
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/stats`, {
             headers: { authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:3000/admin/pending-counts", {
+          axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/pending-counts`, {
             headers: { authorization: `Bearer ${token}` },
           }),
         ]);

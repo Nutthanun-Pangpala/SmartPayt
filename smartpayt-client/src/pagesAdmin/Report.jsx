@@ -18,7 +18,7 @@ const Report = () => {
  const handleWasteReport = async () => {
   try {
     const token = localStorage.getItem('Admin_token');
-    const response = await axios.get('http://localhost:3000/admin/stats-waste-daily', {
+    const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/stats-waste-daily`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -56,7 +56,7 @@ const Report = () => {
   const handleFinanceReport = async () => {
     try { 
       const token = localStorage.getItem('Admin_token');
-      const response = await axios.get('http://localhost:3000/admin/report/export-finance', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/report/export-finance`, {
         responseType: 'blob',
         headers: {
           Authorization: `Bearer ${token}`,

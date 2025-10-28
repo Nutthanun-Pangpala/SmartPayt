@@ -68,7 +68,7 @@ const AdminManualBill = () => {
       return;
     }
 
-    axios.get('http://localhost:3000/admin/users', {
+    axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/users`, {
       headers: {
         'Cache-Control': 'no-cache',
         'Authorization': `Bearer ${token}`,
@@ -77,7 +77,7 @@ const AdminManualBill = () => {
       .then(res => setUsers(res.data.users || []))
       .catch(err => setError('ไม่สามารถโหลดผู้ใช้ได้'));
 
-    axios.get('http://localhost:3000/admin/waste-pricing', {
+    axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/waste-pricing`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
       .then(res => setWastePrices(res.data || {}))
@@ -90,7 +90,7 @@ const AdminManualBill = () => {
     const token = localStorage.getItem('Admin_token');
 
     try {
-      const res = await axios.get(`http://localhost:3000/admin/users/address/${lineUserId}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/users/address/${lineUserId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAddresses(res.data.addresses || []);
@@ -102,7 +102,7 @@ const AdminManualBill = () => {
   const fetchPricesByAddressType = async (type) => {
   const token = localStorage.getItem('Admin_token');
   try {
-    const res = await axios.get(`http://localhost:3000/admin/waste-pricing?type=${type}`, {
+    const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/admin/waste-pricing?type=${type}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     setWastePrices(res.data || {});
@@ -136,7 +136,7 @@ useEffect(() => {
   }
 
   try {
-    const response = await axios.post('http://localhost:3000/admin/bills', {
+    const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/admin/bills`, {
       address_id: selectedAddress,
       generalWeight: parseFloat(wasteWeights.general || 0),
       hazardousWeight: parseFloat(wasteWeights.hazardous || 0),

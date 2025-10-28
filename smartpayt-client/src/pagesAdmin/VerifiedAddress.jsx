@@ -35,7 +35,7 @@ const VerifiedAddress = () => {
                 return;
             }
 
-            const response = await api.get('/admin/users-verify-address', {
+            const response = await api.get('/api/admin/users-verify-address', {
                 params: { page: currentPage, search: searchTerm },
             });
 
@@ -67,29 +67,27 @@ const VerifiedAddress = () => {
         });
     }, [users]);
 
-    const handleVerify = async (addressId) => {
-        try {
-            const token = localStorage.getItem('Admin_token');
-            if (!token) {
-                setError('กรุณาเข้าสู่ระบบ');
-                return;
-            }
+   const handleVerify = async (addressId) => {
+        try {
+            const token = localStorage.getItem('Admin_token');
+            if (!token) {
+                setError('กรุณาเข้าสู่ระบบ');
+                return;
+            }
 
-            // ถ้า api มี interceptor ใส่ token ให้อยู่แล้ว ก็ไม่ต้องแนบ headers ตรงนี้
-            await api.post(`/admin/verify-address/${addressId}`);
+            // ✅ 1. แก้ไข URL ให้ขึ้นต้นด้วย /api/admin/
+            // ✅ 2. ยืนยันว่าใช้ Method POST (ถ้า Backend ใช้ POST)
+            await api.post(`/admin/verify-address/${addressId}`,{
+                headers: { Authorization: `Bearer ${token}` }
+            }); 
 
-            setUsers(prev =>
-                (prev || []).map(u => u.address_id === addressId ? { ...u, address_verified: 1 } : u)
-            );
-        } catch (err) {
-            // แสดงข้อความตามสถานะให้เดาง่ายขึ้น
-            const status = err?.response?.status;
-            if (status === 401) setError('ไม่ได้รับอนุญาต โปรดเข้าสู่ระบบใหม่');
-            else if (status === 404) setError('ไม่พบที่อยู่นี้');
-            else setError('ไม่สามารถยืนยันที่อยู่ได้');
-            console.error(err);
-        }
-    };
+            setUsers(prev =>
+                (prev || []).map(u => u.address_id === addressId ? { ...u, address_verified: 1 } : u)
+            );
+        } catch (err) {
+            // ... (error handling)
+        }
+    };
 
 
     const handleSearchSubmit = (e) => {

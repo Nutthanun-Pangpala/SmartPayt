@@ -3,19 +3,10 @@ import axios from "axios";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const maskIdCard = (val) => {
-  if (!val) return "-";
-  const digits = String(val).replace(/\D/g, "");
-  if (digits.length < 6) return digits; // ถ้าน้อยมากไม่ต้อง mask
-  // โชว์ 3 ตัวหน้า + **** + 4 ตัวท้าย
-  return `${digits.slice(0, 3)}-****-****-${digits.slice(-3)}`;
-};
-
 const maskPhone = (val) => {
   if (!val) return "-";
   const digits = String(val).replace(/\D/g, "");
   if (digits.length !== 10) return digits;
-  // รูปแบบ 0X-XXX-XXXX และ mask ตรงกลางเล็กน้อย
   return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-****`;
 };
 
@@ -55,8 +46,7 @@ const UserDatacard = () => {
 
   useEffect(() => {
     fetchUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineUserId]);
+  }, [lineUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -106,7 +96,7 @@ const UserDatacard = () => {
       <div className="h-1.5 bg-gradient-to-r from-green-600 to-emerald-400" />
 
       <div className="p-4">
-        {/* ส่วนหัว: อวาตาร์ + ชื่อ */}
+        {/* ส่วนหัว */}
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-full bg-green-600 text-white flex items-center justify-center text-lg font-bold">
             {avatar}
@@ -123,14 +113,6 @@ const UserDatacard = () => {
 
         {/* รายละเอียด */}
         <div className="mt-3 space-y-2 text-sm md:text-base">
-          <div className="flex items-start gap-2">
-            <i className="fi fi-sr-credit-card mt-0.5 text-gray-500" />
-            <div className="text-gray-600">
-              <span className="text-gray-500 mr-1">เลขบัตรประชาชน:</span>
-              <span className="font-medium">{maskIdCard(userData.ID_card_No)}</span>
-            </div>
-          </div>
-
           <div className="flex items-start gap-2">
             <i className="fi fi-ss-phone-call mt-0.5 text-gray-500" />
             <div className="text-gray-600">
@@ -157,7 +139,7 @@ const UserDatacard = () => {
           </div>
         </div>
 
-        {/* ปุ่มไปจัดการบัญชี (ถ้ามีหน้า) */}
+        {/* ปุ่มไปจัดการบัญชี */}
         {/* <div className="mt-4">
           <button
             onClick={() => navigate("/account")}

@@ -33,7 +33,7 @@ import Issues from "./pagesUser/UserReportIssuesPages";
 
 const router = createBrowserRouter([
 //admin
-  { path: "/admin/users/:lineUserId/add-address",element: <AddUser />,},
+  { path: "api/admin/users/:lineUserId/add-address",element: <AddUser />,},
   { path: "/admin", element: <AdminMain /> },
   { path: "/adminregister", element: <AdminRegister /> },
   { path: "/adminlogin", element: <AdminLogin /> },

@@ -14,7 +14,7 @@ const AdminLogin = () => {
     setError(""); // รีเซ็ตข้อผิดพลาดก่อนส่งคำขอ
   
     try {
-      const response = await fetch("http://localhost:3000/admin/login", {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ admin_username, admin_password }),
