@@ -73,7 +73,7 @@ const NavbarComponent = () => {
       <nav className="mx-auto max-w-6xl px-4 md:px-6">
         <div className="h-16 md:h-20 flex items-center justify-between">
           <button
-            onClick={() => navigate("/UserDashboard")}
+            onClick={() => navigate("/")}
             className="group flex items-center gap-3 focus:outline-none"
             aria-label="SmartPayt Home"
           >

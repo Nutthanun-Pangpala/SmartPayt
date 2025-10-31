@@ -53,7 +53,7 @@ const RegisterUserForm = () => {
       setFormData((prev) => ({ ...prev, lineUserId: lineUserId }));
       try {
         const checkUser = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/checkUser/${lineUserId}`);
-        if (checkUser.data.exists) { navigate("/"); }
+        if (checkUser.data.exists) { navigate("/registerAddress"); }
       } catch (err) { console.error("Error checking user:", err); }
     };
     checkUserId();

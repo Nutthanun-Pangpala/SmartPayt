@@ -80,7 +80,7 @@ export default function RegisterAddressForm() {
       setFormData((prev) => ({ ...prev, lineUserId }));
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/checkUser/${lineUserId}`);
-        if (res.data.exists) navigate('/'); // มีผู้ใช้อยู่แล้ว
+        if (res.data.exists) navigate('/registerAddress'); // มีผู้ใช้อยู่แล้ว
       } catch (err) {
         console.error('Error checking user:', err);
       }

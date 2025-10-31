@@ -149,7 +149,7 @@ const UserAddressesCard = () => {
           ลองใหม่
         </button>
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/registerAddress")}
           className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
         >
           เพิ่มที่อยู่
@@ -180,7 +180,7 @@ const UserAddressesCard = () => {
   // ฟลอทปุ่ม “เพิ่มที่อยู่” (ช่วยให้เข้าถึงง่ายเสมอ)
   const FloatingCTA = () => (
     <button
-      onClick={() => navigate("/")}
+      onClick={() => navigate("/registerAddress")}
       title="เพิ่มที่อยู่"
       className="fixed bottom-24 right-4 z-40 rounded-full bg-emerald-600 text-white shadow-lg px-4 py-3 hover:bg-emerald-700 active:scale-[.98]"
       style={{ paddingInline: "14px" }}
