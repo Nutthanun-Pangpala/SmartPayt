@@ -14,6 +14,7 @@ const getUser = (req, res) => {
 };
 
 // 📤 อัปโหลดสลิปและอัปเดตสถานะบิล
+// 📤 อัปโหลดสลิปและอัปเดตสถานะบิล
 const uploadSlip = async (req, res) => {
   try {
     if (!req.file) {
@@ -36,13 +37,17 @@ const uploadSlip = async (req, res) => {
       return res.status(400).json({ success: false, message: "ไม่มี bill id สำหรับอัปโหลด" });
     }
 
-    const filePath = req.file.path;
+    // --- ✅ [แก้ไข] เปลี่ยนจาก .path เป็น .filename ---
+    const imageFilename = req.file.filename; 
+    // --------------------------------------------------
 
     // ✅ บันทึกสลิปในตาราง payment_slips
     for (let billId of billArray) {
       await db.query(
         "INSERT INTO payment_slips (bill_id, image_path, status, uploaded_at) VALUES (?, ?, 'pending', NOW())",
-        [billId, filePath]
+        // --- ✅ [แก้ไข] ใช้ตัวแปรใหม่ที่เป็นชื่อไฟล์ ---
+        [billId, imageFilename] 
+        // ---------------------------------------------
       );
     }
 
