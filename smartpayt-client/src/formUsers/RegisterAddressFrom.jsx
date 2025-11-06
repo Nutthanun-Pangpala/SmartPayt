@@ -1,7 +1,7 @@
 import axios from 'axios';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import ToastNotification from '../assets/component/user/ToastNotification';
@@ -168,7 +168,7 @@ export default function RegisterAddressForm() {
     try {
       const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/registerAddress`, formData);
       setMessage(res.data.message || 'ลงทะเบียนสำเร็จ!');
-      setTimeout(() => navigate('/UserDashboard'), 1500);
+      setTimeout(() => navigate('/'), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
     } finally {

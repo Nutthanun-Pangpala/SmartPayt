@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import NavbarComponent from "../assets/component/user/userNavbar";
 import qrImage from "../assets/img/qr.jpg";
@@ -35,7 +35,7 @@ const QRPaymentPage = () => {
             }).then((res) => {
                 console.log("📦 RESPONSE FROM SERVER:", res.data);
                 alert("อัปโหลดสำเร็จ 🎉");
-                navigate("/userDashboard");
+                navigate("/");
             });
 
         } catch (error) {
