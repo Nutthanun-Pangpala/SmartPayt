@@ -147,7 +147,11 @@ const AdminSlipList = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button 
                           className="flex items-center gap-1 text-green-600 hover:text-green-800"
-                          onClick={() => setPreviewImage(`${import.meta.env.VITE_API_BASE_URL}/${slip.image_path.replace(/\\/g, "/")}`)}
+                          onClick={() => setPreviewImage(
+                            // --- 👇 เพิ่ม /uploads/ ตรงนี้ครับ 👇 ---
+                            `${import.meta.env.VITE_API_BASE_URL}/uploads/${slip.image_path.replace(/\\/g, "/")}`
+                            // --- ------------------------------- ---
+                          )}
                         >
                           <FaEye /> ดูสลิป
                         </button>
