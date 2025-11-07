@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import nanglaeIcon from "../assets/img/nanglaeicon.png";
 import axios from 'axios';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+// ✅ เพิ่ม AdminLayout เข้ามา
+import AdminLayout from '../pagesAdmin/component/AdminLayout';
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL}`;
 
@@ -11,7 +13,7 @@ const toNumberOrNull = (v) => {
     return Number.isFinite(n) ? n : null;
 };
 
-// Toast (popup) เล็ก ๆ
+// Toast (popup) เล็ก ๆ (คงไว้)
 function useToast() {
     const [toast, setToast] = useState({ open: false, message: '', kind: 'success' });
     const show = (message, kind = 'success', ms = 2000) => {
@@ -23,15 +25,12 @@ function useToast() {
 }
 
 const WastePricehousehold = () => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [prices, setPrices] = useState({ general: '', hazardous: '', recyclable: '', organic: '' });
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { toast, show } = useToast();
 
     const token = useMemo(() => localStorage.getItem('Admin_token'), []);
-
-    const toggleSidebar = () => setIsSidebarOpen(s => !s);
 
     const handleChange = (type, value) => {
         // เก็บเป็น string เพื่อให้พิมพ์ได้ลื่น
@@ -105,95 +104,74 @@ const WastePricehousehold = () => {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#FDEFB2]">
-            {/* Header Bar */}
-            <div className="flex items-center justify-between p-4 bg-white shadow">
-                <div className="flex items-center">
-                    <button onClick={toggleSidebar} className="text-gray-800 p-2 mr-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="h-6 w-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                    <div className="flex items-center space-x-3">
-                        <img src={nanglaeIcon} alt="icon" className="h-20" />
-                        <h2 className="text-2xl font-bold text-gray-800">เทศบาลตำบลนางแล</h2>
-                    </div>
-                </div>
-            </div>
+        <AdminLayout>
+            {/* Content Area: ใช้ bg-gray-100 เพื่อให้ดูสะอาดตา */}
+            <div className="bg-gray-100 min-h-full p-4 sm:p-6 flex flex-col items-center">
+                <h1 className="text-3xl font-extrabold text-gray-800 mb-8 border-b-4 border-green-500 pb-2 w-full max-w-xl text-center">
+                    ตั้งค่าราคาค่าบริการขยะ (บาท/กิโลกรัม)
+                </h1>
 
-            <div className="flex h-[calc(100vh-88px)]">
-                <div className={`relative ${isSidebarOpen ? 'w-1/5' : 'w-0 opacity-0'} bg-green-700 p-5 text-white transition-all`}>
-                    <h2 className="text-xl font-bold mb-4">Smart Payt</h2>
-                    <ul>
-                        <li
-                            className="mb-2 p-2 hover:bg-green-900 cursor-pointer rounded px-4 py-3 w-full"
-                            onClick={() => navigate('/admin')}
-                        >
-                            หน้าหลัก
-                        </li>
-                    </ul>
-                    <div className="absolute bottom-5 left-0 right-0 flex justify-center">
+                {/* Main Card */}
+                <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl max-w-xl w-full border border-gray-200">
+                    
+                    {/* Navigation Tabs */}
+                    <div className="flex mb-8 border-b border-gray-300">
+                        <button className="px-6 py-3 text-lg font-bold rounded-t-lg border-b-4 border-green-600 text-green-700 bg-green-50 transition duration-150">
+                            ครัวเรือน
+                        </button>
                         <button
-                            className="bg-yellow-500 text-black px-7 py-3 rounded shadow-md"
-                            onClick={() => { localStorage.removeItem('Admin_token'); navigate('/adminlogin'); }}
+                            onClick={() => navigate('/admin/establishment')}
+                            className="px-6 py-3 text-lg font-semibold rounded-t-lg text-gray-500 hover:bg-gray-100 transition duration-150"
                         >
-                            ออกจากระบบ
+                            สถานประกอบการ
                         </button>
                     </div>
-                </div>
 
-                {/* Content */}
-                <div className="flex-1 p-5">
-                    <h1 className="text-3xl font-bold mb-6 text-center lg:text-left">
-                        ตั้งค่าราคาค่าบริการขยะแต่ละประเภท (บาท/กิโลกรัม)
-                    </h1>
-
-                    <div className="bg-white p-6 rounded-xl shadow-md max-w-xl mx-auto">
-                        <div className="flex mb-5 justify-start gap-4">
-                            <button className="px-8 py-3 text-lg font-semibold rounded-full text-white bg-green-600">ครัวเรือน</button>
-                            <button
-                                onClick={() => navigate('/admin/establishment')}
-                                className="px-8 py-3 text-lg font-semibold rounded-full text-white bg-gray-400"
-                            >
-                                สถานประกอบการ
-                            </button>
-                        </div>
-
-                        {[
-                            { key: 'general', label: 'ขยะทั่วไป' },
-                            { key: 'hazardous', label: 'ขยะอันตราย' },
-                            { key: 'recyclable', label: 'ขยะรีไซเคิล (ใส่ค่าติดลบได้)' },
-                            { key: 'organic', label: 'ขยะเปียก' },
-                        ].map(({ key, label }) => (
-                            <div className="mb-5" key={key}>
-                                <label className="block mb-1 font-semibold text-gray-700">{label}</label>
+                    {/* Form Inputs */}
+                    {[
+                        { key: 'general', label: 'ขยะทั่วไป', unit: 'บาท/กก.' },
+                        { key: 'hazardous', label: 'ขยะอันตราย', unit: 'บาท/กก.' },
+                        { key: 'recyclable', label: 'ขยะรีไซเคิล', unit: 'บาท/กก. (ติดลบได้)' },
+                        { key: 'organic', label: 'ขยะเปียก/อินทรีย์', unit: 'บาท/กก.' },
+                    ].map(({ key, label, unit }) => (
+                        <div className="mb-6" key={key}>
+                            <label className="block mb-2 font-semibold text-gray-700 text-lg">
+                                {label}
+                            </label>
+                            <div className="flex items-center space-x-3">
                                 <input
                                     type="number"
                                     step="0.01"
                                     value={prices[key]}
                                     onChange={(e) => handleChange(key, e.target.value)}
-                                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    className="flex-1 p-3 border border-gray-300 rounded-lg shadow-inner focus:outline-none focus:ring-4 focus:ring-green-200 focus:border-green-500 transition duration-150 text-lg"
+                                    placeholder="ใส่ราคา (เช่น 5.00)"
                                 />
+                                <span className="text-gray-500 font-medium whitespace-nowrap min-w-[120px]">
+                                    {unit}
+                                </span>
                             </div>
-                        ))}
+                        </div>
+                    ))}
 
-                        <div className="text-sm text-gray-500 mt-2">* ราคาติดลบใช้กรณีรับซื้อขยะรีไซเคิล</div>
-
-                        <button
-                            onClick={handleSave}
-                            disabled={loading}
-                            className="mt-6 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded disabled:opacity-60"
-                        >
-                            {loading ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
-                        </button>
+                    <div className="text-sm text-gray-500 mt-2 mb-8 p-2 border-l-4 border-yellow-400 bg-yellow-50 rounded-md">
+                        * ราคาติดลบใช้ในกรณีที่เทศบาล **รับซื้อ** ขยะรีไซเคิล (จ่ายเงินให้ผู้ทิ้ง)
                     </div>
+
+                    <button
+                        onClick={handleSave}
+                        disabled={loading}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 text-xl shadow-lg hover:shadow-xl disabled:bg-gray-400 disabled:opacity-80"
+                    >
+                        {loading ? 'กำลังบันทึกข้อมูล...' : '💾 บันทึกการตั้งค่าราคา'}
+                    </button>
                 </div>
             </div>
 
             {/* Toast popup */}
             {toast.open && (
                 <div
-                    className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded shadow-lg text-white
+                    className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-2xl text-white font-medium transition-opacity duration-300 ease-out
       ${toast.kind === 'success' ? 'bg-green-600' : 'bg-red-600'}`}
                     role="alert"
                 >
@@ -201,7 +179,7 @@ const WastePricehousehold = () => {
                 </div>
             )}
 
-        </div>
+        </AdminLayout>
     );
 };
 
