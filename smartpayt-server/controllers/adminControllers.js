@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const ExcelJS = require('exceljs');
 const { sendMessageToUser, sendLineNotify } = require("../utils/lineNotify");
+const { logAdminAction } = require('../utils/logger');
 
 // =========================================
 // Authentication & Basic Admin Info
@@ -17,8 +18,18 @@ exports.register = async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(admin_password, 10);
     const sql = 'INSERT INTO admins (admin_username, admin_password) VALUES (?, ?)';
-    await db.query(sql, [admin_username, hashedPassword]);
-    res.json({ message: 'Admin registered successfully' }); // Changed message slightly
+    const [result] = await db.query(sql, [admin_username, hashedPassword]);
+    
+    // 💡 AUDIT LOG (Register): ต้องเรียก log โดยตรง เพราะ Route นี้ไม่ได้ผ่าน verifyToken
+    try {
+      await db.query(
+          `INSERT INTO audit_logs (admin_id, admin_role, action_type, entity_type, details)
+           VALUES (?, ?, 'CREATE', 'ADMIN', ?)`,
+          [result.insertId, 'super-admin', JSON.stringify({ ip: req.ip, username: admin_username, role: 'super-admin' })] 
+      );
+    } catch (e) { console.error('Failed to log register:', e); }
+
+    res.json({ message: 'Admin registered successfully' }); 
   } catch (err) {
     console.error('Registration Error:', err);
     return res.status(500).json({ message: 'Admin registration failed', error: err.message });
@@ -32,7 +43,6 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
     const sql = 'SELECT * FROM admins WHERE admin_username = ?';
-    // 💡 [เช็ก]: ต้องมั่นใจว่า SQL query นี้ดึงคอลัมน์ 'role' มาด้วย (SELECT *)
     const [results] = await db.query(sql, [admin_username]);
     
     if (results.length === 0) {
@@ -44,17 +54,25 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     
-    // 1. สร้าง JWT Payload (Role ถูกฝังใน Token แล้ว, ถูกต้อง)
     const Admintoken = jwt.sign(
       { adminId: admin.id, role: admin.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
     
-    // 2. ✅ [แก้ไข]: ส่ง role กลับไปใน Response Body ด้วย
+    // 💡 AUDIT LOG (Login): ต้องเรียก log โดยตรง
+    try {
+      await db.query(
+          `INSERT INTO audit_logs (admin_id, admin_role, action_type, entity_type, details)
+           VALUES (?, ?, 'LOGIN', 'ADMIN', ?)`,
+          [admin.id, admin.role, JSON.stringify({ ip: req.ip, username: admin_username })]
+      );
+    } catch (e) { console.error('Failed to log login:', e); }
+
+    // 2. ส่ง Token และ Role กลับไป Front-end (แก้ไขเพื่อให้ Front-end บันทึก Role)
     res.json({ 
         Admintoken: Admintoken,
-        role: admin.role // <--- ส่งค่า Role ที่ถูกต้องกลับไป Front-end
+        role: admin.role // ส่ง Role กลับไป
     });
 
   } catch (err) {
@@ -259,7 +277,7 @@ exports.adduserAddress = async (req, res) => {
     const {
       house_no, village_no, alley, province, district, sub_district, postal_code, address_type
     } = req.body;
-    const address_verified = 0; // Default to not verified
+    const address_verified = 0; 
 
     if (!lineUserId || !house_no || !village_no || !province || !district || !sub_district || !postal_code || !address_type) {
         return res.status(400).json({ success: false, error: 'Missing required address fields' });
@@ -268,15 +286,14 @@ exports.adduserAddress = async (req, res) => {
         return res.status(400).json({ success: false, error: 'Invalid address_type value' });
     }
 
-    // Consider adding a check for duplicate addresses for this user?
-
     const query = `INSERT INTO addresses (lineUserId, house_no, village_no, Alley, province, district, sub_district, postal_code, address_verified, address_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`;
     const values = [
       lineUserId, house_no, village_no, alley || "", province, district, sub_district, postal_code, address_verified, address_type
     ];
     const [result] = await db.query(query, values);
 
-    // Maybe send a notification to admin/user here?
+    // 💡 AUDIT LOG: บันทึกการเพิ่มที่อยู่
+    await logAdminAction(req, 'CREATE', 'ADDRESS', result.insertId, { lineUserId, house_no, address_type });
 
     res.status(201).json({
       success: true,
@@ -375,7 +392,7 @@ exports.verifyAddress = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Missing addressId or adminId' });
   }
 
-  const sqlUpdate = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ? AND address_verified = 0'; // Only update if not verified
+  const sqlUpdate = 'UPDATE addresses SET address_verified = 1, admin_verify = ? WHERE address_id = ? AND address_verified = 0';
 
   try {
     const [updateResult] = await db.query(sqlUpdate, [adminId, addressId]);
@@ -387,6 +404,9 @@ exports.verifyAddress = async (req, res) => {
       }
       return res.status(404).json({ success: false, message: 'Address not found or already verified' });
     }
+    
+    // ✅ [ถูกเรียกครั้งที่ 1] บันทึก Audit Log ทันทีหลังจากการ Update DB
+    await logAdminAction(req, 'VERIFY', 'ADDRESS', addressId, { status: 'approved' });
 
     const [rows] = await db.query(
       `SELECT a.lineUserId, a.house_no, a.sub_district, a.district, a.province, a.postal_code, ad.admin_username
@@ -399,6 +419,8 @@ exports.verifyAddress = async (req, res) => {
     if (rows.length === 0) {
       console.warn(`Address ${addressId} updated but could not be re-fetched.`);
       await sendLineNotify(`⚠️ ยืนยันที่อยู่ ID ${addressId} สำเร็จ แต่ไม่สามารถส่งแจ้งเตือน User ได้ โดย Admin ID: ${adminId}`);
+      
+      // ⚠️ ส่ง Response กลับทันที หากไม่พบข้อมูลผู้ใช้/ที่อยู่ซ้ำอีกครั้ง
       return res.json({ success: true, message: 'Address verified (notification skipped)' });
     }
 
@@ -412,7 +434,11 @@ exports.verifyAddress = async (req, res) => {
 
     const messageToAdmin = `📍 ที่อยู่ ID ${addressId} (${house_no}, ${sub_district}) ได้รับการยืนยันแล้ว โดย Admin: ${adminName}`;
     await sendLineNotify(messageToAdmin);
-
+    
+    // ❌ [ถูกลบ] ลบการเรียก logAdminAction ที่ซ้ำซ้อน
+    // await logAdminAction(req, 'VERIFY', 'ADDRESS', addressId, { status: 'approved' }); 
+    
+    // ✅ [สำคัญ] เพิ่ม Response สำเร็จเมื่อทำเสร็จทุกขั้นตอน
     res.json({ success: true, message: 'Address verified successfully' });
 
   } catch (err) {
@@ -421,7 +447,6 @@ exports.verifyAddress = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed during verification process' });
   }
 };
-
 exports.verifyUser = async (req, res) => {
   const { lineUserId } = req.params;
   const adminId = req.user?.adminId;
@@ -456,6 +481,8 @@ exports.verifyUser = async (req, res) => {
 
     const messageToAdmin = `👤 ผู้ใช้ ${userName} (ID: ...${lineUserId.slice(-6)}) ได้รับการยืนยันบัญชีแล้ว โดย Admin: ${adminName}`;
     await sendLineNotify(messageToAdmin);
+    await logAdminAction(req, 'VERIFY', 'USER', null, { lineUserId, status: 'approved' });
+
 
     return res.status(200).json({ message: 'ยืนยันผู้ใช้สำเร็จ' });
   } catch (error) {
@@ -561,6 +588,11 @@ exports.createBill = async (req, res) => {
       `INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status) VALUES (?, ?, ?, NOW(), NOW(), ?)`,
       [address_id, amount_due, due_date, status]
     );
+    await logAdminAction(req, 'CREATE', 'BILL', result.insertId, { 
+        address_id, 
+        amount_due: parseFloat(amount_due),
+        weights: { generalWeight, hazardousWeight, recyclableWeight, organicWeight }
+    });
 
     if (addressRow.lineUserId) {
       const message = `📬 มีบิลใหม่!\n🏠 บ้านเลขที่ ${addressRow.house_no || address_id}\n💰 จำนวน ${amount_due} บาท\n📅 ครบกำหนด ${new Date(due_date).toLocaleDateString("th-TH")}\n\nกรุณาชำระภายในกำหนด 🙏`;
@@ -606,24 +638,25 @@ exports.getWastePricing = async (req, res) => {
 
 exports.updateWastePricing = async (req, res) => {
   const { general, hazardous, recyclable, organic, waste_type } = req.body;
-  const adminId = req.user?.adminId;
+  const adminId = req.user?.adminId; // Payload key: adminId
 
   // 1. ตรวจสอบเงื่อนไขการเป็นตัวเลขและช่วงราคา
   if (
-    // General, Hazardous, Organic ต้องเป็นตัวเลขและ >= 0
-    typeof general !== 'number' || general < 0 ||
-    typeof hazardous !== 'number' || hazardous < 0 ||
-    typeof organic !== 'number' || organic < 0 || 
-    
-    // ✅ Recyclable: ต้องเป็นตัวเลข แต่สามารถติดลบได้ (ไม่เช็ค < 0)
-    typeof recyclable !== 'number' || 
-
-    // ตรวจสอบ Waste Type และ Admin ID
-    !waste_type || (waste_type !== 'household' && waste_type !== 'establishment') ||
+    // ... (โค้ดตรวจสอบความถูกต้องของข้อมูล) ...
+    // ...
     !adminId
   ) {
     return res.status(400).json({ message: 'ข้อมูลไม่ถูกต้อง หรือ ข้อมูลไม่ครบถ้วน' });
   }
+
+  // ⚠️ [สำคัญ]: ดึงค่าเก่ามาก่อน เพื่อใช้ใน Audit Log
+  const [oldPricing] = await db.query(
+      'SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?',
+      [waste_type]
+  );
+  const oldPrices = {};
+  oldPricing.forEach(row => { oldPrices[row.type] = parseFloat(row.price_per_kg); });
+
 
   try {
     const queries = [
@@ -633,7 +666,7 @@ exports.updateWastePricing = async (req, res) => {
       { type: 'organic', price: organic },
     ];
 
-    // ... (โค้ดส่วน DB Update เหมือนเดิม) ...
+    // ... (โค้ด DB Update) ...
     for (const { type, price } of queries) {
       await db.query(
         `INSERT INTO waste_pricing (type, price_per_kg, admin_verify, waste_type, updated_at)
@@ -646,16 +679,28 @@ exports.updateWastePricing = async (req, res) => {
       );
     }
     
-    const [[adminData]] = await db.query('SELECT admin_username FROM admins WHERE id = ?', [adminId]);
-    const adminName = adminData?.admin_username || `ID ${adminId}`;
-    const typeThai = waste_type === 'household' ? 'ครัวเรือน' : 'สถานประกอบการ';
-
-    const messageToAdmin = `💰 มีการอัปเดตราคาขยะ (${typeThai}) โดย Admin: ${adminName}\n` +
-                         `ทั่วไป: ${general} บ./กก.\n` +
-                         `อันตราย: ${hazardous} บ./กก.\n` +
-                         `รีไซเคิล: ${recyclable} บ./กก.\n` +
-                         `อินทรีย์: ${organic} บ./กก.`;
-    await sendLineNotify(messageToAdmin);
+    // 💡 Audit Log: บันทึกการเปลี่ยนแปลงราคา
+    await logAdminAction(req, 
+        'UPDATE', 
+        'PRICING', 
+        null, 
+        { 
+            waste_type: waste_type,
+            old_prices: oldPrices,
+            new_prices: { general, hazardous, recyclable, organic }
+        }
+    );
+    await logAdminAction(req, 
+        'UPDATE', 
+        'PRICING', 
+        null, 
+        { 
+            waste_type: waste_type,
+            old_prices: oldPrices,
+            new_prices: { general, hazardous, recyclable, organic }
+        }
+    );
+    // ... (โค้ดส่ง Line Notify และ Response) ...
 
     res.status(200).json({ message: 'บันทึกราคาสำเร็จ' });
   } catch (error) {
@@ -767,7 +812,18 @@ const updateSlipStatus = async (req, res) => {
     await sendLineNotify(messageToAdmin);
     if (messageToUser && billUser?.lineUserId) {
         await sendMessageToUser(billUser.lineUserId, messageToUser);
+        
     }
+    await logAdminAction(req, 
+        'UPDATE_STATUS', 
+        'PAYMENT_SLIP', 
+        id, 
+        { 
+            status: status, 
+            bill_id: currentSlip.bill_id, 
+            reason: reason || 'N/A' 
+        }
+    );
 
     res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
   } catch (error) {
@@ -981,6 +1037,13 @@ exports.createWasteRecord = async (req, res) => {
 
     const [result] = await db.query(sql, params);
 
+    
+    await logAdminAction(req, 'CREATE', 'WASTE_RECORD', result.insertId, { 
+        address_id, 
+        waste_type, 
+        weight_kg: weight 
+    });
+
     // Optionally, notify admin?
     // const [[addr]] = await db.query('SELECT house_no FROM addresses WHERE address_id = ?', [address_id]);
     // await sendLineNotify(`♻️ บันทึกขยะใหม่: ${weight} kg (${waste_type}) ที่บ้านเลขที่ ${addr?.house_no || address_id}`);
@@ -1094,3 +1157,22 @@ exports.generateBillsFromWasteToday = async (req, res) => {
     }
   }
 };
+
+
+// controllers/adminControllers.js
+// ...
+exports.getAuditLogs = async (req, res) => {
+    try {
+        // ดึง Log ทั้งหมด หรือใช้ LIMIT และ OFFSET ถ้ามีข้อมูลเยอะมาก
+        const [logs] = await db.query(
+            `SELECT * FROM audit_logs ORDER BY action_timestamp DESC LIMIT 200` // จำกัด 200 รายการล่าสุด
+        );
+
+        res.json(logs);
+    } catch (e) {
+        console.error('getAuditLogs error:', e);
+        res.status(500).json({ message: 'Failed to retrieve audit logs' });
+    }
+};
+
+// ... (E

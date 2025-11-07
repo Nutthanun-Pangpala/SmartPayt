@@ -275,6 +275,9 @@ const AdminLayout = ({ children }) => {
             <NavLink to="/admin/report" isActive={currentPath === '/admin/report'} isDisabled={!access.report}>
               <span className="flex items-center"><IconReport /> รายงาน</span>
             </NavLink>
+            <NavLink to="/admin/audit-log" isActive={currentPath === '/admin/audit-log'} isDisabled={!access.priceSetting}> {/* ใช้ priceSetting เป็นตัวแทน Super Admin */}
+              <span className="flex items-center">🛡️ Audit Log</span>
+            </NavLink>
           </ul>
 
           <div className="absolute bottom-5 left-0 right-0 flex justify-center">

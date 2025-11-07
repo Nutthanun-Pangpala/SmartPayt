@@ -1,4 +1,3 @@
-import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css';
 //Admin
@@ -19,6 +18,7 @@ import WastePriceEstablishment from "./pagesAdmin/WastePriceEstablishment";
 import WastePricehousehold from "./pagesAdmin/WastePricehousehold";
 
 //User
+import AdminAuditLog from "./pagesAdmin/AdminAuditLog";
 import AccountManagement from "./pagesUser/UserAccountManagement";
 import WasteChartsMulti from "./pagesUser/UserChart";
 import UserDashboard from "./pagesUser/UserDashboard";
@@ -48,6 +48,7 @@ const router = createBrowserRouter([
   { path:"/admin/payment-slips",element:<AdminPaymentSlipPage />},
   { path:"/admin/report",element:<Report />},
   { path:"/admin/scan",element:<ScanAndCreateBill />},
+  { path:"/admin/audit-log",element:<AdminAuditLog/>},
 
 
   

@@ -83,5 +83,7 @@ router.get('/stats-waste-daily', checkRole(staffAccountantAdmin), adminControlle
 // (อันนี้ซ้ำกับข้างบน แต่ใส่ Role ไว้เหมือนกัน)
 router.get('/user-address/:lineUserId', checkRole(staffAndUp), adminController.getUserAddress);
 
+router.get('/audit-logs', checkRole(superAdminOnly), adminController.getAuditLogs);
+
 
 module.exports = router;
