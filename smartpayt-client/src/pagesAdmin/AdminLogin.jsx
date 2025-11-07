@@ -5,13 +5,13 @@ import nanglaeIcon from "../assets/img/nanglaeicon.png";
 const AdminLogin = () => {
   const [admin_username, setUsername] = useState("");
   const [admin_password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // ✅ เพิ่ม state สำหรับการซ่อน/แสดงรหัสผ่าน
-  const [error, setError] = useState(""); // เพิ่ม state สำหรับข้อผิดพลาด
+  const [showPassword, setShowPassword] = useState(false); 
+  const [error, setError] = useState(""); 
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError(""); // รีเซ็ตข้อผิดพลาดก่อนส่งคำขอ
+    setError(""); 
   
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/login`, {
@@ -20,16 +20,29 @@ const AdminLogin = () => {
         body: JSON.stringify({ admin_username, admin_password }),
       });
   
-      const data = await response.json(); // แปลงข้อมูลเป็น JSON
+      const data = await response.json(); 
   
       if (response.ok) {
+        // 1. บันทึก Token (Key: Admin_token)
         localStorage.setItem("Admin_token", data.Admintoken);
+        
+        // 2. บันทึก Role (Key: user_role) <--- ✅ ส่วนที่ถูกเพิ่ม/แก้ไข
+        if (data.role) {
+            localStorage.setItem("user_role", data.role);
+        } else {
+             // ⚠️ หาก Back-end ไม่ได้ส่ง role มา (ควรแก้ไข Back-end ให้ส่งมา)
+             console.warn("Backend did not return a role. Defaulting to 'collector'.");
+             localStorage.setItem("user_role", 'collector');
+        }
+
+        // 3. นำทางไปหน้า Admin
         navigate("/admin");
       } else {
         setError(data.message || "เข้าสู่ระบบล้มเหลว");
       }
     } catch (err) {
       setError("เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองอีกครั้ง");
+      console.error(err);
     }
   };
 
@@ -61,7 +74,7 @@ const AdminLogin = () => {
             <label className="block text-gray-700">Password</label>
             <div className="relative">
               <input
-                type={showPassword ? "text" : "password"} // ✅ ใช้ showPassword
+                type={showPassword ? "text" : "password"} 
                 value={admin_password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg pr-10"
@@ -70,10 +83,10 @@ const AdminLogin = () => {
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)} // ✅ เปลี่ยนค่า showPassword
+                onClick={() => setShowPassword(!showPassword)} 
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-600"
               >
-                {showPassword ? "👁️" : "🙈"} {/* ✅ เปลี่ยนไอคอน */}
+                {showPassword ? "👁️" : "🙈"} 
               </button>
             </div>
           </div>

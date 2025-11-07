@@ -32,27 +32,36 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
     const sql = 'SELECT * FROM admins WHERE admin_username = ?';
+    // 💡 [เช็ก]: ต้องมั่นใจว่า SQL query นี้ดึงคอลัมน์ 'role' มาด้วย (SELECT *)
     const [results] = await db.query(sql, [admin_username]);
+    
     if (results.length === 0) {
-      return res.status(401).json({ message: "Admin user not found" }); // Changed message slightly
+      return res.status(401).json({ message: "Admin user not found" }); 
     }
     const admin = results[0];
     const isPasswordValid = await bcrypt.compare(admin_password, admin.admin_password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+    
+    // 1. สร้าง JWT Payload (Role ถูกฝังใน Token แล้ว, ถูกต้อง)
     const Admintoken = jwt.sign(
       { adminId: admin.id, role: admin.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-    res.json({ Admintoken });
+    
+    // 2. ✅ [แก้ไข]: ส่ง role กลับไปใน Response Body ด้วย
+    res.json({ 
+        Admintoken: Admintoken,
+        role: admin.role // <--- ส่งค่า Role ที่ถูกต้องกลับไป Front-end
+    });
+
   } catch (err) {
     console.error("❌ Login Error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 // =========================================
 // Dashboard & Statistics
 // =========================================
@@ -166,6 +175,18 @@ exports.getUsers = async (req, res) => {
 
     const total = countResults.total || 0;
     const totalPages = Math.ceil(total / limit);
+
+    // --- 👇 เพิ่ม Console Log ตรงนี้ 👇 ---
+    console.log('--- getUsers Backend Log ---');
+    console.log('Search Term:', search);
+    console.log('Requested Page:', page);
+    console.log('Calculated Limit:', limit);
+    console.log('Calculated Offset:', offset);
+    console.log('SQL Total:', total);
+    console.log('Calculated Total Pages:', totalPages);
+    console.log('Number of users returned:', results.length);
+    console.log('--------------------------');
+    // --- 👆 สิ้นสุด Console Log 👆 ---
 
     res.json({
       users: results,
@@ -587,11 +608,17 @@ exports.updateWastePricing = async (req, res) => {
   const { general, hazardous, recyclable, organic, waste_type } = req.body;
   const adminId = req.user?.adminId;
 
+  // 1. ตรวจสอบเงื่อนไขการเป็นตัวเลขและช่วงราคา
   if (
+    // General, Hazardous, Organic ต้องเป็นตัวเลขและ >= 0
     typeof general !== 'number' || general < 0 ||
     typeof hazardous !== 'number' || hazardous < 0 ||
-    typeof recyclable !== 'number' || recyclable < 0 ||
-    typeof organic !== 'number' || organic < 0 || // Added organic check
+    typeof organic !== 'number' || organic < 0 || 
+    
+    // ✅ Recyclable: ต้องเป็นตัวเลข แต่สามารถติดลบได้ (ไม่เช็ค < 0)
+    typeof recyclable !== 'number' || 
+
+    // ตรวจสอบ Waste Type และ Admin ID
     !waste_type || (waste_type !== 'household' && waste_type !== 'establishment') ||
     !adminId
   ) {
@@ -606,7 +633,7 @@ exports.updateWastePricing = async (req, res) => {
       { type: 'organic', price: organic },
     ];
 
-    // Use transaction for multiple updates? Maybe overkill here.
+    // ... (โค้ดส่วน DB Update เหมือนเดิม) ...
     for (const { type, price } of queries) {
       await db.query(
         `INSERT INTO waste_pricing (type, price_per_kg, admin_verify, waste_type, updated_at)
@@ -618,7 +645,7 @@ exports.updateWastePricing = async (req, res) => {
         [type, price, adminId, waste_type]
       );
     }
-
+    
     const [[adminData]] = await db.query('SELECT admin_username FROM admins WHERE id = ?', [adminId]);
     const adminName = adminData?.admin_username || `ID ${adminId}`;
     const typeThai = waste_type === 'household' ? 'ครัวเรือน' : 'สถานประกอบการ';
