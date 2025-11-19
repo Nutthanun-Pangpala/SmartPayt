@@ -435,9 +435,6 @@ exports.verifyAddress = async (req, res) => {
     const messageToAdmin = `📍 ที่อยู่ ID ${addressId} (${house_no}, ${sub_district}) ได้รับการยืนยันแล้ว โดย Admin: ${adminName}`;
     await sendLineNotify(messageToAdmin);
     
-    // ❌ [ถูกลบ] ลบการเรียก logAdminAction ที่ซ้ำซ้อน
-    // await logAdminAction(req, 'VERIFY', 'ADDRESS', addressId, { status: 'approved' }); 
-    
     // ✅ [สำคัญ] เพิ่ม Response สำเร็จเมื่อทำเสร็จทุกขั้นตอน
     res.json({ success: true, message: 'Address verified successfully' });
 
@@ -584,9 +581,13 @@ exports.createBill = async (req, res) => {
 
     // Prevent creating zero-amount bills? Or allow? Assuming allow for now.
 
+    // ✅ ปรับแก้ INSERT query ใน createBill ให้รองรับน้ำหนัก
     const [result] = await db.query(
-      `INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status) VALUES (?, ?, ?, NOW(), NOW(), ?)`,
-      [address_id, amount_due, due_date, status]
+      `INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status, 
+                          total_general_kg, total_hazardous_kg, total_recyclable_kg, total_organic_kg) 
+       VALUES (?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?)`,
+      [address_id, amount_due, due_date, status, 
+       generalWeight, hazardousWeight, recyclableWeight, organicWeight]
     );
     await logAdminAction(req, 'CREATE', 'BILL', result.insertId, { 
         address_id, 
@@ -1064,9 +1065,151 @@ exports.createWasteRecord = async (req, res) => {
 };
 
 // =========================================
-// Automatic Bill Generation (Cron Job Function)
+// Automatic Bill Generation (Monthly Job Function)
 // =========================================
 
+exports.generateMonthlyBills = async (req, res) => {
+    let connection;
+    const jobStartTime = new Date();
+
+    try {
+        // 1. รับค่าเดือน/ปี (ถ้าไม่ส่งมา ใช้เดือนปัจจุบัน)
+        const { month, year } = req.body;
+        const targetMonth = month || new Date().getMonth() + 1;
+        const targetYear = year || new Date().getFullYear();
+
+        console.log(`🚀 Starting Monthly Bill Generation for ${targetMonth}/${targetYear}`);
+
+        // 2. ใช้ getConnection() เพื่อทำ Transaction
+        connection = await db.getConnection(); 
+
+        // 3. หา Address ที่มีขยะค้างจ่ายในเดือนเป้าหมาย (ใช้ address_id เป็นหลัก)
+        const [addressesWithWaste] = await connection.query(`
+            SELECT DISTINCT a.address_id, a.lineUserId, a.house_no, a.address_type 
+            FROM addresses a
+            JOIN waste_records wr ON a.address_id = wr.address_id
+            WHERE wr.billing_status = 'pending' 
+            AND MONTH(wr.recorded_date) = ? 
+            AND YEAR(wr.recorded_date) = ?
+        `, [targetMonth, targetYear]);
+
+        if (addressesWithWaste.length === 0) {
+            connection.release();
+            const msg = `⚠️ ไม่พบรายการขยะค้างชำระสำหรับเดือน ${targetMonth}/${targetYear}`;
+            console.log(msg);
+            if (res && res.json) return res.status(200).json({ message: msg });
+            return;
+        }
+
+        const summary = { success: 0, failed: 0 };
+
+        // 4. วนลูปสร้างบิลรายที่อยู่ (Address)
+        for (const address of addressesWithWaste) {
+            try {
+                await connection.beginTransaction(); // --- เริ่ม Transaction ---
+
+                // 4.1 ล็อกและดึงรายการขยะของ address นี้
+                const [records] = await connection.query(`
+                    SELECT id, waste_type, weight_kg 
+                    FROM waste_records 
+                    WHERE address_id = ? 
+                    AND billing_status = 'pending'
+                    AND MONTH(recorded_date) = ? 
+                    AND YEAR(recorded_date) = ?
+                    FOR UPDATE 
+                `, [address.address_id, targetMonth, targetYear]);
+
+                if (records.length === 0) {
+                    await connection.rollback();
+                    continue; // ข้ามไป address ถัดไป
+                }
+
+                // 4.2 ดึงราคาตามประเภทที่อยู่
+                const addressType = address.address_type || 'household';
+                const [prices] = await connection.query('SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?', [addressType]);
+                const priceMap = {};
+                prices.forEach(p => priceMap[p.type] = parseFloat(p.price_per_kg));
+
+                // 4.3 ✅ คำนวณยอดเงินและรวมยอดน้ำหนักแยกประเภท
+                const wasteTotals = { general: 0, hazardous: 0, recyclable: 0, organic: 0 };
+                let totalAmount = 0;
+
+                records.forEach(rec => {
+                    const price = priceMap[rec.waste_type] || 0;
+                    const weight = parseFloat(rec.weight_kg);
+
+                    totalAmount += (weight * price);
+
+                    if (wasteTotals.hasOwnProperty(rec.waste_type)) {
+                        wasteTotals[rec.waste_type] += weight;
+                    }
+                });
+
+                // 4.4 ✅ สร้างบิล (พร้อมบันทึกข้อมูลน้ำหนัก)
+                const [billResult] = await connection.query(`
+                    INSERT INTO bills (
+                        address_id, amount_due, month, year, status, created_at, due_date,
+                        total_general_kg, total_hazardous_kg, total_recyclable_kg, total_organic_kg
+                    )
+                    VALUES (?, ?, ?, ?, 0, NOW(), DATE_ADD(NOW(), INTERVAL 15 DAY),
+                            ?, ?, ?, ?)
+                `, [
+                    address.address_id, 
+                    totalAmount.toFixed(2), 
+                    targetMonth, 
+                    targetYear, 
+                    wasteTotals.general.toFixed(2), 
+                    wasteTotals.hazardous.toFixed(2), 
+                    wasteTotals.recyclable.toFixed(2), 
+                    wasteTotals.organic.toFixed(2)
+                ]);
+
+                const newBillId = billResult.insertId;
+
+                // 4.5 อัปเดตรายการขยะให้ผูกกับบิลนี้
+                const recordIds = records.map(r => r.id);
+                if (recordIds.length > 0) {
+                    await connection.query(`
+                        UPDATE waste_records 
+                        SET bill_id = ?, billing_status = 'billed'
+                        WHERE id IN (?)
+                    `, [newBillId, recordIds]);
+                }
+
+                await connection.commit(); // --- บันทึกสำเร็จ ---
+                summary.success++;
+                
+                // ส่งแจ้งเตือน LINE 
+                if (address.lineUserId) {
+                    const message = `📬 มีบิลค่าขยะรายเดือนใหม่!\n🏠 บ้านเลขที่ ${address.house_no}\n💰 จำนวน ${totalAmount.toFixed(2)} บาท\n📅 สำหรับเดือน ${targetMonth}/${targetYear}\n\nกรุณาชำระภายในกำหนด 🙏`;
+                    await sendMessageToUser(address.lineUserId, message);
+                }
+
+            } catch (userError) {
+                await connection.rollback(); // --- ย้อนกลับเฉพาะคนนี้ถ้า Error ---
+                summary.failed++;
+                console.error(`❌ Error creating bill for address ${address.address_id}:`, userError);
+                await sendLineNotify(`❌ ระบบออกบิลไม่สำเร็จสำหรับที่อยู่ ${address.address_id} (Admin Trigger)\nError: ${userError.message}`);
+            }
+        }
+
+        connection.release();
+        console.log(`✅ Monthly Bill Generation Finished. Success: ${summary.success}, Failed: ${summary.failed}`);
+
+        if (res && res.json) {
+            res.status(200).json({ 
+                message: 'ประมวลผลบิลรายเดือนเสร็จสิ้น', 
+                result: summary 
+            });
+        }
+
+    } catch (error) {
+        if (connection) connection.release();
+        console.error('❌ System Error in generateMonthlyBills:', error);
+        await sendLineNotify(`❌ เกิดข้อผิดพลาดร้ายแรงในระบบออกบิลรายเดือน (System Error): ${error.message}`);
+        if (res && res.status) res.status(500).json({ message: 'เกิดข้อผิดพลาดในระบบ Server' });
+    }
+};
 
 
 // controllers/adminControllers.js
@@ -1082,128 +1225,5 @@ exports.getAuditLogs = async (req, res) => {
     } catch (e) {
         console.error('getAuditLogs error:', e);
         res.status(500).json({ message: 'Failed to retrieve audit logs' });
-    }
-};
-// =========================================
-// Automatic Bill Generation (Monthly)
-// =========================================
-
-exports.generateMonthlyBills = async (req, res) => {
-    let connection;
-    try {
-        // 1. รับค่าเดือน/ปี (ถ้าไม่ส่งมา ใช้เดือนปัจจุบัน)
-        const { month, year } = req.body;
-        const targetMonth = month || new Date().getMonth() + 1;
-        const targetYear = year || new Date().getFullYear();
-
-        console.log(`🚀 Starting Monthly Bill Generation for ${targetMonth}/${targetYear}`);
-
-        // ใช้ getConnection() เพื่อทำ Transaction
-        connection = await db.getConnection(); 
-
-        // 2. หา User ที่มีขยะค้างจ่ายในเดือนเป้าหมาย
-        const [usersWithWaste] = await connection.query(`
-            SELECT DISTINCT user_id 
-            FROM waste_records 
-            WHERE billing_status = 'pending' 
-            AND MONTH(recorded_date) = ? 
-            AND YEAR(recorded_date) = ?
-        `, [targetMonth, targetYear]);
-
-        if (usersWithWaste.length === 0) {
-            connection.release();
-            const msg = `⚠️ ไม่พบรายการขยะค้างชำระสำหรับเดือน ${targetMonth}/${targetYear}`;
-            console.log(msg);
-            if (res && res.json) return res.status(200).json({ message: msg });
-            return;
-        }
-
-        const summary = { success: 0, failed: 0 };
-
-        // 3. วนลูปสร้างบิลรายคน
-        for (const user of usersWithWaste) {
-            try {
-                await connection.beginTransaction(); // --- เริ่ม Transaction ---
-
-                // 3.1 ล็อกและดึงรายการขยะ
-                const [records] = await connection.query(`
-                    SELECT id, waste_type, weight_kg, address_id
-                    FROM waste_records 
-                    WHERE user_id = ? 
-                    AND billing_status = 'pending'
-                    AND MONTH(recorded_date) = ? 
-                    AND YEAR(recorded_date) = ?
-                    FOR UPDATE 
-                `, [user.user_id, targetMonth, targetYear]);
-
-                if (records.length === 0) {
-                    await connection.rollback();
-                    continue;
-                }
-
-                const addressId = records[0].address_id;
-
-                // 3.2 ดึงราคา (สมมติว่าดึงจากตาราง waste_pricing ตามประเภทที่อยู่)
-                // เพื่อความง่ายและเร็วในตัวอย่างนี้ ผมจะ Hardcode ราคาพื้นฐานไว้ 
-                // (ในระบบจริงควร query join กับ waste_pricing โดยใช้ address_type)
-                const [addressData] = await connection.query('SELECT address_type FROM addresses WHERE address_id = ?', [addressId]);
-                const addressType = addressData[0]?.address_type || 'household';
-                
-                const [prices] = await connection.query('SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?', [addressType]);
-                const priceMap = {};
-                prices.forEach(p => priceMap[p.type] = parseFloat(p.price_per_kg));
-
-                // 3.3 คำนวณยอดเงิน
-                let totalAmount = 0;
-                records.forEach(rec => {
-                    const price = priceMap[rec.waste_type] || 0;
-                    totalAmount += (parseFloat(rec.weight_kg) * price);
-                });
-
-                // 3.4 สร้างบิล
-                const [billResult] = await connection.query(`
-                    INSERT INTO bills (address_id, amount_due, month, year, status, created_at, due_date)
-                    VALUES (?, ?, ?, ?, 0, NOW(), DATE_ADD(NOW(), INTERVAL 15 DAY))
-                `, [addressId, totalAmount, targetMonth, targetYear]);
-
-                const newBillId = billResult.insertId;
-
-                // 3.5 อัปเดตรายการขยะให้ผูกกับบิลนี้
-                const recordIds = records.map(r => r.id);
-                if (recordIds.length > 0) {
-                    await connection.query(`
-                        UPDATE waste_records 
-                        SET bill_id = ?, billing_status = 'billed'
-                        WHERE id IN (?)
-                    `, [newBillId, recordIds]);
-                }
-
-                await connection.commit(); // --- บันทึกสำเร็จ ---
-                summary.success++;
-                
-                // ส่งแจ้งเตือน LINE (ถ้ามีฟังก์ชัน)
-                // sendMessageToUser(user.user_id, `บิลเดือน ${targetMonth} ออกแล้ว ยอด ${totalAmount} บาท`);
-
-            } catch (userError) {
-                await connection.rollback(); // --- ย้อนกลับเฉพาะคนนี้ ---
-                summary.failed++;
-                console.error(`❌ Error creating bill for user ${user.user_id}:`, userError);
-            }
-        }
-
-        connection.release();
-        console.log(`✅ Finished. Success: ${summary.success}, Failed: ${summary.failed}`);
-
-        if (res && res.json) {
-            res.status(200).json({ 
-                message: 'ประมวลผลบิลรายเดือนเสร็จสิ้น', 
-                result: summary 
-            });
-        }
-
-    } catch (error) {
-        if (connection) connection.release();
-        console.error('❌ System Error in generateMonthlyBills:', error);
-        if (res && res.status) res.status(500).json({ message: 'เกิดข้อผิดพลาดในระบบ Server' });
     }
 };
