@@ -154,7 +154,7 @@ export default function RegisterAddressForm() {
     ];
     const errs = [];
     for (const f of requiredFields) {
-      if (!formData[f]) errs.push(`กรุณากรอก ${f}`);
+      if (!formData[f]) errs.push(`กรุณากรอก ${f} ให้ครบ`);
     }
     if (!/^[\wก-ฮะ-์\s\/-]+$/.test(formData.house_no)) errs.push('บ้านเลขที่ต้องเป็นตัวเลข/ตัวอักษรได้');
     if (!/^\d{5}$/.test(formData.postal_code)) errs.push('รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก');
@@ -253,8 +253,9 @@ export default function RegisterAddressForm() {
           </div>
 
           {/* บ้านเลขที่ / หมู่ / ถนนซอย */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+          {/* ปรับให้ใช้ grid-cols-2 และ md:grid-cols-3 เพื่อให้ดูดีขึ้นบนมือถือ */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="col-span-1">
               <label htmlFor="house_no" className="block mb-1 font-medium">
                 บ้านเลขที่
               </label>
@@ -269,7 +270,7 @@ export default function RegisterAddressForm() {
                 required
               />
             </div>
-            <div>
+            <div className="col-span-1">
               <label htmlFor="village_no" className="block mb-1 font-medium">
                 หมู่ที่
               </label>
@@ -284,7 +285,7 @@ export default function RegisterAddressForm() {
                 required
               />
             </div>
-            <div>
+            <div className="col-span-2 md:col-span-1">
               <label htmlFor="alley" className="block mb-1 font-medium">
                 ถนน / ซอย
               </label>
@@ -301,22 +302,23 @@ export default function RegisterAddressForm() {
           </div>
 
           {/* จังหวัด / อำเภอ / ตำบล / รหัสไปรษณีย์ */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-            <div className="md:col-span-2">
+          {/* ปรับให้ใช้ grid-cols-2 และ md:grid-cols-4 เพื่อให้ใช้พื้นที่หน้าจอมือถือได้ดีขึ้น */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div className="col-span-2 md:col-span-2">
               <label htmlFor="province" className="block mb-1 font-medium">
                 จังหวัด
               </label>
               <input
                 id="province"
                 name="province"
-                type="text"     // ✅ แก้บั๊กจาก type="เชียงราย"
+                type="text"     
                 value={formData.province}
                 onChange={handleChange}
                 className={inputClass}
                 required
               />
             </div>
-            <div>
+            <div className="col-span-1 md:col-span-1">
               <label htmlFor="district" className="block mb-1 font-medium">
                 อำเภอ / เขต
               </label>
@@ -330,7 +332,7 @@ export default function RegisterAddressForm() {
                 required
               />
             </div>
-            <div>
+            <div className="col-span-1 md:col-span-1">
               <label htmlFor="sub_district" className="block mb-1 font-medium">
                 ตำบล
               </label>
@@ -344,7 +346,7 @@ export default function RegisterAddressForm() {
                 required
               />
             </div>
-            <div className="md:col-span-1">
+            <div className="col-span-2 md:col-span-1">
               <label htmlFor="postal_code" className="block mb-1 font-medium">
                 รหัสไปรษณีย์
               </label>
@@ -374,11 +376,11 @@ export default function RegisterAddressForm() {
             </button>
 
             {formData.lat && formData.lng ? (
-              <div className="text-sm text-gray-500 bg-gray-50 border rounded-xl px-3 py-2">
+              <div className="text-sm text-gray-500 bg-gray-50 border rounded-xl px-3 py-2 w-full md:w-auto flex items-center justify-center">
                 📍 lat: {formData.lat.toFixed(6)} , lng: {formData.lng.toFixed(6)}
               </div>
             ) : (
-              <div className="text-sm text-gray-500 bg-gray-50 border rounded-xl px-3 py-2">
+              <div className="text-sm text-gray-500 bg-gray-50 border rounded-xl px-3 py-2 w-full md:w-auto flex items-center justify-center">
                 📍 ยังไม่ได้ปักหมุดตำแหน่ง
               </div>
             )}
@@ -403,23 +405,24 @@ export default function RegisterAddressForm() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowMap(false)}
           />
-          {/* panel */}
-          <div className="absolute inset-x-0 bottom-0 md:inset-8 md:rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
+          {/* panel: ปรับให้เต็มจอในมือถือ */}
+          <div className="absolute inset-0 md:inset-8 md:rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
             {/* header */}
             <div className="p-4 border-b flex items-center justify-between">
-              <div className="font-semibold">เลือกตำแหน่งบนแผนที่</div>
+              <div className="font-semibold text-lg">เลือกตำแหน่งบนแผนที่</div>
               <button
                 type="button"
                 onClick={() => setShowMap(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 text-2xl"
               >
                 ✖
               </button>
             </div>
 
             {/* ช่องค้นหา */}
-            <div className="p-4 relative">
-              <div className="flex gap-2">
+            <div className="p-4 relative border-b">
+              {/* ปุ่มค้นหาและตำแหน่งปัจจุบัน */}
+              <div className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={searchAddress}
@@ -433,6 +436,7 @@ export default function RegisterAddressForm() {
                   onClick={async () => {
                     if (!searchAddress) return alert('กรุณากรอกที่อยู่ก่อน');
                     try {
+                      // ... (โค้ดค้นหา) ...
                       const res = await fetch(
                         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
                           searchAddress
@@ -451,9 +455,9 @@ export default function RegisterAddressForm() {
                       alert('เกิดข้อผิดพลาดในการค้นหา');
                     }
                   }}
-                  className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+                  className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 flex-shrink-0"
                 >
-                  🔍 ค้นหา
+                  🔍
                 </button>
                 {canUseGeo && (
                   <button
@@ -469,16 +473,16 @@ export default function RegisterAddressForm() {
                         () => alert('ไม่สามารถอ่านตำแหน่งปัจจุบันได้')
                       );
                     }}
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700"
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 flex-shrink-0"
                   >
-                    📡 ตำแหน่งปัจจุบัน
+                    📡
                   </button>
                 )}
               </div>
 
               {/* รายการแนะนำ */}
               {suggestions.length > 0 && (
-                <ul className="absolute z-50 mt-2 w-full max-h-52 overflow-auto bg-white border rounded-lg shadow-xl">
+                <ul className="absolute z-50 mt-1 w-full max-h-52 overflow-auto bg-white border rounded-lg shadow-xl">
                   {suggestions.map((place) => (
                     <li
                       key={place.place_id}
@@ -492,38 +496,42 @@ export default function RegisterAddressForm() {
               )}
             </div>
 
-            {/* แผนที่ */}
-            <div className="px-4 pb-4">
-              <div className="rounded-xl overflow-hidden border">
-                <MapContainer
-                  center={centerTH}
-                  zoom={10}
-                  style={{ height: '55vh', width: '100%' }}
-                  whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
-                >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <LocationMarker
-                    position={markerPosition}
-                    setPosition={setMarkerPosition}
-                  />
-                </MapContainer>
-              </div>
+            {/* แผนที่ + ปุ่มยืนยัน */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4">
+                <div className="rounded-xl overflow-hidden border">
+                  {/* ปรับความสูงของแผนที่ให้ใช้พื้นที่ได้มากขึ้นบนมือถือ */}
+                  <MapContainer
+                    center={markerPosition || centerTH}
+                    zoom={markerPosition ? 16 : 10}
+                    style={{ height: '70vh', width: '100%' }}
+                    whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <LocationMarker
+                      position={markerPosition}
+                      setPosition={setMarkerPosition}
+                    />
+                  </MapContainer>
+                </div>
 
-              <div className="flex flex-col md:flex-row gap-3 mt-4">
-                <button
-                  type="button"
-                  onClick={confirmPosition}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold"
-                >
-                  ✅ ยืนยันตำแหน่งนี้
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowMap(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold"
-                >
-                  ❌ ปิดแผนที่
-                </button>
+                {/* ปุ่มยืนยัน/ปิด (ปรับให้ใช้พื้นที่กว้าง) */}
+                <div className="flex flex-col md:flex-row gap-3 mt-4">
+                  <button
+                    type="button"
+                    onClick={confirmPosition}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold"
+                  >
+                    ✅ ยืนยันตำแหน่งนี้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowMap(false)}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold"
+                  >
+                    ❌ ปิดแผนที่
+                  </button>
+                </div>
               </div>
             </div>
           </div>
