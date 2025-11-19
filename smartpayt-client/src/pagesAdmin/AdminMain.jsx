@@ -8,10 +8,8 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import AdminLayout from '../pagesAdmin/component/AdminLayout'; // 1. Import AdminLayout
-import api from '../api'; // 2. Import api (ลบ axios ออก)
-
-// 3. Import ไอคอนมาเพิ่ม
+import AdminLayout from '../pagesAdmin/component/AdminLayout';
+import api from '../api';
 import {
   FaBiohazard,
   FaClock,
@@ -22,7 +20,6 @@ import {
   FaUsers
 } from "react-icons/fa";
 
-// ... (Component StatCard เหมือนเดิม) ...
 const StatCard = ({ icon, label, value, iconBgColor, iconTextColor, onClick }) => (
   <div 
     className={`bg-white p-5 rounded-lg shadow-md flex items-center space-x-4 ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200' : ''}`}
@@ -38,22 +35,19 @@ const StatCard = ({ icon, label, value, iconBgColor, iconTextColor, onClick }) =
   </div>
 );
 
-
 const AdminMain = () => {
-  const [stats, setStats] = useState({ /* ... */ });
-  const [wasteData, setWasteData] = useState([ /* ... */ ]);
+  const [stats, setStats] = useState({});
+  const [wasteData, setWasteData] = useState([]);
   const [pendingUsers, setPendingUsers] = useState(0);
   const [pendingAddresses, setPendingAddresses] = useState(0);
-  const [availableMonths, setAvailableMonths] = useState([]);
+  
+  // ✅ กำหนดค่าเริ่มต้นเป็น Array ว่างเสมอ
+  const [availableMonths, setAvailableMonths] = useState([]); 
   const [selectedMonth, setSelectedMonth] = useState("");
+  
   const navigate = useNavigate();
   const COLORS = ["#3B82F6", "#EF4444", "#22C55E", "#854D0E"];
 
-  // 4. [ลบออก] ลบฟังก์ชันที่ซ้ำซ้อนทิ้งไป
-  // const fetchPendingCounts = async () => { ... };
-  // useEffect(() => { fetchPendingCounts(); }, []);
-
-  // 5. [แก้ไข] เพิ่ม formatMonthLabel (ที่หายไป)
   const formatMonthLabel = (monthStr) => {
     if (!monthStr) return "";
     const [year, month] = monthStr.split("-");
@@ -61,31 +55,45 @@ const AdminMain = () => {
     return date.toLocaleString("th-TH", { year: "numeric", month: "short" });
   };
 
+  // Fetch Available Months
   useEffect(() => {
     const fetchAvailableMonths = async () => {
       try {
-        // 6. [แก้ไข] เปลี่ยนมาใช้ api.get และลบ token/headers
         const response = await api.get("/admin/waste-months");
-        setAvailableMonths(response.data);
-        if (response.data.length > 0) {
-          setSelectedMonth(response.data[0]);
+        
+        // ✅ แก้ไข 1: ตรวจสอบว่า data เป็น Array จริงหรือไม่ก่อน set state
+        if (Array.isArray(response.data)) {
+            setAvailableMonths(response.data);
+            if (response.data.length > 0) {
+                setSelectedMonth(response.data[0]);
+            }
+        } else {
+            console.warn("API Response format error (waste-months): Expected array but got", response.data);
+            setAvailableMonths([]); // กันเหนียว set เป็น array ว่าง
         }
+
       } catch (error) {
         console.error("Error fetching available months:", error);
         if (error.response?.status === 401) navigate("/adminlogin");
+        setAvailableMonths([]); // ถ้า error ก็ set ว่างไว้
       }
     };
     fetchAvailableMonths();
   }, [navigate]);
 
+  // Fetch Waste Data by Month
   useEffect(() => {
     if (!selectedMonth) return;
 
     const fetchWasteByMonth = async (month) => {
       try {
-        // 7. [แก้ไข] เปลี่ยนมาใช้ api.get และลบ token/headers
         const response = await api.get(`/admin/waste-stats?month=${month}`);
-        setWasteData(response.data);
+        // ตรวจสอบว่าเป็น Array ก่อน set
+        if (Array.isArray(response.data)) {
+           setWasteData(response.data);
+        } else {
+           setWasteData([]);
+        }
       } catch (error) {
         console.error("Error fetching waste by month:", error);
         if (error.response?.status === 401) navigate("/adminlogin");
@@ -94,19 +102,18 @@ const AdminMain = () => {
     fetchWasteByMonth(selectedMonth);
   }, [selectedMonth, navigate]);
 
-
+  // Fetch General Stats
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // 8. [แก้ไข] เปลี่ยนมาใช้ api.get และลบ token/headers
         const [statsRes, pendingRes] = await Promise.all([
           api.get("/admin/stats"),
           api.get("/admin/pending-counts"), 
         ]);
 
-        setStats(statsRes.data);
-        setPendingUsers(pendingRes.data.pendingUsers ?? 0); // 9. (แก้ไข) เพิ่ม ?? 0
-        setPendingAddresses(pendingRes.data.pendingAddresses ?? 0); // 9. (แก้ไข) เพิ่ม ?? 0
+        setStats(statsRes.data || {});
+        setPendingUsers(pendingRes.data?.pendingUsers ?? 0);
+        setPendingAddresses(pendingRes.data?.pendingAddresses ?? 0);
 
       } catch (error) {
         console.error("Error fetching stats:", error);
@@ -118,7 +125,6 @@ const AdminMain = () => {
     fetchStats();
   }, [navigate]);
 
-  // ... (ส่วน JSX ที่แสดงผล เหมือนเดิม) ...
   return (
     <AdminLayout>
       <div className="space-y-8">
@@ -145,14 +151,14 @@ const AdminMain = () => {
             <StatCard 
               icon={<FaUsers />}
               label="ผู้ใช้ทั้งหมด"
-              value={stats.totalUsers}
+              value={stats.totalUsers || 0}
               iconBgColor="bg-green-100"
               iconTextColor="text-green-600"
             />
             <StatCard 
               icon={<FaHome />}
               label="ครัวเรือนทั้งหมด"
-              value={stats.totalAddress}
+              value={stats.totalAddress || 0}
               iconBgColor="bg-green-100"
               iconTextColor="text-green-600"
             />
@@ -166,9 +172,8 @@ const AdminMain = () => {
             <div className="lg:col-span-1">
               <h2 className="text-xl font-semibold mb-4 text-gray-800">เลือกเดือน</h2>
               <div className="flex flex-col space-y-2">
-                {availableMonths.length === 0 ? (
-                  <p className="text-gray-500">ไม่มีข้อมูลเดือน</p>
-                ) : (
+                {/* ✅ แก้ไข 2: ตรวจสอบ Array.isArray ในการแสดงผล */}
+                {Array.isArray(availableMonths) && availableMonths.length > 0 ? (
                   availableMonths.map((month) => (
                     <button
                       key={month}
@@ -182,6 +187,8 @@ const AdminMain = () => {
                       {formatMonthLabel(month)}
                     </button>
                   ))
+                ) : (
+                  <p className="text-gray-500">ไม่มีข้อมูลเดือน</p>
                 )}
               </div>
             </div>
@@ -192,7 +199,7 @@ const AdminMain = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie 
-                    data={wasteData.filter(d => d.value > 0)} 
+                    data={Array.isArray(wasteData) ? wasteData.filter(d => d.value > 0) : []} 
                     dataKey="value" 
                     nameKey="name"
                     cx="50%" 
@@ -201,7 +208,7 @@ const AdminMain = () => {
                     labelLine={false}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
-                    {wasteData.map((entry, index) => (
+                    {Array.isArray(wasteData) && wasteData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -220,28 +227,28 @@ const AdminMain = () => {
             <StatCard 
               icon={<FaTrash />}
               label="ขยะทั่วไป"
-              value={stats.generalWaste}
+              value={stats.generalWaste || 0}
               iconBgColor="bg-blue-100"
               iconTextColor="text-blue-600"
             />
             <StatCard 
               icon={<FaBiohazard />}
               label="ขยะอันตราย"
-              value={stats.hazardousWaste}
+              value={stats.hazardousWaste || 0}
               iconBgColor="bg-red-100"
               iconTextColor="text-red-600"
             />
             <StatCard 
               icon={<FaRecycle />}
               label="ขยะรีไซเคิล"
-              value={stats.recycleWaste}
+              value={stats.recycleWaste || 0}
               iconBgColor="bg-green-100"
               iconTextColor="text-green-600"
             />
             <StatCard 
               icon={<FaLeaf />}
               label="ขยะอินทรีย์"
-              value={stats.organicWaste}
+              value={stats.organicWaste || 0}
               iconBgColor="bg-yellow-800"
               iconTextColor="text-yellow-100"
             />
