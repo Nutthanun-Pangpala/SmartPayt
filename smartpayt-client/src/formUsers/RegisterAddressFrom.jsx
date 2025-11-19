@@ -407,8 +407,9 @@ export default function RegisterAddressForm() {
           />
           {/* panel: ปรับให้เต็มจอในมือถือ */}
           <div className="absolute inset-0 md:inset-8 md:rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
-            {/* header */}
-            <div className="p-4 border-b flex items-center justify-between">
+            
+            {/* 1. Header (คงเดิม) */}
+            <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
               <div className="font-semibold text-lg">เลือกตำแหน่งบนแผนที่</div>
               <button
                 type="button"
@@ -419,121 +420,128 @@ export default function RegisterAddressForm() {
               </button>
             </div>
 
-            {/* ช่องค้นหา */}
-            <div className="p-4 relative border-b">
-              {/* ปุ่มค้นหาและตำแหน่งปัจจุบัน */}
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={searchAddress}
-                  onChange={handleSearchChange}
-                  placeholder="ค้นหาที่อยู่หรือสถานที่"
-                  className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!searchAddress) return alert('กรุณากรอกที่อยู่ก่อน');
-                    try {
-                      // ... (โค้ดค้นหา) ...
-                      const res = await fetch(
-                        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-                          searchAddress
-                        )}&addressdetails=1&limit=1`,
-                        { headers: { 'User-Agent': 'SmartPaytApp/1.0' } }
-                      );
-                      const data = await res.json();
-                      if (!data.length) return alert('ไม่พบที่อยู่นี้');
-                      const place = data[0];
-                      const lat = parseFloat(place.lat);
-                      const lon = parseFloat(place.lon);
-                      setMarkerPosition({ lat, lng: lon });
-                      if (mapRef.current) mapRef.current.setView([lat, lon], 16);
-                    } catch (err) {
-                      console.error(err);
-                      alert('เกิดข้อผิดพลาดในการค้นหา');
-                    }
-                  }}
-                  className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 flex-shrink-0"
+            {/* 3. Map Container (ใช้ flex-1 เพื่อยืดเต็มพื้นที่ที่เหลือ) */}
+            <div className="flex-1 flex flex-col min-h-0 p-4 pb-0">
+              
+              {/* แผนที่จริง */}
+              <div className="rounded-xl overflow-hidden border flex-1 relative z-10">
+                <MapContainer
+                  key={showMap ? 'visible' : 'hidden'} // เพิ่ม key เพื่อรีเรนเดอร์เมื่อเปิด/ปิด
+                  center={markerPosition || centerTH}
+                  zoom={markerPosition ? 16 : 10}
+                  style={{ height: '100%', width: '100%' }} // ใช้ 100% เพื่อยืดเต็ม flex-1
+                  whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
                 >
-                  🔍
-                </button>
-                {canUseGeo && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                          const { latitude, longitude } = pos.coords;
-                          setMarkerPosition({ lat: latitude, lng: longitude });
-                          if (mapRef.current)
-                            mapRef.current.setView([latitude, longitude], 16);
-                        },
-                        () => alert('ไม่สามารถอ่านตำแหน่งปัจจุบันได้')
-                      );
-                    }}
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 flex-shrink-0"
-                  >
-                    📡
-                  </button>
-                )}
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <LocationMarker
+                    position={markerPosition}
+                    setPosition={setMarkerPosition}
+                  />
+                </MapContainer>
               </div>
-
-              {/* รายการแนะนำ */}
-              {suggestions.length > 0 && (
-                <ul className="absolute z-50 mt-1 w-full max-h-52 overflow-auto bg-white border rounded-lg shadow-xl">
-                  {suggestions.map((place) => (
-                    <li
-                      key={place.place_id}
-                      onClick={() => handleSelectSuggestion(place)}
-                      className="p-2 cursor-pointer hover:bg-gray-100 text-sm"
-                    >
-                      {place.display_name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* แผนที่ + ปุ่มยืนยัน */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-4">
-                <div className="rounded-xl overflow-hidden border">
-                  {/* ปรับความสูงของแผนที่ให้ใช้พื้นที่ได้มากขึ้นบนมือถือ */}
-                  <MapContainer
-                    center={markerPosition || centerTH}
-                    zoom={markerPosition ? 16 : 10}
-                    style={{ height: '70vh', width: '100%' }}
-                    whenCreated={(mapInstance) => (mapRef.current = mapInstance)}
-                  >
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <LocationMarker
-                      position={markerPosition}
-                      setPosition={setMarkerPosition}
+              
+              {/* 4. Search, Controls, และ ปุ่มยืนยัน (ย้ายมาอยู่ด้านล่าง Map) */}
+              <div className="mt-4 relative flex-shrink-0 z-[70] pt-0">
+                  {/* ช่อง Input และ ปุ่มค้นหา/ตำแหน่ง */}
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={searchAddress}
+                      onChange={handleSearchChange}
+                      placeholder="ค้นหาที่อยู่หรือสถานที่"
+                      className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 relative z-[90]"
+                      autoComplete="off"
                     />
-                  </MapContainer>
-                </div>
+                    
+                    {/* ปุ่มค้นหา */}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!searchAddress) return alert('กรุณากรอกที่อยู่ก่อน');
+                        try {
+                          // ... (โค้ดค้นหา) ...
+                          const res = await fetch(
+                            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+                              searchAddress
+                            )}&addressdetails=1&limit=1`,
+                            { headers: { 'User-Agent': 'SmartPaytApp/1.0' } }
+                          );
+                          const data = await res.json();
+                          if (!data.length) return alert('ไม่พบที่อยู่นี้');
+                          const place = data[0];
+                          const lat = parseFloat(place.lat);
+                          const lon = parseFloat(place.lon);
+                          setMarkerPosition({ lat, lng: lon });
+                          if (mapRef.current) mapRef.current.setView([lat, lon], 16);
+                        } catch (err) {
+                          console.error(err);
+                          alert('เกิดข้อผิดพลาดในการค้นหา');
+                        }
+                      }}
+                      className="px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 flex-shrink-0 text-lg"
+                    >
+                      🔍
+                    </button>
+                    
+                    {/* ปุ่มตำแหน่งปัจจุบัน */}
+                    {canUseGeo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                              const { latitude, longitude } = pos.coords;
+                              setMarkerPosition({ lat: latitude, lng: longitude });
+                              if (mapRef.current)
+                                mapRef.current.setView([latitude, longitude], 16);
+                            },
+                            () => alert('ไม่สามารถอ่านตำแหน่งปัจจุบันได้')
+                          );
+                        }}
+                        className="px-3 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 flex-shrink-0 text-lg"
+                      >
+                        📡
+                      </button>
+                    )}
+                  </div>
 
-                {/* ปุ่มยืนยัน/ปิด (ปรับให้ใช้พื้นที่กว้าง) */}
-                <div className="flex flex-col md:flex-row gap-3 mt-4">
-                  <button
-                    type="button"
-                    onClick={confirmPosition}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold"
-                  >
-                    ✅ ยืนยันตำแหน่งนี้
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowMap(false)}
-                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold"
-                  >
-                    ❌ ปิดแผนที่
-                  </button>
-                </div>
+                  {/* รายการแนะนำ */}
+                  {/* ✅ FIX: ใช้ absolute และกำหนด bottom-full, z-index สูงสุด เพื่อให้มันอยู่เหนือ input และ map */}
+                  {suggestions.length > 0 && (
+                      <ul className="absolute z-[100] bottom-full left-0 right-0 mb-2 w-full max-h-52 overflow-auto bg-white border rounded-lg shadow-xl">
+                        {suggestions.map((place) => (
+                          <li
+                            key={place.place_id}
+                            onClick={() => handleSelectSuggestion(place)}
+                            className="p-2 cursor-pointer hover:bg-gray-100 text-sm"
+                          >
+                            {place.display_name}
+                          </li>
+                        ))}
+                      </ul>
+                  )}
+                  
+                  {/* ปุ่มยืนยัน/ปิด */}
+                  <div className="flex flex-col md:flex-row gap-3 mt-4">
+                      <button
+                          type="button"
+                          onClick={confirmPosition}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold"
+                      >
+                          ✅ ยืนยันตำแหน่งนี้
+                      </button>
+                      <button
+                          type="button"
+                          onClick={() => setShowMap(false)}
+                          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold"
+                      >
+                          ❌ ปิดแผนที่
+                      </button>
+                  </div>
               </div>
+              
             </div>
+
           </div>
         </div>
       )}
