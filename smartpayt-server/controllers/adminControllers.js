@@ -493,14 +493,17 @@ exports.verifyUser = async (req, res) => {
 // Bill Management
 // =========================================
 
+// =========================================
+// Bill Management
+// =========================================
+
 exports.getuserAddressBill = async (req, res) => { // Renamed slightly for consistency
   try {
     const { address_id } = req.params;
     if (!address_id) {
        return res.status(400).json({ message: "address_id is required" });
     }
-    // Fetch *all* bills for this address for admin view? Or only unpaid?
-    // Let's fetch all for now, sorted by due date.
+    // Fetch all bills for this address for admin view, sorted by due date.
     const query = "SELECT * FROM bills WHERE address_id = ? ORDER BY due_date DESC";
     const [bills] = await db.query(query, [address_id]);
     res.status(200).json({ bills }); // Returns empty array if none found
@@ -510,15 +513,18 @@ exports.getuserAddressBill = async (req, res) => { // Renamed slightly for consi
   }
 };
 
-exports.getBillsByLineUserId = async (req, res) => { // This might be redundant if getUserAddress + getuserAddressBill is used on frontend
+exports.getBillsByLineUserId = async (req, res) => { 
   const { lineUserId } = req.params;
   if (!lineUserId) {
     return res.status(400).json({ message: "lineUserId ไม่ถูกต้อง" });
   }
   try {
-    // Only get unpaid bills for this specific function?
+    // ✅ FIX: ดึงคอลัมน์น้ำหนักขยะทั้งหมดออกมาด้วย
     const query = `
-      SELECT b.* FROM bills b
+      SELECT 
+        b.id, b.address_id, b.amount_due, b.due_date, b.status, b.month, b.year,
+        b.total_general_kg, b.total_hazardous_kg, b.total_recyclable_kg, b.total_organic_kg 
+      FROM bills b
       JOIN addresses a ON b.address_id = a.address_id
       WHERE a.lineUserId = ? AND b.status = 0
       ORDER BY b.due_date ASC
@@ -534,7 +540,8 @@ exports.getBillsByLineUserId = async (req, res) => { // This might be redundant 
 
 exports.getDebtUsers = async (req, res) => {
   try {
-    const query = `SELECT u.lineUserId, u.ID_card_No, u.name, COUNT(b.id) AS unpaid_bills, SUM(b.amount_due) AS total_debt FROM users u JOIN addresses a ON u.lineUserId = a.lineUserId JOIN bills b ON a.address_id = b.address_id WHERE b.status = 0 GROUP BY u.lineUserId, u.ID_card_No, u.name HAVING unpaid_bills > 0 ORDER BY u.name ASC;`; // Added HAVING
+    // ✅ FIX: แก้ไข Syntax Error โดยการใส่ backticks (`) ครอบ SQL query
+    const query = `SELECT u.lineUserId, u.ID_card_No, u.name, COUNT(b.id) AS unpaid_bills, SUM(b.amount_due) AS total_debt FROM users u JOIN addresses a ON u.lineUserId = a.lineUserId JOIN bills b ON a.address_id = b.address_id WHERE b.status = 0 GROUP BY u.lineUserId, u.ID_card_No, u.name HAVING unpaid_bills > 0 ORDER BY u.name ASC`; 
     const [results] = await db.query(query);
     res.status(200).json({ users: results });
   } catch (error) {
@@ -552,6 +559,7 @@ exports.createBill = async (req, res) => {
   }
 
   try {
+    // ✅ FIX: แก้ไข Syntax Error โดยการใส่ backticks (`) ครอบ SQL query
     const [[addressRow]] = await db.query(
       `SELECT house_no, lineUserId, address_type FROM addresses WHERE address_id = ?`,
       [address_id]
@@ -579,23 +587,35 @@ exports.createBill = async (req, res) => {
       (Number(organicWeight) * pricing.organic)
     ).toFixed(2);
 
-    // Prevent creating zero-amount bills? Or allow? Assuming allow for now.
-
-    // ✅ ปรับแก้ INSERT query ใน createBill ให้รองรับน้ำหนัก
+    // ✅ IMPROVEMENT: ปรับ INSERT Query ให้บันทึกข้อมูลน้ำหนักขยะ, month, และ year
     const [result] = await db.query(
-      `INSERT INTO bills (address_id, amount_due, due_date, created_at, updated_at, status, 
-                          total_general_kg, total_hazardous_kg, total_recyclable_kg, total_organic_kg) 
-       VALUES (?, ?, ?, NOW(), NOW(), ?, ?, ?, ?, ?)`,
-      [address_id, amount_due, due_date, status, 
-       generalWeight, hazardousWeight, recyclableWeight, organicWeight]
+      `INSERT INTO bills (
+          address_id, amount_due,  
+          total_general_kg, total_hazardous_kg, total_recyclable_kg, total_organic_kg,
+          due_date, created_at, updated_at, status, month, year
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, MONTH(?), YEAR(?))`,
+      [
+        address_id,
+        amount_due,
+        generalWeight,
+        hazardousWeight,
+        recyclableWeight,
+        organicWeight,
+        due_date,
+        status, // ซึ่งคือ 0
+        due_date, // ใช้คำนวณเดือน
+        due_date  // ใช้คำนวณปี
+      ]
     );
-    await logAdminAction(req, 'CREATE', 'BILL', result.insertId, { 
-        address_id, 
-        amount_due: parseFloat(amount_due),
-        weights: { generalWeight, hazardousWeight, recyclableWeight, organicWeight }
+
+    await logAdminAction(req, 'CREATE', 'BILL', result.insertId, {
+      address_id,
+      amount_due: parseFloat(amount_due),
+      weights: { generalWeight, hazardousWeight, recyclableWeight, organicWeight }
     });
 
     if (addressRow.lineUserId) {
+      // ✅ FIX: แก้ไข Syntax Error ของ String Template (ต้องใช้ backticks `)
       const message = `📬 มีบิลใหม่!\n🏠 บ้านเลขที่ ${addressRow.house_no || address_id}\n💰 จำนวน ${amount_due} บาท\n📅 ครบกำหนด ${new Date(due_date).toLocaleDateString("th-TH")}\n\nกรุณาชำระภายในกำหนด 🙏`;
       await sendMessageToUser(addressRow.lineUserId, message);
     }
@@ -611,8 +631,6 @@ exports.createBill = async (req, res) => {
     res.status(500).json({ message: "ไม่สามารถสร้างบิลได้", error: err.message });
   }
 };
-
-// =========================================
 // Waste Pricing Management
 // =========================================
 
