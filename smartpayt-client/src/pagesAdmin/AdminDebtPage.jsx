@@ -1,7 +1,8 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../pagesAdmin/component/AdminLayout';
+// 💥 ใช้ api instance ที่มี Interceptor จัดการ Token แล้ว
+import api from '../api';
 
 // 1. Import ไอคอนมาเพิ่ม
 import {
@@ -15,7 +16,7 @@ import {
   FaSortUp
 } from 'react-icons/fa';
 
-// 2. (เพิ่ม) Component Header ที่ Sort ได้
+// 2. Component Header ที่ Sort ได้
 const SortableHeader = ({ label, field, sortField, sortDirection, onSort }) => {
   const isSorted = sortField === field;
   return (
@@ -35,7 +36,6 @@ const SortableHeader = ({ label, field, sortField, sortDirection, onSort }) => {
 
 
 const AdminDebtPage = () => {
-  // 3. (เพิ่ม) State สำหรับ Loading
   const [loading, setLoading] = useState(false);
   const [billsLoading, setBillsLoading] = useState(null); // State สำหรับโหลดบิลย่อย
 
@@ -50,39 +50,32 @@ const AdminDebtPage = () => {
   const usersPerPage = 10;
   const navigate = useNavigate();
 
-  // 4. (ปรับปรุง) fetchDebtUsers ให้มี Loading/Error
+  // 4. (ปรับปรุง) fetchDebtUsers ให้ใช้ api instance
   const fetchDebtUsers = async () => {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('Admin_token');
-      if (!token) {
-        navigate('/adminlogin');
-        setLoading(false);
-        return;
-      }
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/admin/debt`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // ✅ ใช้ api.get แทน axios.get
+      const res = await api.get('/admin/debt');
       setUsers(res.data.users || []);
     } catch (err) {
       console.error('Error fetching debt users:', err);
       setError('ไม่สามารถดึงข้อมูลผู้ค้างชำระได้');
+      if (err.response?.status === 401) navigate('/adminlogin');
     } finally {
       setLoading(false);
     }
   };
 
-  // 5. (ปรับปรุง) fetchBills ให้มี Loading
+  // 5. (ปรับปรุง) fetchBills ให้ใช้ api instance
   const fetchBills = async (lineUserId) => {
     try {
-      const token = localStorage.getItem('Admin_token');
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${lineUserId}/bills`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // ✅ ใช้ api.get แทน axios.get
+      const res = await api.get(`/admin/users/${lineUserId}/bills`);
       setBillsByUser((prev) => ({ ...prev, [lineUserId]: res.data.bills }));
     } catch (err) {
       console.error('Error fetching bills:', err);
+      if (err.response?.status === 401) navigate('/adminlogin');
     } finally {
       setBillsLoading(null); // โหลดเสร็จ
     }
@@ -94,7 +87,8 @@ const AdminDebtPage = () => {
   }, []);
 
   const handleSort = (field) => {
-    // ... (โค้ดเดิม) ...
+    const allowedSortFields = ['ID_card_No', 'name', 'unpaid_bills', 'total_debt'];
+    if (!allowedSortFields.includes(field)) return;
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -128,10 +122,13 @@ const AdminDebtPage = () => {
       user.name?.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
-      const valA = a[sortField];
-      const valB = b[sortField];
-      if (sortDirection === 'asc') return valA > valB ? 1 : -1;
-      return valA < valB ? 1 : -1;
+        // ต้องแปลงเป็นตัวเลขสำหรับการจัดเรียง unpaid_bills, total_debt
+        const valA = ['unpaid_bills', 'total_debt'].includes(sortField) ? Number(a[sortField]) : a[sortField];
+        const valB = ['unpaid_bills', 'total_debt'].includes(sortField) ? Number(b[sortField]) : b[sortField];
+        
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
     });
 
   const indexOfLastUser = currentPage * usersPerPage;
@@ -151,7 +148,7 @@ const AdminDebtPage = () => {
       <>
         <h1 className="text-3xl font-bold mb-6 text-gray-800">ข้อมูลผู้ค้างชำระค่าบริการ</h1>
 
-        {/* Search (ดีไซน์ใหม่) */}
+        {/* Search */}
         <div className="mb-6">
           <div className="relative w-full max-w-lg">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -167,7 +164,7 @@ const AdminDebtPage = () => {
           </div>
         </div>
 
-        {/* 8. (ปรับปรุง) Table Container (จัดการ Loading, Error) */}
+        {/* Table Container */}
         <div className="overflow-x-auto bg-white rounded-lg shadow">
           {loading ? (
             <div className="text-center p-10 text-gray-500">
@@ -181,7 +178,7 @@ const AdminDebtPage = () => {
             </div>
           ) : (
             <table className="w-full">
-              {/* 9. (ปรับปรุง) Table Header */}
+              {/* Table Header */}
               <thead className="bg-gray-50">
                 <tr>
                   <SortableHeader label="ID Card No" field="ID_card_No" sortField={sortField} sortDirection={sortDirection} onSort={handleSort} />
@@ -194,12 +191,12 @@ const AdminDebtPage = () => {
                 {currentUsers.length > 0 ? (
                   currentUsers.map((user) => (
                     <React.Fragment key={user.ID_card_No}>
-                      {/* 10. (ปรับปรุง) Table Row */}
+                      {/* Table Row */}
                       <tr className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.ID_card_No}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
                         
-                        {/* 11. (ปรับปรุง) ปุ่ม Dropdown */}
+                        {/* ปุ่ม Dropdown */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <button
                             className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium"
@@ -214,7 +211,7 @@ const AdminDebtPage = () => {
                         </td>
                       </tr>
                       
-                      {/* 12. (ปรับปรุง) แถวรายละเอียด (Collapsible) */}
+                      {/* แถวรายละเอียด (Collapsible) */}
                       {expandedUserId === user.lineUserId && (
                         <tr>
                           <td colSpan="4" className="bg-gray-100 px-10 py-4"> {/* พื้นหลังสีเทาอ่อน และเยื้องเข้ามา */}
@@ -226,14 +223,30 @@ const AdminDebtPage = () => {
                             ) : (
                               <div>
                                 <h4 className="font-semibold mb-2 text-gray-800">รายละเอียดบิลที่ค้าง:</h4>
-                                <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+                                <ul className="space-y-3 text-sm text-gray-700">
                                   {(billsByUser[user.lineUserId] || []).map((bill, idx) => (
-                                    <li key={idx} className="flex justify-between">
-                                      <span>เดือน {new Date(bill.due_date).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</span>
-                                      <span className="font-medium text-gray-900">{parseFloat(bill.amount_due).toFixed(2)} บาท</span>
+                                    <li key={idx} className="border-b border-gray-300 pb-3">
+                                        <div className="flex justify-between font-medium">
+                                            <span className="text-gray-900">
+                                                🗓️ เดือน {new Date(bill.month || bill.due_date).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+                                            </span>
+                                            <span className="text-red-600">
+                                                {parseFloat(bill.amount_due).toFixed(2)} บาท
+                                            </span>
+                                        </div>
+
+                                        {/* ✅ แสดงน้ำหนักขยะแต่ละประเภท */}
+                                        <div className="text-xs text-gray-600 mt-1 pl-3 grid grid-cols-2 gap-1">
+                                            <p>🗑️ ทั่วไป: **{parseFloat(bill.total_general_kg || 0).toFixed(2)}** กก.</p>
+                                            <p>🛢️ อันตราย: **{parseFloat(bill.total_hazardous_kg || 0).toFixed(2)}** กก.</p>
+                                            <p>♻️ รีไซเคิล: **{parseFloat(bill.total_recyclable_kg || 0).toFixed(2)}** กก.</p>
+                                            <p>🌱 อินทรีย์: **{parseFloat(bill.total_organic_kg || 0).toFixed(2)}** กก.</p>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1">🗓️ ครบกำหนด: {new Date(bill.due_date).toLocaleDateString('th-TH')}</p>
                                     </li>
                                   ))}
                                 </ul>
+                                {(billsByUser[user.lineUserId] || []).length === 0 && <p className='text-gray-500'>ไม่พบบิลค้างชำระ</p>}
                               </div>
                             )}
                           </td>
@@ -242,7 +255,7 @@ const AdminDebtPage = () => {
                     </React.Fragment>
                   ))
                 ) : (
-                  // 13. (ปรับปรุง) Empty State
+                  // Empty State
                   <tr>
                     <td colSpan="4" className="px-6 py-10 text-center text-gray-500">
                       ไม่พบข้อมูลผู้ค้างชำระ
@@ -254,7 +267,7 @@ const AdminDebtPage = () => {
           )}
         </div>
 
-        {/* 14. (ปรับปรุง) Pagination (ดีไซน์ใหม่) */}
+        {/* Pagination */}
         {totalPages > 1 && !loading && !error && (
           <div className="flex justify-between items-center mt-6">
             <button
