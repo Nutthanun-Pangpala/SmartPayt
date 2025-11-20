@@ -1082,8 +1082,9 @@ exports.createWasteRecord = async (req, res) => {
   }
 };
 
+
 // =========================================
-// Automatic Bill Generation (Monthly Job Function)
+// Automatic Bill Generation (Cron Job Function)
 // =========================================
 
 exports.generateMonthlyBills = async (req, res) => {
@@ -1092,28 +1093,28 @@ exports.generateMonthlyBills = async (req, res) => {
 
     try {
         // 1. รับค่าเดือน/ปี (ถ้าไม่ส่งมา ใช้เดือนปัจจุบัน)
+        // หมายเหตุ: month/year ในที่นี้คือ "รอบบิล" ที่จะระบุในตาราง bills
         const { month, year } = req.body;
         const targetMonth = month || new Date().getMonth() + 1;
         const targetYear = year || new Date().getFullYear();
 
-        console.log(`🚀 Starting Monthly Bill Generation for ${targetMonth}/${targetYear}`);
+        console.log(`🚀 Starting Monthly Bill Generation for ROUND ${targetMonth}/${targetYear} (Including all pending waste)`);
 
         // 2. ใช้ getConnection() เพื่อทำ Transaction
         connection = await db.getConnection(); 
 
-        // 3. หา Address ที่มีขยะค้างจ่ายในเดือนเป้าหมาย (ใช้ address_id เป็นหลัก)
+        // 3. ✅ FIX: หา Address ที่มีขยะค้างจ่าย (billing_status = 'pending') โดยไม่สนใจเดือนที่บันทึก
         const [addressesWithWaste] = await connection.query(`
-            SELECT DISTINCT a.address_id, a.lineUserId, a.house_no, a.address_type 
+            SELECT DISTINCT 
+                a.address_id, a.lineUserId, a.house_no, a.address_type 
             FROM addresses a
             JOIN waste_records wr ON a.address_id = wr.address_id
             WHERE wr.billing_status = 'pending' 
-            AND MONTH(wr.recorded_date) = ? 
-            AND YEAR(wr.recorded_date) = ?
-        `, [targetMonth, targetYear]);
+        `); // 💡 DIFFERENCE 1: ลบ MONTH/YEAR ออก
 
         if (addressesWithWaste.length === 0) {
             connection.release();
-            const msg = `⚠️ ไม่พบรายการขยะค้างชำระสำหรับเดือน ${targetMonth}/${targetYear}`;
+            const msg = `⚠️ ไม่พบรายการขยะค้างชำระ (Pending) สำหรับออกบิลรอบนี้`;
             console.log(msg);
             if (res && res.json) return res.status(200).json({ message: msg });
             return;
@@ -1126,29 +1127,27 @@ exports.generateMonthlyBills = async (req, res) => {
             try {
                 await connection.beginTransaction(); // --- เริ่ม Transaction ---
 
-                // 4.1 ล็อกและดึงรายการขยะของ address นี้
+                // 4.1 ✅ FIX: ล็อกและดึงรายการขยะทั้งหมดที่ 'pending' ของ address นี้
                 const [records] = await connection.query(`
                     SELECT id, waste_type, weight_kg 
                     FROM waste_records 
                     WHERE address_id = ? 
                     AND billing_status = 'pending'
-                    AND MONTH(recorded_date) = ? 
-                    AND YEAR(recorded_date) = ?
                     FOR UPDATE 
-                `, [address.address_id, targetMonth, targetYear]);
+                `, [address.address_id]); // 💡 DIFFERENCE 2: ลบ MONTH/YEAR ออก
 
                 if (records.length === 0) {
                     await connection.rollback();
                     continue; // ข้ามไป address ถัดไป
                 }
 
-                // 4.2 ดึงราคาตามประเภทที่อยู่
+                // 4.2 ดึงราคาตามประเภทที่อยู่ (Logic เดิม)
                 const addressType = address.address_type || 'household';
                 const [prices] = await connection.query('SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?', [addressType]);
                 const priceMap = {};
                 prices.forEach(p => priceMap[p.type] = parseFloat(p.price_per_kg));
 
-                // 4.3 ✅ คำนวณยอดเงินและรวมยอดน้ำหนักแยกประเภท
+                // 4.3 ✅ คำนวณยอดเงินและรวมยอดน้ำหนักแยกประเภท (Logic เดิม)
                 const wasteTotals = { general: 0, hazardous: 0, recyclable: 0, organic: 0 };
                 let totalAmount = 0;
 
@@ -1163,7 +1162,7 @@ exports.generateMonthlyBills = async (req, res) => {
                     }
                 });
 
-                // 4.4 ✅ สร้างบิล (พร้อมบันทึกข้อมูลน้ำหนัก)
+                // 4.4 ✅ สร้างบิล (พร้อมบันทึกข้อมูลน้ำหนัก, month, year)
                 const [billResult] = await connection.query(`
                     INSERT INTO bills (
                         address_id, amount_due, month, year, status, created_at, due_date,
@@ -1175,7 +1174,7 @@ exports.generateMonthlyBills = async (req, res) => {
                     address.address_id, 
                     totalAmount.toFixed(2), 
                     targetMonth, 
-                    targetYear, 
+                    targetYear, // 💡 DIFFERENCE 3: ใช้ targetMonth/targetYear ที่รับมา เป็นรอบบิล
                     wasteTotals.general.toFixed(2), 
                     wasteTotals.hazardous.toFixed(2), 
                     wasteTotals.recyclable.toFixed(2), 
@@ -1199,7 +1198,7 @@ exports.generateMonthlyBills = async (req, res) => {
                 
                 // ส่งแจ้งเตือน LINE 
                 if (address.lineUserId) {
-                    const message = `📬 มีบิลค่าขยะรายเดือนใหม่!\n🏠 บ้านเลขที่ ${address.house_no}\n💰 จำนวน ${totalAmount.toFixed(2)} บาท\n📅 สำหรับเดือน ${targetMonth}/${targetYear}\n\nกรุณาชำระภายในกำหนด 🙏`;
+                    const message = `📬 มีบิลค่าขยะรายเดือนใหม่!\n🏠 บ้านเลขที่ ${address.house_no}\n💰 จำนวน ${totalAmount.toFixed(2)} บาท\n📅 สำหรับรอบบิล ${targetMonth}/${targetYear}\n\nกรุณาชำระภายในกำหนด 🙏`;
                     await sendMessageToUser(address.lineUserId, message);
                 }
 
@@ -1228,8 +1227,6 @@ exports.generateMonthlyBills = async (req, res) => {
         if (res && res.status) res.status(500).json({ message: 'เกิดข้อผิดพลาดในระบบ Server' });
     }
 };
-
-
 // controllers/adminControllers.js
 // ...
 exports.getAuditLogs = async (req, res) => {
