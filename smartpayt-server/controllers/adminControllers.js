@@ -775,78 +775,91 @@ const updateSlipStatus = async (req, res) => {
      if (currentSlip.status !== 'pending') {
          return res.status(409).json({ message: `Slip already processed (${currentSlip.status})` });
      }
+     
+    // 💡 เริ่ม Transaction 
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    // Update slip status and record admin who verified it
-    await db.query(
-      `UPDATE payment_slips SET status = ?, admin_verify = ?, updated_at = NOW() WHERE id = ?`, // Add timestamp
-      [status, adminId, id]
-    );
+    try {
+        // 1. Update slip status and record admin who verified it
+        await connection.query(
+          `UPDATE payment_slips SET status = ?, admin_verify = ?, updated_at = NOW() WHERE id = ?`, // Add timestamp
+          [status, adminId, id]
+        );
 
-    const [[adminData]] = await db.query('SELECT admin_username FROM admins WHERE id = ?', [adminId]);
-    const adminName = adminData?.admin_username || `ID ${adminId}`;
-    let messageToAdmin = `🧾 สลิป ID ${id} `;
-    let messageToUser = ''; // Prepare user notification
+        const [[adminData]] = await connection.query('SELECT admin_username FROM admins WHERE id = ?', [adminId]);
+        const adminName = adminData?.admin_username || `ID ${adminId}`;
+        let messageToAdmin = `🧾 สลิป ID ${id} `;
+        let messageToUser = ''; 
 
-    const [[billUser]] = await db.query( // Fetch bill/user info regardless of status for notifications
-      `SELECT
-         b.id as bill_id, b.amount_due, b.due_date,
-         a.lineUserId, a.house_no, a.sub_district, a.district, a.province, a.postal_code
-       FROM bills b
-       JOIN addresses a ON b.address_id = a.address_id
-       WHERE b.id = ?`,
-       [currentSlip.bill_id]
-     );
+        const [[billUser]] = await connection.query( // Fetch bill/user info
+          `SELECT b.id as bill_id, b.amount_due, b.due_date, a.lineUserId, a.house_no, a.sub_district, a.district
+           FROM bills b JOIN addresses a ON b.address_id = a.address_id WHERE b.id = ?`,
+           [currentSlip.bill_id]
+         );
 
-    if (status === "approved") {
-      messageToAdmin += `ได้รับการ "อนุมัติ" ✅ โดย Admin: ${adminName}`;
-      // Update the corresponding bill to paid (status=1)
-      if (currentSlip.bill_id) {
-         await db.query(`UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?`, [currentSlip.bill_id]);
+        if (status === "approved") {
+          messageToAdmin += `ได้รับการ "อนุมัติ" ✅ โดย Admin: ${adminName}`;
+          
+          // ✅ อัปเดตสถานะบิลเป็น 1 (Paid)
+          if (currentSlip.bill_id) {
+             await connection.query(`UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?`, [currentSlip.bill_id]);
 
-         // Notify User of successful payment
-         if (billUser?.lineUserId) {
-             const dueDateStr = billUser.due_date ? new Date(billUser.due_date).toLocaleDateString("th-TH") : '-';
-             messageToUser = `🎉 การชำระเงินของคุณได้รับการยืนยันแล้ว!\n\n` +
-                 `🏠 ที่อยู่: ${billUser.house_no}, ${billUser.sub_district}, ${billUser.district}\n` +
-                 `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
-                 `💰 จำนวน: ${parseFloat(billUser.amount_due).toFixed(2)} บาท\n` +
-                 `📅 วันครบกำหนดเดิม: ${dueDateStr}\n\n` +
-                 `ขอบคุณที่ใช้บริการ 🙏`;
-         }
-      }
-    } else if (status === "rejected") {
-       messageToAdmin += `ถูก "ปฏิเสธ" ❌ โดย Admin: ${adminName}`;
-       // Notify User of rejection
-       if (billUser?.lineUserId) {
-           const rejectReason = reason || 'กรุณาตรวจสอบข้อมูลและอัปโหลดสลิปใหม่อีกครั้ง';
-           messageToUser = `⚠️ การชำระเงินของคุณถูกปฏิเสธ\n\n`+
-                           `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
-                           `🏠 ที่อยู่: ${billUser.house_no}, ${billUser.sub_district}\n` +
-                           `เหตุผล: ${rejectReason}\n\n`+
-                           `กรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัย หรือ อัปโหลดสลิปใหม่`;
-       }
-    }
-
-    // Send notifications
-    await sendLineNotify(messageToAdmin);
-    if (messageToUser && billUser?.lineUserId) {
-        await sendMessageToUser(billUser.lineUserId, messageToUser);
-        
-    }
-    await logAdminAction(req, 
-        'UPDATE_STATUS', 
-        'PAYMENT_SLIP', 
-        id, 
-        { 
-            status: status, 
-            bill_id: currentSlip.bill_id, 
-            reason: reason || 'N/A' 
+             // Notify User of successful payment
+             if (billUser?.lineUserId) {
+                 const dueDateStr = billUser.due_date ? new Date(billUser.due_date).toLocaleDateString("th-TH") : '-';
+                 messageToUser = `🎉 การชำระเงินของคุณได้รับการยืนยันแล้ว!\n\n` +
+                     `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
+                     `💰 จำนวน: ${parseFloat(billUser.amount_due).toFixed(2)} บาท`;
+             }
+          }
+        } else if (status === "rejected") {
+           messageToAdmin += `ถูก "ปฏิเสธ" ❌ โดย Admin: ${adminName}`;
+           
+           // ✅ FIX: อัปเดตสถานะบิลกลับเป็น 0 (Unpaid) ตามที่ร้องขอ
+           if (currentSlip.bill_id) {
+                await connection.query(`UPDATE bills SET status = 0, updated_at = NOW() WHERE id = ?`, [currentSlip.bill_id]);
+           }
+           
+           // Notify User of rejection
+           if (billUser?.lineUserId) {
+               const rejectReason = reason || 'กรุณาตรวจสอบข้อมูลและอัปโหลดสลิปใหม่อีกครั้ง';
+               messageToUser = `⚠️ การชำระเงินของคุณถูกปฏิเสธ\n\n`+
+                               `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
+                               `เหตุผล: ${rejectReason}\n\n`+
+                               `กรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัย หรือ อัปโหลดสลิปใหม่`;
+           }
         }
-    );
 
-    res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
+        // 2. Commit Transaction
+        await connection.commit();
+        connection.release();
+
+        // 3. Send notifications (Outside of Transaction)
+        await sendLineNotify(messageToAdmin);
+        if (messageToUser && billUser?.lineUserId) {
+            await sendMessageToUser(billUser.lineUserId, messageToUser);
+            
+        }
+        await logAdminAction(req, 
+            'UPDATE_STATUS', 
+            'PAYMENT_SLIP', 
+            id, 
+            { 
+                status: status, 
+                bill_id: currentSlip.bill_id, 
+                reason: reason || 'N/A' 
+            }
+        );
+
+        res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
+    } catch (transactionError) {
+        await connection.rollback();
+        connection.release();
+        throw transactionError; // โยน Error ขึ้นไปเพื่อให้ catch ด้านนอกจัดการ
+    }
   } catch (error) {
-    console.error("เกิดข้อผิดพลาดในการอัปเดตสถานะสลิป:", error); // More specific log
+    console.error("เกิดข้อผิดพลาดในการอัปเดตสถานะสลิป:", error); 
      await sendLineNotify(`❌ เกิดข้อผิดพลาดในการอัปเดตสถานะสลิป ID ${id} เป็น "${status}": ${error.message}`);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
@@ -1240,5 +1253,174 @@ exports.getAuditLogs = async (req, res) => {
     } catch (e) {
         console.error('getAuditLogs error:', e);
         res.status(500).json({ message: 'Failed to retrieve audit logs' });
+    }
+};
+exports.recordAndBillManual = async (req, res) => {
+    let connection;
+    const adminId = req.user?.adminId;
+
+    const { address_id, recorded_date, weights } = req.body;
+
+    if (!address_id || !recorded_date || !weights) {
+        return res.status(400).json({ message: 'Missing required fields (address_id, recorded_date, weights).' });
+    }
+
+    try {
+        connection = await db.getConnection();
+        await connection.beginTransaction(); // เริ่ม Transaction เพื่อความปลอดภัย
+
+        // 1. ตรวจสอบ Address และประเภทที่อยู่
+        const [[addressRow]] = await connection.query(
+            `SELECT lineUserId, house_no, address_type FROM addresses WHERE address_id = ?`,
+            [address_id]
+        );
+        if (!addressRow) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'ไม่พบบ้านหรือสถานประกอบการนี้' });
+        }
+        const addressType = addressRow.address_type || 'household';
+
+        const recordIds = [];
+        const wasteTypes = ['general', 'hazardous', 'recyclable', 'organic'];
+
+        // 2. บันทึกรายการขยะใหม่ (Record Waste)
+        for (const type of wasteTypes) {
+            const weight = parseFloat(weights[type]) || 0;
+
+            if (weight > 0) {
+                const [result] = await connection.query(
+                    `INSERT INTO waste_records (address_id, waste_type, weight_kg, recorded_date, billing_status) 
+                     VALUES (?, ?, ?, ?, 'pending')`,
+                    [address_id, type, weight, recorded_date]
+                );
+                recordIds.push(result.insertId);
+            }
+        }
+        
+        // 3. ดึงรายการขยะทั้งหมดที่ยัง Pending (รวมรายการที่เพิ่งบันทึก)
+        const [pendingRecords] = await connection.query(`
+            SELECT id, waste_type, weight_kg 
+            FROM waste_records 
+            WHERE address_id = ? 
+            AND billing_status = 'pending'
+            FOR UPDATE 
+        `, [address_id]);
+
+        if (pendingRecords.length === 0) {
+            await connection.rollback();
+            return res.status(200).json({ message: 'ไม่มีขยะค้างชำระสำหรับสร้างบิล' });
+        }
+
+        // 4. คำนวณยอดเงินและรวมยอดน้ำหนัก (ใช้ Pending Records ทั้งหมด)
+        const [prices] = await connection.query('SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?', [addressType]);
+        const priceMap = {};
+        prices.forEach(p => priceMap[p.type] = parseFloat(p.price_per_kg));
+
+        const wasteTotals = { general: 0, hazardous: 0, recyclable: 0, organic: 0 };
+        let totalAmount = 0;
+
+        pendingRecords.forEach(rec => {
+            const price = priceMap[rec.waste_type] || 0;
+            const weight = parseFloat(rec.weight_kg);
+
+            totalAmount += (weight * price);
+
+            if (wasteTotals.hasOwnProperty(rec.waste_type)) {
+                wasteTotals[rec.waste_type] += weight;
+            }
+        });
+        
+        // 5. สร้างบิลใหม่ (ใช้เดือน/ปี ปัจจุบันเป็นรอบบิล)
+        const targetMonth = new Date().getMonth() + 1;
+        const targetYear = new Date().getFullYear();
+
+        const [billResult] = await connection.query(`
+            INSERT INTO bills (
+                address_id, amount_due, month, year, status, created_at, due_date,
+                total_general_kg, total_hazardous_kg, total_recyclable_kg, total_organic_kg
+            )
+            VALUES (?, ?, ?, ?, 0, NOW(), DATE_ADD(NOW(), INTERVAL 15 DAY),
+                    ?, ?, ?, ?)
+        `, [
+            address_id, 
+            totalAmount.toFixed(2), 
+            targetMonth, 
+            targetYear,
+            wasteTotals.general.toFixed(2), 
+            wasteTotals.hazardous.toFixed(2), 
+            wasteTotals.recyclable.toFixed(2), 
+            wasteTotals.organic.toFixed(2)
+        ]);
+        const newBillId = billResult.insertId;
+
+        // 6. อัปเดตรายการขยะทั้งหมดที่ถูกนำมารวมยอด
+        const recordsToUpdateIds = pendingRecords.map(r => r.id);
+        await connection.query(`
+            UPDATE waste_records 
+            SET bill_id = ?, billing_status = 'billed'
+            WHERE id IN (?)
+        `, [newBillId, recordsToUpdateIds]);
+
+        await connection.commit(); // บันทึกทุกอย่าง
+
+        // 7. Audit Log & Notification
+        await logAdminAction(req, 'CREATE', 'MANUAL_BILL', newBillId, { 
+            address_id, amount_due: totalAmount.toFixed(2), recordsCount: recordsToUpdateIds.length 
+        });
+        if (addressRow.lineUserId) {
+            const message = `📬 มีบิลค่าขยะใหม่ (สร้างด้วย Admin)!\n🏠 บ้านเลขที่ ${addressRow.house_no}\n💰 จำนวน ${totalAmount.toFixed(2)} บาท\n\nกรุณาชำระภายในกำหนด 🙏`;
+            await sendMessageToUser(addressRow.lineUserId, message);
+        }
+
+        res.status(201).json({
+            message: `บันทึกขยะและสร้างบิลสำเร็จ! ยอดรวม ${totalAmount.toFixed(2)} บาท`,
+            billId: newBillId,
+            amount_due: totalAmount.toFixed(2),
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('❌ recordAndBillManual Error:', error);
+        await sendLineNotify(`❌ Manual Billing Failed for address ${address_id}: ${error.message}`);
+        res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกและสร้างบิล', details: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+exports.searchAddress = async (req, res) => {
+    try {
+        const search = req.query.search || '';
+        
+        if (!search) {
+            return res.json({ addresses: [] });
+        }
+
+        // ค้นหาตาม ID, บ้านเลขที่, หรือชื่อผู้ใช้ (ใช้ JOIN)
+        const query = `
+            SELECT 
+                a.address_id, 
+                a.house_no, 
+                a.village_no, 
+                a.sub_district, 
+                a.district,
+                u.name AS user_name 
+            FROM addresses a
+            LEFT JOIN users u ON a.lineUserId = u.lineUserId
+            WHERE a.address_verified = 1 AND ( 
+                a.address_id LIKE ? OR 
+                a.house_no LIKE ? OR 
+                u.name LIKE ? 
+            )
+            ORDER BY a.address_id ASC
+            LIMIT 10
+        `;
+        
+        const searchTerm = `%${search}%`;
+        const [addresses] = await db.query(query, [searchTerm, searchTerm, searchTerm]);
+
+        res.json({ addresses });
+    } catch (err) {
+        console.error('❌ searchAddress error:', err);
+        return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการค้นหาที่อยู่' });
     }
 };

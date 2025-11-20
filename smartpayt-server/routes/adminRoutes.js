@@ -67,6 +67,9 @@ router.post('/establishment', checkRole(superAdminOnly), adminController.updateW
 // --- ⚙️ System Actions (Automated Billing) ---
 // ✅ แก้ตรงนี้: เปลี่ยนเป็น Monthly และเรียกฟังก์ชันให้ถูก
 router.post('/generate-bills-monthly', checkRole(superAdminOnly), adminController.generateMonthlyBills); 
+router.post('/record-and-bill-manual', checkRole(superAdminOnly), adminController.recordAndBillManual);
+router.get('/addresses/search', checkRole(staffAccountantAdmin), adminController.searchAddress);
+
 
 // == 📈 Reports ==
 router.get('/report/export-waste', checkRole(staffAccountantAdmin), adminController.exportWasteReport);
