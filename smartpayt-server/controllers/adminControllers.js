@@ -1259,10 +1259,11 @@ exports.recordAndBillManual = async (req, res) => {
     let connection;
     const adminId = req.user?.adminId;
 
-    const { address_id, recorded_date, weights } = req.body;
+    // ✅ FIX: รับ target_month และ target_year จาก Frontend
+    const { address_id, recorded_date, weights, target_month, target_year } = req.body;
 
-    if (!address_id || !recorded_date || !weights) {
-        return res.status(400).json({ message: 'Missing required fields (address_id, recorded_date, weights).' });
+    if (!address_id || !recorded_date || !weights || !target_month || !target_year) {
+        return res.status(400).json({ message: 'Missing required fields (address_id, recorded_date, weights, target_month, target_year).' });
     }
 
     try {
@@ -1279,6 +1280,17 @@ exports.recordAndBillManual = async (req, res) => {
             return res.status(404).json({ message: 'ไม่พบบ้านหรือสถานประกอบการนี้' });
         }
         const addressType = addressRow.address_type || 'household';
+
+        // 💡 Check for Duplicate Bill (สำคัญมาก)
+        const [[existingBill]] = await connection.query(
+            'SELECT id FROM bills WHERE address_id = ? AND month = ? AND year = ?',
+            [address_id, target_month, target_year]
+        );
+        if (existingBill) {
+             await connection.rollback();
+             return res.status(409).json({ message: `⚠️ ไม่สามารถสร้างบิลได้: บิลรอบ ${target_month}/${target_year} ของที่อยู่ ID ${address_id} มีอยู่แล้ว (ID: ${existingBill.id})` });
+        }
+
 
         const recordIds = [];
         const wasteTypes = ['general', 'hazardous', 'recyclable', 'organic'];
@@ -1308,6 +1320,7 @@ exports.recordAndBillManual = async (req, res) => {
 
         if (pendingRecords.length === 0) {
             await connection.rollback();
+            // อันนี้จะไม่ค่อยเกิดขึ้น เพราะเพิ่งบันทึกขยะไปในขั้นตอนที่ 2 (เว้นแต่ totalWeight = 0)
             return res.status(200).json({ message: 'ไม่มีขยะค้างชำระสำหรับสร้างบิล' });
         }
 
@@ -1330,10 +1343,7 @@ exports.recordAndBillManual = async (req, res) => {
             }
         });
         
-        // 5. สร้างบิลใหม่ (ใช้เดือน/ปี ปัจจุบันเป็นรอบบิล)
-        const targetMonth = new Date().getMonth() + 1;
-        const targetYear = new Date().getFullYear();
-
+        // 5. สร้างบิลใหม่ (ใช้ target_month / target_year ที่ Admin ระบุ)
         const [billResult] = await connection.query(`
             INSERT INTO bills (
                 address_id, amount_due, month, year, status, created_at, due_date,
@@ -1344,8 +1354,8 @@ exports.recordAndBillManual = async (req, res) => {
         `, [
             address_id, 
             totalAmount.toFixed(2), 
-            targetMonth, 
-            targetYear,
+            target_month, // ✅ ใช้ค่าที่รับมาจาก Admin
+            target_year,  // ✅ ใช้ค่าที่รับมาจาก Admin
             wasteTotals.general.toFixed(2), 
             wasteTotals.hazardous.toFixed(2), 
             wasteTotals.recyclable.toFixed(2), 
@@ -1365,15 +1375,15 @@ exports.recordAndBillManual = async (req, res) => {
 
         // 7. Audit Log & Notification
         await logAdminAction(req, 'CREATE', 'MANUAL_BILL', newBillId, { 
-            address_id, amount_due: totalAmount.toFixed(2), recordsCount: recordsToUpdateIds.length 
+            address_id, amount_due: totalAmount.toFixed(2), recordsCount: recordsToUpdateIds.length, target_month, target_year
         });
         if (addressRow.lineUserId) {
-            const message = `📬 มีบิลค่าขยะใหม่ (สร้างด้วย Admin)!\n🏠 บ้านเลขที่ ${addressRow.house_no}\n💰 จำนวน ${totalAmount.toFixed(2)} บาท\n\nกรุณาชำระภายในกำหนด 🙏`;
+            const message = `📬 มีบิลค่าขยะใหม่ (สร้างด้วย Admin) รอบ ${target_month}/${target_year}!\n🏠 บ้านเลขที่ ${addressRow.house_no}\n💰 จำนวน ${totalAmount.toFixed(2)} บาท\n\nกรุณาชำระภายในกำหนด 🙏`;
             await sendMessageToUser(addressRow.lineUserId, message);
         }
 
         res.status(201).json({
-            message: `บันทึกขยะและสร้างบิลสำเร็จ! ยอดรวม ${totalAmount.toFixed(2)} บาท`,
+            message: `บันทึกขยะและสร้างบิลสำเร็จ! (รอบบิล ${target_month}/${target_year}) ยอดรวม ${totalAmount.toFixed(2)} บาท`,
             billId: newBillId,
             amount_due: totalAmount.toFixed(2),
         });

@@ -12,13 +12,32 @@ function debounce(fn, delay) {
     };
 }
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]; 
+
+const generateMonthOptions = () => {
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+        const date = new Date(2000, i, 1);
+        months.push({ 
+            value: i + 1, 
+            label: date.toLocaleDateString("th-TH", { month: "long" }) 
+        });
+    }
+    return months;
+};
+const MONTH_OPTIONS = generateMonthOptions();
+
 const initialWasteState = {
     address_id: '',
     general: '',
     hazardous: '',
     recyclable: '',
     organic: '',
-    recorded_date: new Date().toISOString().slice(0, 10),
+    recorded_date: new Date().toISOString().slice(0, 10), // วันที่บันทึก
+    // ✅ NEW STATE: รอบบิลที่ต้องการออก
+    target_month: new Date().getMonth() + 1, 
+    target_year: CURRENT_YEAR,
 };
 
 const AdminManulBill = () => {
@@ -33,7 +52,7 @@ const AdminManulBill = () => {
     const [searchLoading, setSearchLoading] = useState(false);
     const [selectedAddress, setSelectedAddress] = useState(null); 
     
-    // ✅ NEW STATE: สำหรับเก็บราคาทุกประเภท (เพื่อคำนวณ)
+    // NEW STATE: สำหรับเก็บราคาทุกประเภท (เพื่อคำนวณ)
     const [pricing, setPricing] = useState({});
     const [pricingLoading, setPricingLoading] = useState(false);
 
@@ -44,12 +63,13 @@ const AdminManulBill = () => {
             const numValue = value.replace(/[^0-9.]/g, ''); 
             setFormData((prev) => ({ ...prev, [name]: numValue }));
         } else {
+            // สำหรับ recorded_date, target_month, target_year
             setFormData((prev) => ({ ...prev, [name]: value }));
         }
     };
 
     // -----------------------------------------------------
-    // ✅ HOOK: ดึงราคาทันทีเมื่อเลือก Address
+    // HOOK: ดึงราคาทันทีเมื่อเลือก Address
     // -----------------------------------------------------
     useEffect(() => {
         if (!selectedAddress) {
@@ -78,7 +98,7 @@ const AdminManulBill = () => {
 
 
     // -----------------------------------------------------
-    // ✅ USEMEMO: คำนวณยอดรวม Real-time
+    // USEMEMO: คำนวณยอดรวม Real-time
     // -----------------------------------------------------
     const calculatedTotal = useMemo(() => {
         if (Object.keys(pricing).length === 0) return 0;
@@ -148,10 +168,14 @@ const AdminManulBill = () => {
         setError('');
         setMessage('');
 
-        const { address_id, recorded_date, general, hazardous, recyclable, organic } = formData;
+        const { address_id, recorded_date, general, hazardous, recyclable, organic, target_month, target_year } = formData; // ✅ ใช้ target_month, target_year
 
         if (!address_id || !recorded_date || !selectedAddress) {
             setError('กรุณาเลือกที่อยู่ให้ถูกต้อง');
+            return;
+        }
+        if (!target_month || !target_year) { // ตรวจสอบรอบบิล
+            setError('กรุณาเลือกรอบบิล (เดือน/ปี) ที่ต้องการออกบิล');
             return;
         }
 
@@ -165,7 +189,7 @@ const AdminManulBill = () => {
         const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
         
         // Final confirmation (ใช้ calculatedTotal ที่รวมยอดแล้ว)
-        if (!confirm(`ยืนยันการบันทึกขยะ และสร้างบิลรวมยอด ${calculatedTotal.toFixed(2)} บาท?`)) {
+        if (!confirm(`ยืนยันการออกบิลรอบ ${target_month}/${target_year} รวมยอด ${calculatedTotal.toFixed(2)} บาท? (จะรวมขยะ pending ทั้งหมด)`)) {
             return;
         }
         
@@ -176,6 +200,9 @@ const AdminManulBill = () => {
                 address_id: Number(address_id),
                 recorded_date: recorded_date,
                 weights: weights,
+                // ✅ ส่งรอบบิลที่ต้องการออกไปด้วย
+                target_month: Number(target_month),
+                target_year: Number(target_year),
             });
 
             setMessage(res.data.message || 'บันทึกขยะและสร้างบิลสำเร็จ!');
@@ -276,7 +303,7 @@ const AdminManulBill = () => {
                                 <div className="mt-2 bg-emerald-50 border border-emerald-300 p-4 rounded-xl flex justify-between items-center">
                                     <div>
                                         <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                                            <FaCheckCircle /> ที่อยู่ถูกเลือกแล้ว ({selectedAddress.address_type === 'establishment' ? 'สถานประกอบการ' : 'ครัวเรือน'})
+                                            <FaCheckCircle /> ที่อยู่ถูกเลือกแล้ว ({selectedAddress.address_type === 'household' ? 'ครัวเรือน' : 'สถานประกอบการ'})
                                         </p>
                                         <p className="text-sm mt-1 text-gray-700">
                                             <span className="font-semibold">ID: {selectedAddress.address_id}</span> | 
@@ -301,10 +328,47 @@ const AdminManulBill = () => {
                         </div>
                     </div>
 
+                    {/* ✅ NEW SECTION: รอบบิลที่ต้องการออก */}
+                    <h2 className="text-xl font-semibold mt-8 mb-4 text-gray-700 border-b pb-2">2. กำหนดรอบบิล</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="target_month">
+                                เดือน (รอบบิล)
+                            </label>
+                            <select
+                                id="target_month"
+                                name="target_month"
+                                value={formData.target_month}
+                                onChange={handleChange}
+                                className={inputClass}
+                            >
+                                {MONTH_OPTIONS.map(m => (
+                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="target_year">
+                                ปี พ.ศ. (รอบบิล)
+                            </label>
+                            <select
+                                id="target_year"
+                                name="target_year"
+                                value={formData.target_year}
+                                onChange={handleChange}
+                                className={inputClass}
+                            >
+                                {YEAR_OPTIONS.map(y => (
+                                    <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
                     {/* ข้อมูลน้ำหนักขยะ */}
-                    <h2 className="text-xl font-semibold mt-8 mb-4 text-gray-700 border-b pb-2">2. น้ำหนักขยะที่เก็บ (กิโลกรัม)</h2>
+                    <h2 className="text-xl font-semibold mt-8 mb-4 text-gray-700 border-b pb-2">3. น้ำหนักขยะที่เก็บ (กิโลกรัม)</h2>
                     
-                    {/* ✅ LOADING PRICING STATE */}
+                    {/* LOADING PRICING STATE */}
                     {pricingLoading && (
                         <div className='flex items-center text-sm text-gray-500 mb-4'>
                             <FaSpinner className='animate-spin mr-2' /> กำลังโหลดข้อมูลราคา...
