@@ -775,78 +775,91 @@ const updateSlipStatus = async (req, res) => {
      if (currentSlip.status !== 'pending') {
          return res.status(409).json({ message: `Slip already processed (${currentSlip.status})` });
      }
+     
+    // 💡 เริ่ม Transaction 
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    // Update slip status and record admin who verified it
-    await db.query(
-      `UPDATE payment_slips SET status = ?, admin_verify = ?, updated_at = NOW() WHERE id = ?`, // Add timestamp
-      [status, adminId, id]
-    );
+    try {
+        // 1. Update slip status and record admin who verified it
+        await connection.query(
+          `UPDATE payment_slips SET status = ?, admin_verify = ?, updated_at = NOW() WHERE id = ?`, // Add timestamp
+          [status, adminId, id]
+        );
 
-    const [[adminData]] = await db.query('SELECT admin_username FROM admins WHERE id = ?', [adminId]);
-    const adminName = adminData?.admin_username || `ID ${adminId}`;
-    let messageToAdmin = `🧾 สลิป ID ${id} `;
-    let messageToUser = ''; // Prepare user notification
+        const [[adminData]] = await connection.query('SELECT admin_username FROM admins WHERE id = ?', [adminId]);
+        const adminName = adminData?.admin_username || `ID ${adminId}`;
+        let messageToAdmin = `🧾 สลิป ID ${id} `;
+        let messageToUser = ''; 
 
-    const [[billUser]] = await db.query( // Fetch bill/user info regardless of status for notifications
-      `SELECT
-         b.id as bill_id, b.amount_due, b.due_date,
-         a.lineUserId, a.house_no, a.sub_district, a.district, a.province, a.postal_code
-       FROM bills b
-       JOIN addresses a ON b.address_id = a.address_id
-       WHERE b.id = ?`,
-       [currentSlip.bill_id]
-     );
+        const [[billUser]] = await connection.query( // Fetch bill/user info
+          `SELECT b.id as bill_id, b.amount_due, b.due_date, a.lineUserId, a.house_no, a.sub_district, a.district
+           FROM bills b JOIN addresses a ON b.address_id = a.address_id WHERE b.id = ?`,
+           [currentSlip.bill_id]
+         );
 
-    if (status === "approved") {
-      messageToAdmin += `ได้รับการ "อนุมัติ" ✅ โดย Admin: ${adminName}`;
-      // Update the corresponding bill to paid (status=1)
-      if (currentSlip.bill_id) {
-         await db.query(`UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?`, [currentSlip.bill_id]);
+        if (status === "approved") {
+          messageToAdmin += `ได้รับการ "อนุมัติ" ✅ โดย Admin: ${adminName}`;
+          
+          // ✅ อัปเดตสถานะบิลเป็น 1 (Paid)
+          if (currentSlip.bill_id) {
+             await connection.query(`UPDATE bills SET status = 1, updated_at = NOW() WHERE id = ?`, [currentSlip.bill_id]);
 
-         // Notify User of successful payment
-         if (billUser?.lineUserId) {
-             const dueDateStr = billUser.due_date ? new Date(billUser.due_date).toLocaleDateString("th-TH") : '-';
-             messageToUser = `🎉 การชำระเงินของคุณได้รับการยืนยันแล้ว!\n\n` +
-                 `🏠 ที่อยู่: ${billUser.house_no}, ${billUser.sub_district}, ${billUser.district}\n` +
-                 `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
-                 `💰 จำนวน: ${parseFloat(billUser.amount_due).toFixed(2)} บาท\n` +
-                 `📅 วันครบกำหนดเดิม: ${dueDateStr}\n\n` +
-                 `ขอบคุณที่ใช้บริการ 🙏`;
-         }
-      }
-    } else if (status === "rejected") {
-       messageToAdmin += `ถูก "ปฏิเสธ" ❌ โดย Admin: ${adminName}`;
-       // Notify User of rejection
-       if (billUser?.lineUserId) {
-           const rejectReason = reason || 'กรุณาตรวจสอบข้อมูลและอัปโหลดสลิปใหม่อีกครั้ง';
-           messageToUser = `⚠️ การชำระเงินของคุณถูกปฏิเสธ\n\n`+
-                           `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
-                           `🏠 ที่อยู่: ${billUser.house_no}, ${billUser.sub_district}\n` +
-                           `เหตุผล: ${rejectReason}\n\n`+
-                           `กรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัย หรือ อัปโหลดสลิปใหม่`;
-       }
-    }
-
-    // Send notifications
-    await sendLineNotify(messageToAdmin);
-    if (messageToUser && billUser?.lineUserId) {
-        await sendMessageToUser(billUser.lineUserId, messageToUser);
-        
-    }
-    await logAdminAction(req, 
-        'UPDATE_STATUS', 
-        'PAYMENT_SLIP', 
-        id, 
-        { 
-            status: status, 
-            bill_id: currentSlip.bill_id, 
-            reason: reason || 'N/A' 
+             // Notify User of successful payment
+             if (billUser?.lineUserId) {
+                 const dueDateStr = billUser.due_date ? new Date(billUser.due_date).toLocaleDateString("th-TH") : '-';
+                 messageToUser = `🎉 การชำระเงินของคุณได้รับการยืนยันแล้ว!\n\n` +
+                     `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
+                     `💰 จำนวน: ${parseFloat(billUser.amount_due).toFixed(2)} บาท`;
+             }
+          }
+        } else if (status === "rejected") {
+           messageToAdmin += `ถูก "ปฏิเสธ" ❌ โดย Admin: ${adminName}`;
+           
+           // ✅ FIX: อัปเดตสถานะบิลกลับเป็น 0 (Unpaid) ตามที่ร้องขอ
+           if (currentSlip.bill_id) {
+                await connection.query(`UPDATE bills SET status = 0, updated_at = NOW() WHERE id = ?`, [currentSlip.bill_id]);
+           }
+           
+           // Notify User of rejection
+           if (billUser?.lineUserId) {
+               const rejectReason = reason || 'กรุณาตรวจสอบข้อมูลและอัปโหลดสลิปใหม่อีกครั้ง';
+               messageToUser = `⚠️ การชำระเงินของคุณถูกปฏิเสธ\n\n`+
+                               `🧾 บิลเลขที่: ${billUser.bill_id}\n` +
+                               `เหตุผล: ${rejectReason}\n\n`+
+                               `กรุณาติดต่อเจ้าหน้าที่หากมีข้อสงสัย หรือ อัปโหลดสลิปใหม่`;
+           }
         }
-    );
 
-    res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
+        // 2. Commit Transaction
+        await connection.commit();
+        connection.release();
+
+        // 3. Send notifications (Outside of Transaction)
+        await sendLineNotify(messageToAdmin);
+        if (messageToUser && billUser?.lineUserId) {
+            await sendMessageToUser(billUser.lineUserId, messageToUser);
+            
+        }
+        await logAdminAction(req, 
+            'UPDATE_STATUS', 
+            'PAYMENT_SLIP', 
+            id, 
+            { 
+                status: status, 
+                bill_id: currentSlip.bill_id, 
+                reason: reason || 'N/A' 
+            }
+        );
+
+        res.status(200).json({ message: "อัปเดตสถานะสำเร็จ" });
+    } catch (transactionError) {
+        await connection.rollback();
+        connection.release();
+        throw transactionError; // โยน Error ขึ้นไปเพื่อให้ catch ด้านนอกจัดการ
+    }
   } catch (error) {
-    console.error("เกิดข้อผิดพลาดในการอัปเดตสถานะสลิป:", error); // More specific log
+    console.error("เกิดข้อผิดพลาดในการอัปเดตสถานะสลิป:", error); 
      await sendLineNotify(`❌ เกิดข้อผิดพลาดในการอัปเดตสถานะสลิป ID ${id} เป็น "${status}": ${error.message}`);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในระบบ" });
   }
