@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import NavbarComponent from "../assets/component/user/userNavbar";
 import BottomNav from "../assets/component/user/userNavigate";
@@ -329,9 +329,6 @@ export default function PaymentHistory() {
               </span>
             </div>
             <div className="text-sm">
-              <span className="inline-flex items-center gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> ยังไม่ชำระ: {summary.unpaidCount}
-              </span>
             </div>
           </div>
         </section>
