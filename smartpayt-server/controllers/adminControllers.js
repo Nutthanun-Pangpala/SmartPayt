@@ -1242,3 +1242,172 @@ exports.getAuditLogs = async (req, res) => {
         res.status(500).json({ message: 'Failed to retrieve audit logs' });
     }
 };
+exports.recordAndBillManual = async (req, res) => {
+    let connection;
+    const adminId = req.user?.adminId;
+
+    const { address_id, recorded_date, weights } = req.body;
+
+    if (!address_id || !recorded_date || !weights) {
+        return res.status(400).json({ message: 'Missing required fields (address_id, recorded_date, weights).' });
+    }
+
+    try {
+        connection = await db.getConnection();
+        await connection.beginTransaction(); // เริ่ม Transaction เพื่อความปลอดภัย
+
+        // 1. ตรวจสอบ Address และประเภทที่อยู่
+        const [[addressRow]] = await connection.query(
+            `SELECT lineUserId, house_no, address_type FROM addresses WHERE address_id = ?`,
+            [address_id]
+        );
+        if (!addressRow) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'ไม่พบบ้านหรือสถานประกอบการนี้' });
+        }
+        const addressType = addressRow.address_type || 'household';
+
+        const recordIds = [];
+        const wasteTypes = ['general', 'hazardous', 'recyclable', 'organic'];
+
+        // 2. บันทึกรายการขยะใหม่ (Record Waste)
+        for (const type of wasteTypes) {
+            const weight = parseFloat(weights[type]) || 0;
+
+            if (weight > 0) {
+                const [result] = await connection.query(
+                    `INSERT INTO waste_records (address_id, waste_type, weight_kg, recorded_date, billing_status) 
+                     VALUES (?, ?, ?, ?, 'pending')`,
+                    [address_id, type, weight, recorded_date]
+                );
+                recordIds.push(result.insertId);
+            }
+        }
+        
+        // 3. ดึงรายการขยะทั้งหมดที่ยัง Pending (รวมรายการที่เพิ่งบันทึก)
+        const [pendingRecords] = await connection.query(`
+            SELECT id, waste_type, weight_kg 
+            FROM waste_records 
+            WHERE address_id = ? 
+            AND billing_status = 'pending'
+            FOR UPDATE 
+        `, [address_id]);
+
+        if (pendingRecords.length === 0) {
+            await connection.rollback();
+            return res.status(200).json({ message: 'ไม่มีขยะค้างชำระสำหรับสร้างบิล' });
+        }
+
+        // 4. คำนวณยอดเงินและรวมยอดน้ำหนัก (ใช้ Pending Records ทั้งหมด)
+        const [prices] = await connection.query('SELECT type, price_per_kg FROM waste_pricing WHERE waste_type = ?', [addressType]);
+        const priceMap = {};
+        prices.forEach(p => priceMap[p.type] = parseFloat(p.price_per_kg));
+
+        const wasteTotals = { general: 0, hazardous: 0, recyclable: 0, organic: 0 };
+        let totalAmount = 0;
+
+        pendingRecords.forEach(rec => {
+            const price = priceMap[rec.waste_type] || 0;
+            const weight = parseFloat(rec.weight_kg);
+
+            totalAmount += (weight * price);
+
+            if (wasteTotals.hasOwnProperty(rec.waste_type)) {
+                wasteTotals[rec.waste_type] += weight;
+            }
+        });
+        
+        // 5. สร้างบิลใหม่ (ใช้เดือน/ปี ปัจจุบันเป็นรอบบิล)
+        const targetMonth = new Date().getMonth() + 1;
+        const targetYear = new Date().getFullYear();
+
+        const [billResult] = await connection.query(`
+            INSERT INTO bills (
+                address_id, amount_due, month, year, status, created_at, due_date,
+                total_general_kg, total_hazardous_kg, total_recyclable_kg, total_organic_kg
+            )
+            VALUES (?, ?, ?, ?, 0, NOW(), DATE_ADD(NOW(), INTERVAL 15 DAY),
+                    ?, ?, ?, ?)
+        `, [
+            address_id, 
+            totalAmount.toFixed(2), 
+            targetMonth, 
+            targetYear,
+            wasteTotals.general.toFixed(2), 
+            wasteTotals.hazardous.toFixed(2), 
+            wasteTotals.recyclable.toFixed(2), 
+            wasteTotals.organic.toFixed(2)
+        ]);
+        const newBillId = billResult.insertId;
+
+        // 6. อัปเดตรายการขยะทั้งหมดที่ถูกนำมารวมยอด
+        const recordsToUpdateIds = pendingRecords.map(r => r.id);
+        await connection.query(`
+            UPDATE waste_records 
+            SET bill_id = ?, billing_status = 'billed'
+            WHERE id IN (?)
+        `, [newBillId, recordsToUpdateIds]);
+
+        await connection.commit(); // บันทึกทุกอย่าง
+
+        // 7. Audit Log & Notification
+        await logAdminAction(req, 'CREATE', 'MANUAL_BILL', newBillId, { 
+            address_id, amount_due: totalAmount.toFixed(2), recordsCount: recordsToUpdateIds.length 
+        });
+        if (addressRow.lineUserId) {
+            const message = `📬 มีบิลค่าขยะใหม่ (สร้างด้วย Admin)!\n🏠 บ้านเลขที่ ${addressRow.house_no}\n💰 จำนวน ${totalAmount.toFixed(2)} บาท\n\nกรุณาชำระภายในกำหนด 🙏`;
+            await sendMessageToUser(addressRow.lineUserId, message);
+        }
+
+        res.status(201).json({
+            message: `บันทึกขยะและสร้างบิลสำเร็จ! ยอดรวม ${totalAmount.toFixed(2)} บาท`,
+            billId: newBillId,
+            amount_due: totalAmount.toFixed(2),
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('❌ recordAndBillManual Error:', error);
+        await sendLineNotify(`❌ Manual Billing Failed for address ${address_id}: ${error.message}`);
+        res.status(500).json({ message: 'เกิดข้อผิดพลาดในการบันทึกและสร้างบิล', details: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+exports.searchAddress = async (req, res) => {
+    try {
+        const search = req.query.search || '';
+        
+        if (!search) {
+            return res.json({ addresses: [] });
+        }
+
+        // ค้นหาตาม ID, บ้านเลขที่, หรือชื่อผู้ใช้ (ใช้ JOIN)
+        const query = `
+            SELECT 
+                a.address_id, 
+                a.house_no, 
+                a.village_no, 
+                a.sub_district, 
+                a.district,
+                u.name AS user_name 
+            FROM addresses a
+            LEFT JOIN users u ON a.lineUserId = u.lineUserId
+            WHERE a.address_verified = 1 AND ( 
+                a.address_id LIKE ? OR 
+                a.house_no LIKE ? OR 
+                u.name LIKE ? 
+            )
+            ORDER BY a.address_id ASC
+            LIMIT 10
+        `;
+        
+        const searchTerm = `%${search}%`;
+        const [addresses] = await db.query(query, [searchTerm, searchTerm, searchTerm]);
+
+        res.json({ addresses });
+    } catch (err) {
+        console.error('❌ searchAddress error:', err);
+        return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการค้นหาที่อยู่' });
+    }
+};
