@@ -1403,6 +1403,7 @@ exports.searchAddress = async (req, res) => {
                 a.village_no, 
                 a.sub_district, 
                 a.district,
+                a.address_type,
                 u.name AS user_name 
             FROM addresses a
             LEFT JOIN users u ON a.lineUserId = u.lineUserId

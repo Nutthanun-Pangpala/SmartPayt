@@ -276,7 +276,7 @@ const AdminManulBill = () => {
                                 <div className="mt-2 bg-emerald-50 border border-emerald-300 p-4 rounded-xl flex justify-between items-center">
                                     <div>
                                         <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                                            <FaCheckCircle /> ที่อยู่ถูกเลือกแล้ว ({selectedAddress.address_type === 'household' ? 'ครัวเรือน' : 'สถานประกอบการ'})
+                                            <FaCheckCircle /> ที่อยู่ถูกเลือกแล้ว ({selectedAddress.address_type === 'establishment' ? 'สถานประกอบการ' : 'ครัวเรือน'})
                                         </p>
                                         <p className="text-sm mt-1 text-gray-700">
                                             <span className="font-semibold">ID: {selectedAddress.address_id}</span> | 
