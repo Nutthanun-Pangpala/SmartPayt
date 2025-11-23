@@ -45,6 +45,8 @@ const StatusBadge = ({ status }) => {
 
 /**
  * Compute available payment methods from business rules
+ *
+ * *** MODIFIED: Only PromptPay is available, others are disabled regardless of amount. ***
  */
 function computeAvailableMethods(totalAmount, lineUserId) {
   const t = Number(totalAmount) || 0;
@@ -55,9 +57,9 @@ function computeAvailableMethods(totalAmount, lineUserId) {
       label: "QR PromptPay",
       desc: "สแกนจ่ายด้วยแอปธนาคาร",
       icon: "fi fi-rr-qr-code",
-      available: t > 0 && t <= 50000,
+      available: t > 0, // ใช้งานได้ถ้ามียอดรวม > 0
       reason:
-        t <= 0 ? "ยังไม่ได้เลือกบิล" : t > 50000 ? "จำกัดยอดต่อรายการ ≤ 50,000" : "",
+        t <= 0 ? "ยังไม่ได้เลือกบิล" : t > 50000 ? "จำกัดยอดต่อรายการ ≤ 50,000" : "", // คงเงื่อนไขเดิมของ PromptPay เผื่อต้องการกลับมาเปิด
       next: "/payment/qr",
     },
     {
@@ -65,15 +67,8 @@ function computeAvailableMethods(totalAmount, lineUserId) {
       label: "บัตรเดบิต/เครดิต",
       desc: "Visa / MasterCard",
       icon: "fi fi-rr-credit-card",
-      available: t >= 100 && t <= 200000,
-      reason:
-        t <= 0
-          ? "ยังไม่ได้เลือกบิล"
-          : t < 100
-          ? "ขั้นต่ำ 100 บาท"
-          : t > 200000
-          ? "เกินวงเงินสูงสุด"
-          : "",
+      available: false, // ปิดการใช้งาน
+      reason: "วิธีชำระนี้ปิดปรับปรุงชั่วคราว", // เหตุผลสำหรับ UI
       next: "/payment/card",
     },
     {
@@ -81,8 +76,8 @@ function computeAvailableMethods(totalAmount, lineUserId) {
       label: "โอนผ่านธนาคาร",
       desc: "อัปโหลดสลิปภายหลัง",
       icon: "fi fi-rr-building",
-      available: t > 0,
-      reason: t <= 0 ? "ยังไม่ได้เลือกบิล" : "",
+      available: false, // ปิดการใช้งาน
+      reason: "วิธีชำระนี้ปิดปรับปรุงชั่วคราว", // เหตุผลสำหรับ UI
       next: "/payment/transfer",
     },
     {
@@ -90,8 +85,8 @@ function computeAvailableMethods(totalAmount, lineUserId) {
       label: "LINE Pay",
       desc: "จ่ายด้วยบัญชี LINE",
       icon: "fi fi-brands-line",
-      available: t > 0 && !!lineUserId,
-      reason: t <= 0 ? "ยังไม่ได้เลือกบิล" : !lineUserId ? "ต้องเข้าสู่ระบบด้วย LINE" : "",
+      available: false, // ปิดการใช้งาน
+      reason: "วิธีชำระนี้ปิดปรับปรุงชั่วคราว", // เหตุผลสำหรับ UI
       next: "/payment/linepay",
     },
     {
@@ -99,8 +94,8 @@ function computeAvailableMethods(totalAmount, lineUserId) {
       label: "TrueMoney Wallet",
       desc: "วอลเล็ทยอดนิยม",
       icon: "fi fi-rr-wallet",
-      available: t > 0 && t <= 30000,
-      reason: t <= 0 ? "ยังไม่ได้เลือกบิล" : t > 30000 ? "จำกัดยอดต่อรายการ ≤ 30,000" : "",
+      available: false, // ปิดการใช้งาน
+      reason: "วิธีชำระนี้ปิดปรับปรุงชั่วคราว", // เหตุผลสำหรับ UI
       next: "/payment/truemoney",
     },
   ];
