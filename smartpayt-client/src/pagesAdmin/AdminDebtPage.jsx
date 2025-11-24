@@ -34,6 +34,25 @@ const SortableHeader = ({ label, field, sortField, sortDirection, onSort }) => {
   );
 };
 
+// ✅ NEW HELPER FUNCTION: จัดรูปแบบรอบบิลให้ถูกต้อง
+const formatBillPeriod = (bill) => {
+    // ตรวจสอบว่ามี month และ year เป็นตัวเลขที่ถูกต้องหรือไม่
+    const month = Number(bill.month);
+    const year = Number(bill.year);
+    
+    if (month > 0 && month <= 12 && year > 2020) {
+        // สร้าง Date object โดยใช้ (Year, Month - 1, Day)
+        return new Date(year, month - 1, 1).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+    }
+    
+    // Fallback: ใช้ due_date หากข้อมูล month/year ไม่สมบูรณ์ (สำหรับบิลเก่า)
+    if (bill.due_date) {
+        return new Date(bill.due_date).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+    }
+    
+    return 'N/A';
+};
+
 
 const AdminDebtPage = () => {
   const [loading, setLoading] = useState(false);
@@ -71,6 +90,7 @@ const AdminDebtPage = () => {
   const fetchBills = async (lineUserId) => {
     try {
       // ✅ ใช้ api.get แทน axios.get
+      // Note: Backend API must return total_general_kg etc.
       const res = await api.get(`/admin/users/${lineUserId}/bills`);
       setBillsByUser((prev) => ({ ...prev, [lineUserId]: res.data.bills }));
     } catch (err) {
@@ -141,6 +161,10 @@ const AdminDebtPage = () => {
       setCurrentPage(pageNumber);
     }
   };
+  
+  const formatKG = (n) =>
+    isNaN(Number(n)) ? "0.00" : Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
+
 
   // 7. (ปรับปรุง) JSX ทั้งหมด
   return (
@@ -228,7 +252,7 @@ const AdminDebtPage = () => {
                                     <li key={idx} className="border-b border-gray-300 pb-3">
                                         <div className="flex justify-between font-medium">
                                             <span className="text-gray-900">
-                                                🗓️ เดือน {new Date(bill.month || bill.due_date).toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+                                                🗓️ รอบบิล: {formatBillPeriod(bill)}
                                             </span>
                                             <span className="text-red-600">
                                                 {parseFloat(bill.amount_due).toFixed(2)} บาท
@@ -237,10 +261,10 @@ const AdminDebtPage = () => {
 
                                         {/* ✅ แสดงน้ำหนักขยะแต่ละประเภท */}
                                         <div className="text-xs text-gray-600 mt-1 pl-3 grid grid-cols-2 gap-1">
-                                            <p>🗑️ ทั่วไป: **{parseFloat(bill.total_general_kg || 0).toFixed(2)}** กก.</p>
-                                            <p>🛢️ อันตราย: **{parseFloat(bill.total_hazardous_kg || 0).toFixed(2)}** กก.</p>
-                                            <p>♻️ รีไซเคิล: **{parseFloat(bill.total_recyclable_kg || 0).toFixed(2)}** กก.</p>
-                                            <p>🌱 อินทรีย์: **{parseFloat(bill.total_organic_kg || 0).toFixed(2)}** กก.</p>
+                                            <p>🗑️ ทั่วไป: **{formatKG(bill.total_general_kg)}** กก.</p>
+                                            <p>🛢️ อันตราย: **{formatKG(bill.total_hazardous_kg)}** กก.</p>
+                                            <p>♻️ รีไซเคิล: **{formatKG(bill.total_recyclable_kg)}** กก.</p>
+                                            <p>🌱 อินทรีย์: **{formatKG(bill.total_organic_kg)}** กก.</p>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-1">🗓️ ครบกำหนด: {new Date(bill.due_date).toLocaleDateString('th-TH')}</p>
                                     </li>
